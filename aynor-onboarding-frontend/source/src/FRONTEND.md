@@ -1,53 +1,46 @@
-# AYNOR frontend prototype
+# AYNOR — refined frontend onboarding
 
-This is the current frontend-only handoff, superseding earlier server-oriented setup notes.
+## Run
 
-## Run without a backend
-
-From the repository root:
+From `aynor-onboarding-frontend/source`:
 
 ```sh
-npx vite --host 0.0.0.0
+npm ci
+npm run dev
 ```
 
-Only the frontend Vite server is needed. Do not use the older combined `npm run dev` command for this prototype; it starts the earlier server. Existing backend files and API configuration have deliberately been left untouched since the frontend-only scope correction.
+Or open `aynor-onboarding-frontend/index.html` directly for the self-contained prototype. Authentication is the default entry. The existing split-screen authentication design, fonts, palette, cards, and controls are preserved.
 
-Open the application and choose **Explore the prototype** to see three sample companies with different roles and setup statuses. Alternatively, create a fictional account and follow the new-company journey. Verification uses the sample code **123456**. Password inputs demonstrate validation and visibility; their values are discarded, never persisted.
+## Current journey
 
-All application responses come from `src/lib/mockService.ts`. This is browser-local mock state, not a backend, database, OAuth implementation, or authorization system. No `/api` requests are sent. Company state is stored under `aynor.frontend-prototype.v1` in localStorage; the selected sample persona uses sessionStorage. Data persists in the same browser, not across devices.
+Signup/login → verification when needed → onboarding welcome → **Company → Structure → Connect Data → Invite Team → Finish** → workspace.
 
-## Included interactions
+- Company creation asks for company name, industry, and country. Currency/timezone default intelligently and can be changed under Preferences. Website and size remain editable in company settings.
+- Structure uses the existing lightweight department selection tiles and custom department field.
+- Connect Data combines simulated Google consent and spreadsheet selection. Ambiguous data can be reviewed progressively; full discovery, mapping, and readiness belong in workspace settings.
+- Invite Team reuses multi-invitation rows, company roles, and department scopes. Its sole primary action sends invitations and proceeds. Skip is available. Pending invitations remain manageable later.
+- Finish shows only company, department, source, and invitation essentials, with edit actions and one Finish setup CTA. Separate review/completion pages and repeated next-step panels are removed from the guided journey.
+- The wizard has no sidebar, preview navigator, secondary menu, promotional bottom panels, or duplicate primary navigation.
+- Completed steps can be revisited. Future steps are gated by actual completed/skipped prerequisites. Back saves data. Drafts survive refresh; incomplete companies offer Resume setup. Company creation uses an idempotency key and retains partially created company context for recovery.
 
-- Signup, login, simulated Google account selection/cancellation, verification/resend, recovery, reset, and invitation context.
-- Multiple company cards, search/sort, company creation/profile editing, switcher, different sample roles, incomplete/resumable workspaces, archive/leave confirmation.
-- Department selection/customization/reordering/rename, priorities, simulated Google consent with denial/retry, sample source selection/search/preview, manual-link sample preview, discovery, editable field mapping, readiness, KPIs, and goals.
-- Multiple invitation rows, roles and department scopes, partial/duplicate invitation feedback, local sample links, resend/revoke, incoming invitation acceptance/decline, and member-management UI.
-- Per-company state, optional skips, save/finish-later, browser refresh persistence, unsaved-change dialog, retryable errors, disabled/loading controls, and limited-workspace completion.
-- Reference-based split-screen authentication using original AYNOR artwork; responsive tablet/mobile composition, bundled Geist, keyboard focus/dialog behavior, and reduced-motion support.
+## Post-onboarding configuration
 
-The **Prototype** control in the corner opens sample companies, the invitation journey, next-action service/offline/slow-response states, session-expiry preview, and a confirmation-protected reset of prototype data.
+The workspace’s **Workspace settings** checklist contains priorities, data connections, field mappings, KPIs, and goals. These are optional and independently editable. Existing advanced controls, discovery, readiness, and company profile editing are preserved under `/companies/:id/settings/setup/:step`; they are no longer sequential onboarding requirements.
 
-## Frontend validation
+Single-company users with completed setup go directly to their workspace. Incomplete users get Resume setup or Open workspace. Multiple-company users and users with pending invitations see company selection when appropriate. Invited users retain invitation context through authentication and never need to create a company to accept an invitation.
 
-With Vite running:
+## Prototype boundaries
+
+All responses are browser-local mock interactions in `src/lib/mockService.ts`. No backend requests, real authentication, emails, Google OAuth, or live company analysis run. Passwords are discarded. Prototype company state uses localStorage; local drafts and the selected persona use sessionStorage. No backend files, databases, or infrastructure are changed by this refinement.
+
+## Validate and export
 
 ```sh
 npm run build
-node src/tests/prototype.browser.mjs
+PROTOTYPE_URL=http://127.0.0.1:5173 npm run test:frontend
+node src/export-html.mjs
 ```
 
-The browser script uses the installed Chromium executable (`/usr/bin/chromium`, overridable with `CHROMIUM_PATH`). It covers responsive layouts, simulated sign-in, complete onboarding, mapping confirmation, goals, invitations, invited-user entry, persistence, and recovery. It also asserts that there are **zero backend API requests**. Screenshots are saved outside the repository under `/tmp/aynor-frontend-preview`.
+The browser suite uses installed Chromium (`CHROMIUM_PATH` overrides `/usr/bin/chromium`). It verifies authentication-first entry, the complete five-step journey, error recovery, invitation sending, company/draft refresh persistence, gated future steps, Back, resume, skipping, completed-user routing, advanced settings, mobile overflow, and zero backend requests. Default test URL is port 5173; set `PROTOTYPE_URL` to the running frontend URL.
 
-Earlier tests in `tests/api.test.js`, `tests/production.test.js`, and the older backend-dependent browser tests are from the superseded broader implementation. They are not the verification target for this frontend prototype and have not been modified after the scope correction.
-
-## Later integration handoff — documentation only
-
-Replace the local mock service with existing production service contracts in a separate backend integration task. Live account verification, OAuth, mail delivery, workspace permissions, spreadsheet discovery/validation, and intelligence need real services. The frontend demonstrates their UX states without claiming these capabilities exist. No backend configuration, database change, or service implementation is needed to review this prototype.
-
-## Complete screen gallery
-
-The application root and standalone `aynor.html` now open the complete 23-screen design gallery. Every gallery card opens an actual interactive screen with appropriate sample state. Choose **Walk through onboarding** to begin with company creation, or **Start with signup** for the authentication entry.
-
-During previews, the persistent **All 23 screens / Previous / Next screen** navigator provides direct access to every design. Its screen-title dropdown lists the complete flow. Preview fixtures are browser-local and do not create real accounts or data connections.
-
-Generate the standalone HTML with `node src/export-html.mjs`. Validate every screen entry using `node src/tests/screens.browser.mjs` while Vite is running. The separate `node src/tests/prototype.browser.mjs` still validates the functional user journeys.
+Export produces `source/aynor.html`; copy it to `aynor-onboarding-frontend/index.html` for distribution. The optional `/prototype` design catalog remains available separately for reviewing older screen designs; it is not the application entry or a second navigation system in onboarding.

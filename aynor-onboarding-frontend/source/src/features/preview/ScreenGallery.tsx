@@ -11,12 +11,9 @@ import {
   LayoutGrid,
   Mail,
   Play,
-  Plus,
   ShieldCheck,
   Sparkles,
-  Target,
   Users,
-  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";

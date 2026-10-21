@@ -1,11 +1,13 @@
-AYNOR — Complete onboarding frontend
+AYNOR — Simplified onboarding frontend
 
-Open index.html in your browser to explore all 23 interactive screens.
-It includes the application, styles, and fonts, and does not need a server.
+Open index.html in a browser. The experience begins with signup/login.
+After authentication: Welcome → Company → Structure → Connect Data → Invite Team → Finish → Workspace.
 
-Editable React / TypeScript source is in source/.
-To develop: cd source, npm ci, npm run dev.
-To build: npm run build.
+All actions use local sample data. Verification code: 123456. No real account, email, or Google connection is created.
 
-All authentication, Google Sheets, and email actions are browser-local simulations.
-No backend, database files, node_modules, or real credentials are included.
+Editable React/TypeScript source is in source/.
+Development: cd source, npm ci, npm run dev.
+Build: npm run build.
+
+Optional priorities, mappings, KPIs, and goals are in the workspace settings checklist.
+No sidebar or secondary preview navigator appears during onboarding.

@@ -6,7 +6,7 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useApp } from "../lib/context";
 import { prototype } from "../lib/mockService";
 import { Button, Modal } from "./ui";
@@ -17,6 +17,15 @@ export function PrototypeTools() {
     [reset, setReset] = useState(false);
   const { setUser, toast } = useApp();
   const nav = useNavigate();
+  const location = useLocation();
+  if (
+    location.pathname.includes("/onboarding/") ||
+    location.pathname.startsWith("/auth/") ||
+    location.pathname.startsWith("/invite/") ||
+    location.pathname === "/welcome" ||
+    location.pathname === "/companies/new"
+  )
+    return null;
   return (
     <div className="prototype-tools">
       <button

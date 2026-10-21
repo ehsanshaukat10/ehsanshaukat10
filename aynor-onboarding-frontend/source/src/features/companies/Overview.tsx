@@ -13,6 +13,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Badge, Button, Empty, ErrorBox, Modal } from "../../components/ui";
 import { api, type Company, type WorkspaceData } from "../../lib/api";
 import { useApp } from "../../lib/context";
+import { wizardUrl } from "../wizard/progress";
 const message = (e: unknown) =>
   e instanceof Error ? e.message : "Please try again.";
 
@@ -50,9 +51,13 @@ export function Overview({
         {editable && (
           <Link
             className="button secondary"
-            to={`/companies/${company.id}/onboarding/${data.completed ? "review" : data.step || "departments"}`}
+            to={
+              data.completed
+                ? `/companies/${company.id}/settings/setup`
+                : wizardUrl(company)
+            }
           >
-            {data.completed ? "Refine workspace" : "Resume setup"}{" "}
+            {data.completed ? "Workspace settings" : "Resume setup"}{" "}
             <ArrowRight size={15} />
           </Link>
         )}
@@ -72,7 +77,7 @@ export function Overview({
           </p>
         </div>
         {editable && (
-          <Link to={`/companies/${company.id}/onboarding/integrations`}>
+          <Link to={`/companies/${company.id}/settings/setup/integrations`}>
             Connect your data <ArrowUpRight size={16} />
           </Link>
         )}
@@ -123,7 +128,7 @@ export function Overview({
               editable ? (
                 <Link
                   className="button secondary"
-                  to={`/companies/${company.id}/onboarding/integrations`}
+                  to={`/companies/${company.id}/settings/setup/integrations`}
                 >
                   Set up a data source <ArrowUpRight size={15} />
                 </Link>
@@ -136,7 +141,7 @@ export function Overview({
             <h3>Your business priorities</h3>
             {editable && (
               <Link
-                to={`/companies/${company.id}/onboarding/priorities`}
+                to={`/companies/${company.id}/settings/setup/priorities`}
                 aria-label="Edit business priorities"
               >
                 <ArrowUpRight size={16} />

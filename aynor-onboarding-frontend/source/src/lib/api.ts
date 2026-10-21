@@ -29,6 +29,15 @@ export type Goal = {
   owner: string;
 };
 export type WorkspaceData = {
+  wizard?: {
+    current: "company" | "structure" | "connect" | "team" | "finish";
+    steps: Partial<
+      Record<
+        "company" | "structure" | "connect" | "team" | "finish",
+        "completed" | "skipped"
+      >
+    >;
+  };
   departments: string[];
   priorities: string[];
   sources: string[];

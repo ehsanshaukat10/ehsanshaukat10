@@ -22,17 +22,12 @@ import {
   Logo,
   Modal,
 } from "../../components/ui";
-import {
-  api,
-  stepLabels,
-  steps,
-  type Company,
-  type WorkspaceData,
-} from "../../lib/api";
+import { api, type Company, type WorkspaceData } from "../../lib/api";
 import { useApp } from "../../lib/context";
 import { Overview } from "../companies/Overview";
 import { Onboarding } from "../onboarding/Onboarding";
 import { Members } from "../team/Team";
+import { SetupChecklist } from "../wizard/SetupChecklist";
 const message = (e: unknown) =>
   e instanceof Error ? e.message : "Please try again.";
 
@@ -43,7 +38,7 @@ export function Workspace({
   overview?: boolean;
   members?: boolean;
 }) {
-  const { id, step = "departments" } = useParams(),
+  const { id, step } = useParams(),
     nav = useNavigate();
   const [company, setCompany] = useState<Company | null>(null),
     [companies, setCompanies] = useState<Company[]>([]),
@@ -92,10 +87,6 @@ export function Workspace({
     }
   }
   const editable = !!company && ["Owner", "Admin"].includes(company.role);
-  const index = steps.indexOf(step);
-  const completed = Object.values(company?.data.steps || {}).filter(
-    (v) => v === "completed",
-  ).length;
   return (
     <div className="workspace-shell">
       <aside className="workspace-sidebar">
@@ -151,12 +142,9 @@ export function Workspace({
           {editable && (
             <Link
               className={!overview && !members ? "active" : ""}
-              to={`/companies/${id}/onboarding/${company?.data.step || "departments"}`}
+              to={`/companies/${id}/settings/setup`}
             >
-              <Compass size={17} /> Workspace setup{" "}
-              <span className="nav-count">
-                {completed}/{steps.length - 1}
-              </span>
+              <Compass size={17} /> Workspace settings{" "}
             </Link>
           )}
           {editable && (
@@ -168,35 +156,6 @@ export function Workspace({
             </Link>
           )}
         </nav>
-        {!overview && !members && editable && (
-          <div className="setup-nav">
-            <div className="sidebar-section-label">
-              MAKE IT YOURS <span>{Math.min(index + 1, 12)} / 12</span>
-            </div>
-            {steps.map((s, i) => (
-              <Link
-                key={s}
-                className={
-                  (step === s ? "current " : "") +
-                  (company?.data.steps?.[s] === "completed" ? "done" : "")
-                }
-                to={`/companies/${id}/onboarding/${s}`}
-              >
-                <span className="step-circle">
-                  {company?.data.steps?.[s] === "completed" ? (
-                    <Check size={11} />
-                  ) : (
-                    String(i + 1).padStart(2, "0")
-                  )}
-                </span>
-                {stepLabels[i]}
-                {company?.data.steps?.[s] === "skipped" && (
-                  <small>Skipped</small>
-                )}
-              </Link>
-            ))}
-          </div>
-        )}
         <div className="sidebar-bottom">
           <div className="privacy-card">
             <ShieldCheck size={17} />
@@ -226,7 +185,7 @@ export function Workspace({
                 ? "Overview"
                 : members
                   ? "Team & permissions"
-                  : "Workspace setup"}
+                  : "Workspace settings"}
             </strong>
           </div>
           <div>
@@ -269,8 +228,11 @@ export function Workspace({
                   </Link>
                 }
               />
+            ) : !step ? (
+              <SetupChecklist company={company} />
             ) : (
               <Onboarding
+                settings
                 key={step + company.id}
                 company={company}
                 step={step}

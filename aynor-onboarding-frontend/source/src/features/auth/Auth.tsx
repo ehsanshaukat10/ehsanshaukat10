@@ -1,21 +1,18 @@
-import { prototype } from "../../lib/mockService";
 import {
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
-  Compass,
-  Users,
   BarChart3,
   BriefcaseBusiness,
   CircleUserRound,
+  Compass,
   Globe2,
   Link2,
   LockKeyhole,
   Mail,
-  MoreHorizontal,
   ShieldCheck,
   Sparkles,
-  Zap,
+  Users,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import {
@@ -28,6 +25,7 @@ import {
 import { Button, ErrorBox, Field, Logo, Modal } from "../../components/ui";
 import { api } from "../../lib/api";
 import { useApp } from "../../lib/context";
+import { prototype } from "../../lib/mockService";
 const message = (e: unknown) =>
   e instanceof Error ? e.message : "Please try again.";
 
@@ -141,7 +139,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
     [cooldown, setCooldown] = useState(0),
     [legal, setLegal] = useState("");
   const next = new URLSearchParams(loc.search).get("next");
-  const safeNext = next?.startsWith("/invite/") ? next : "/companies";
+  const safeNext = next?.startsWith("/invite/") ? next : "/entry";
   const link = (m: string) =>
     "/auth/" + m + (next ? "?next=" + encodeURIComponent(next) : "");
   useEffect(() => {
@@ -509,7 +507,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
                   try {
                     const r = await prototype.explore();
                     setUser(r.user);
-                    nav("/companies");
+                    nav("/entry");
                   } finally {
                     setBusy(false);
                   }
@@ -522,10 +520,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
                 </span>
               </button>
             )}
-            <Link className="full-flow-link" to="/prototype">
-              View the complete onboarding · 23 screens{" "}
-              <ArrowUpRight size={12} />
-            </Link>
+
             <div className="auth-trust">
               <ShieldCheck size={14} />
               <span>Interactive prototype · No real authentication</span>

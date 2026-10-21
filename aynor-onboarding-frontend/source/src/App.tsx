@@ -1,5 +1,3 @@
-import { ScreenGallery, FlowNavigator } from "./features/preview/ScreenGallery";
-import { PrototypeTools } from "./components/PrototypeTools";
 import { CheckCheck, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import {
@@ -9,11 +7,16 @@ import {
   Routes,
   useLocation,
   useNavigate,
+  useParams,
 } from "react-router-dom";
+import { PrototypeTools } from "./components/PrototypeTools";
 import { Button, ErrorBox, Logo } from "./components/ui";
 import { Auth } from "./features/auth/Auth";
-import { Companies, NewCompany } from "./features/companies/Companies";
+import { Companies } from "./features/companies/Companies";
+import { ScreenGallery } from "./features/preview/ScreenGallery";
 import { Invitation } from "./features/team/Team";
+import { Entry, OnboardingWelcome } from "./features/wizard/Entry";
+import { Wizard } from "./features/wizard/Wizard";
 import { Workspace } from "./features/workspace/Workspace";
 import { api, type User } from "./lib/api";
 import { Context, useApp } from "./lib/context";
@@ -67,7 +70,42 @@ export default function App() {
   return (
     <Context.Provider value={{ user, setUser, development, toast: setToast }}>
       <Routes>
-        <Route path="/" element={<Navigate to="/prototype" replace />} />
+        <Route
+          path="/"
+          element={<Navigate to={user ? "/entry" : "/auth/signup"} replace />}
+        />
+        <Route
+          path="/entry"
+          element={
+            <Guard>
+              <Entry />
+            </Guard>
+          }
+        />
+        <Route
+          path="/onboarding/welcome"
+          element={
+            <Guard>
+              <OnboardingWelcome />
+            </Guard>
+          }
+        />
+        <Route
+          path="/companies/:id/settings/setup"
+          element={
+            <Guard>
+              <Workspace />
+            </Guard>
+          }
+        />
+        <Route
+          path="/companies/:id/settings/setup/:step"
+          element={
+            <Guard>
+              <Workspace />
+            </Guard>
+          }
+        />
         <Route path="/prototype" element={<ScreenGallery />} />
         <Route path="/welcome" element={<Auth mode="signup" />} />
         <Route path="/auth/:mode" element={<Auth />} />
@@ -83,7 +121,7 @@ export default function App() {
           path="/companies/new"
           element={
             <Guard>
-              <NewCompany />
+              <Wizard />
             </Guard>
           }
         />
@@ -91,7 +129,7 @@ export default function App() {
           path="/companies/:id/onboarding/:step"
           element={
             <Guard>
-              <Workspace />
+              <OnboardingRoute />
             </Guard>
           }
         />
@@ -130,7 +168,7 @@ export default function App() {
           }
         />
       </Routes>
-      <FlowNavigator />
+
       <PrototypeTools />
       {toast && (
         <div className="toast" role="status">
@@ -166,4 +204,20 @@ function Guard({ children }: { children: ReactNode }) {
       />
     );
   return children;
+}
+
+function OnboardingRoute() {
+  const { id, step } = useParams();
+  if (
+    [
+      "priorities",
+      "kpis",
+      "goals",
+      "mapping",
+      "discovery",
+      "readiness",
+    ].includes(step || "")
+  )
+    return <Navigate to={`/companies/${id}/settings/setup/${step}`} replace />;
+  return <Wizard />;
 }
