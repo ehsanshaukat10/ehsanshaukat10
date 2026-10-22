@@ -27,7 +27,7 @@ export function AppHeader() {
           onClick={async () => {
             await api("/auth/logout", "POST");
             setUser(null);
-            nav("/auth/login");
+            nav("/auth/signup");
           }}
         >
           <LogOut size={17} />

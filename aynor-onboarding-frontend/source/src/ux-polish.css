@@ -1,0 +1,113 @@
+/* Final product type scale: smaller labels without squeezing whitespace or hit areas.
+   Font-size overrides deliberately resolve older component-specific type rules. */
+:root {
+  --ui-input-size: 14px;
+  --ui-label-size: 13px;
+  --ui-action-size: 13px;
+}
+body
+  :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+    select,
+    textarea
+  ) {
+  font-size: var(--ui-input-size) !important;
+  font-weight: 400;
+  line-height: 1.5;
+}
+body .field > :is(label, span) {
+  font-size: var(--ui-label-size) !important;
+  font-weight: 400;
+  line-height: 1.5;
+}
+body
+  :is(
+    .button,
+    .lp-button,
+    .google-button,
+    .text-button,
+    .skip-signin,
+    .seven-source-tabs button
+  ) {
+  font-size: var(--ui-action-size) !important;
+  font-weight: 400;
+}
+body .field > small {
+  font-size: 12px !important;
+  line-height: 1.5;
+}
+body .onboarding-canvas .seven-choice strong,
+body .onboarding-canvas .seven-priority {
+  font-size: 13px !important;
+  font-weight: 400;
+}
+body .onboarding-canvas .seven-review-section-head h3 {
+  font-size: 15px;
+  font-weight: 400;
+}
+body .onboarding-canvas .seven-review-body :is(p, dd, li, span) {
+  line-height: 1.6;
+}
+body .auth-canvas .auth-subtitle {
+  font-size: 14px;
+  line-height: 1.6;
+}
+body > .modal-backdrop .modal :is(p, li) {
+  font-size: 14px;
+  line-height: 1.6;
+}
+body > .modal-backdrop .modal h2 {
+  font-size: 24px;
+  font-weight: 450;
+  letter-spacing: -0.6px;
+}
+body .workspace-shell :is(.company-switcher, .primary-nav a, .setup-nav a),
+body .app-shell .search-box input {
+  font-size: 13px;
+}
+@media (max-width: 950px), (pointer: coarse) {
+  :root {
+    --ui-input-size: 16px;
+  }
+}
+@media (max-width: 640px) {
+  body .onboarding-canvas .seven-review-section-head h3 {
+    font-size: 14px;
+  }
+}
+body .field > :is(label, span) {
+  color: #596477;
+}
+body .field > small:not(.error-text) {
+  color: #657187;
+}
+body input::placeholder,
+body textarea::placeholder {
+  color: #657187;
+  opacity: 1;
+}
+body .onboarding-visual-title p,
+body .reference-brand-heading p {
+  color: #63718c;
+}
+#root :is(input, textarea)::placeholder {
+  color: #657187;
+  opacity: 1;
+}
+@media (max-width: 640px) {
+  body .workspace-shell .primary-nav {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+  body .workspace-shell .primary-nav > a {
+    max-width: 100%;
+    white-space: normal;
+  }
+  body .workspace-shell .member-row > div {
+    min-width: 0;
+  }
+  body .workspace-shell .member-row small {
+    overflow-wrap: anywhere;
+  }
+}

@@ -20,7 +20,7 @@ async function start(width = 1440) {
     if (new URL(r.url()).pathname.startsWith("/api/")) requests.push(r.url());
   });
   await page.goto(base);
-  await page.getByRole("heading", { name: /Your business/ }).waitFor();
+  await page.getByRole("heading", { name: /See clearly/ }).waitFor();
   await page.getByRole("button", { name: /^Skip for now/ }).click();
   return { page, context };
 }
@@ -296,7 +296,7 @@ try {
                 .filter((e) => e.getClientRects().length)
                 .map((e) => parseFloat(getComputedStyle(e).fontSize)),
             );
-          assert.ok(fonts.every((s) => s >= 16));
+          assert.ok(fonts.every((s) => s >= (width <= 950 ? 16 : 14)));
           await skip(page);
         }
         await heading(page, "Everything in its place.");

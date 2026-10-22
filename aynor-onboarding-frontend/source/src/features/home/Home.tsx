@@ -136,7 +136,7 @@ export function Home() {
             </button>
           ))}
           <Link className="lp-button lp-nav-cta" to={destination}>
-            Get started <ArrowRight size={16} />
+            Sign up <ArrowRight size={16} />
           </Link>
           <Link to="/auth/login">Log in</Link>
         </nav>
@@ -155,9 +155,9 @@ export function Home() {
           <span /> THE EXECUTIVE PERSPECTIVE
         </div>
         <h1>
-          Your business.
+          See clearly.
           <br />
-          <span>Understood.</span>
+          <span>Lead confidently.</span>
         </h1>
         <p>
           One connected perspective on performance, people, and progress.
