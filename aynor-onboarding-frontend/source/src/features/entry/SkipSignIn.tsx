@@ -6,9 +6,11 @@ import { prototype } from "../../lib/mockService";
 export function SkipSignIn({
   label = "Skip for now",
   className = "",
+  destination = "/entry",
 }: {
   label?: string;
   className?: string;
+  destination?: string;
 }) {
   const { setUser, toast } = useApp();
   const nav = useNavigate();
@@ -24,7 +26,7 @@ export function SkipSignIn({
         try {
           const r = await prototype.guest();
           setUser(r.user);
-          nav("/entry");
+          nav(destination);
         } catch (e) {
           toast((e as Error).message);
         } finally {

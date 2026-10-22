@@ -188,7 +188,12 @@ export function OnboardingFrame({
       : Math.min(steps.length - 1, Math.max(1, steps.indexOf(step) + 1));
   const total = steps.length;
   return (
-    <main className="onboarding-canvas">
+    <main
+      className={
+        "onboarding-canvas" +
+        (step === "complete" ? " onboarding-completion" : "")
+      }
+    >
       <div className="onboarding-frame">
         <section className="onboarding-left">
           <header className="onboarding-brand-header">
@@ -225,7 +230,9 @@ export function OnboardingFrame({
             </span>
           </footer>
         </section>
-        <OnboardingVisual key={step} step={step} company={company} />
+        {step !== "complete" && (
+          <OnboardingVisual key={step} step={step} company={company} />
+        )}
       </div>
     </main>
   );

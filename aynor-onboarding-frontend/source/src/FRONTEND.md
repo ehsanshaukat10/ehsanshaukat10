@@ -25,3 +25,9 @@ Only frontend files, browser checks, documentation and the standalone distributi
 With Vite running, use `npm run build` and `npm run test:frontend`. Tests expect Chromium at `/usr/bin/chromium`, overridable with `CHROMIUM_PATH`. Set `PROTOTYPE_URL` if the frontend runs on a port other than 5173. Coverage includes all seven steps, uploads, mapping validation, goals, review edit routes, optional skips, saved drafts, source errors, old routes and responsive typography/layout. Tests assert zero backend API requests.
 
 Generate standalone HTML with `node src/export-html.mjs`, then copy `aynor.html` to `../index.html`. Hash routing allows direct browser access without a server.
+
+## Authentication and completion refinement
+
+Login and signup use viewport-height layouts with compact spacing on shorter screens. Supporting labels remain accessible when visually condensed; all primary fields and entry actions fit the tested desktop, tablet and portrait mobile viewports. Their “Skip for now · continue to onboarding” action always opens `/companies/new`, including when the guest already has a completed workspace. Home's guest continuation retains its existing resume behavior.
+
+Completion uses the earlier centered design: a checkmark tile, “Make room for better decisions,” company-specific copy, workspace status and a single Open dashboard action. The duplicate readiness heading and right-hand illustration are omitted on completion. The seven-step review remains intact before completion.

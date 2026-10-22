@@ -631,3 +631,112 @@
     grid-template-columns: 1fr;
   }
 }
+.onboarding-completion .onboarding-frame {
+  grid-template-columns: 1fr;
+}
+.onboarding-completion .onboarding-visual,
+.onboarding-completion .onboarding-progress {
+  display: none;
+}
+.onboarding-completion .onboarding-form-content {
+  max-width: 1000px;
+  margin: auto;
+  padding: 28px 24px 48px;
+}
+.seven-complete-restored {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+}
+.seven-complete-symbol {
+  width: 104px;
+  height: 104px;
+  border-radius: 32px;
+  border: 1px solid #8e95a5;
+  background: linear-gradient(140deg, #f0f1f7, #999fac);
+  box-shadow: 0 12px 30px #333c5b0a;
+  display: grid;
+  place-items: center;
+  color: #596174;
+}
+.seven-complete-eyebrow {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #7a8092;
+  margin: 42px 0 28px;
+}
+.onboarding-form-content .seven-complete-restored h1 {
+  font-size: clamp(44px, 5.3vw, 72px);
+  font-weight: 500;
+  letter-spacing: -3px;
+  line-height: 1.14;
+}
+.seven-complete-restored h1 > span {
+  color: #545c70;
+}
+.onboarding-form-content .seven-complete-restored p {
+  font-size: 17px;
+  line-height: 1.7;
+  color: #7b8091;
+  margin: 32px 0 24px;
+}
+.seven-complete-restored > .badge {
+  background: #fffaf1;
+  border: 1px solid #ebd8b2;
+  color: #ab8545;
+}
+.onboarding-form-content .seven-complete-restored > .button {
+  font-size: 18px;
+  padding: 18px 28px;
+  min-width: 260px;
+  justify-content: space-between;
+  margin: 30px 0 24px;
+  border-radius: 10px;
+}
+.seven-complete-restored > small {
+  font-size: 14px;
+  color: #697487;
+}
+@media (max-width: 640px) {
+  .seven-complete-symbol {
+    width: 80px;
+    height: 80px;
+    border-radius: 25px;
+  }
+  .seven-complete-eyebrow {
+    font-size: 10px;
+    letter-spacing: 1px;
+    margin: 30px 0 24px;
+  }
+  .onboarding-form-content .seven-complete-restored h1 {
+    font-size: 43px;
+    letter-spacing: -2px;
+  }
+  .onboarding-form-content .seven-complete-restored p {
+    font-size: 16px;
+  }
+  .seven-complete-restored > small {
+    max-width: 270px;
+    line-height: 1.6;
+  }
+}
+.onboarding-completion .onboarding-form-content .seven-complete-restored h1 {
+  font-size: clamp(44px, 5.3vw, 72px);
+  font-weight: 500;
+  line-height: 1.14;
+  letter-spacing: -3px;
+}
+.onboarding-completion .onboarding-form-content .seven-complete-restored p {
+  font-size: 17px;
+}
+@media (max-width: 640px) {
+  .onboarding-completion .onboarding-form-content .seven-complete-restored h1 {
+    font-size: 43px;
+    letter-spacing: -2px;
+  }
+  .onboarding-completion .onboarding-form-content .seven-complete-restored p {
+    font-size: 16px;
+  }
+}

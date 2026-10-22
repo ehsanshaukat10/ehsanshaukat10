@@ -9325,3 +9325,194 @@ body {
     display: none;
   }
 }
+/* Login and signup fit the viewport without truncating their controls. */
+.auth-entry {
+  height: 100dvh;
+  min-height: 0;
+}
+.auth-entry .auth-frame {
+  height: 100%;
+  min-height: 0;
+}
+.auth-entry .auth-left {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.auth-entry .auth-header {
+  padding-block: 22px;
+}
+.auth-entry .auth-body {
+  width: calc(100% - 64px);
+  max-width: 420px;
+  min-width: 0;
+  margin: auto;
+  padding: 0;
+}
+.auth-entry .auth-footer {
+  padding-block: 18px;
+}
+.auth-entry .reference-brand {
+  height: 100%;
+  min-height: 0;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+.auth-entry .account-icon {
+  width: 36px;
+  height: 36px;
+  margin-bottom: 15px;
+}
+.auth-entry .auth-subtitle {
+  margin-top: 10px;
+  margin-bottom: 18px;
+}
+.auth-entry .divider {
+  margin: 14px 0;
+}
+.auth-entry .auth-body .field {
+  margin-bottom: 12px;
+}
+.auth-entry .auth-body .field input {
+  min-height: 44px;
+  height: 44px;
+}
+.auth-entry .auth-body .field small {
+  font-size: 12px;
+  margin-top: 5px;
+}
+.auth-entry .auth-body .skip-signin {
+  margin-top: 10px;
+  min-height: 40px;
+}
+.auth-entry .auth-body .password-heading {
+  margin: 0;
+}
+@media (max-height: 800px) {
+  .auth-entry .auth-header {
+    padding-block: 16px;
+  }
+  .auth-entry .auth-footer {
+    padding-block: 12px;
+  }
+  .auth-entry .account-icon {
+    display: none;
+  }
+  .auth-entry .auth-body h1 {
+    font-size: 32px;
+  }
+  .auth-entry .auth-subtitle {
+    margin-top: 8px;
+    margin-bottom: 14px;
+  }
+  .auth-entry .divider {
+    margin: 10px 0;
+  }
+  .auth-entry .auth-body .field {
+    margin-bottom: 10px;
+  }
+  .auth-entry .auth-body .field small {
+    line-height: 1.3;
+  }
+  .auth-entry .auth-body .legal-copy {
+    margin-top: 10px;
+  }
+}
+@media (max-width: 640px) {
+  .auth-entry .auth-header {
+    padding: 18px 24px;
+    gap: 12px;
+  }
+  .auth-entry .auth-header > span {
+    font-size: 12px;
+  }
+  .auth-entry .auth-header > span a {
+    margin-left: 0;
+  }
+  .auth-entry .auth-body {
+    width: calc(100% - 48px);
+  }
+  .auth-entry .auth-footer {
+    padding: 14px 24px;
+    gap: 10px;
+  }
+  .auth-entry .auth-footer .footer-language {
+    display: none;
+  }
+  .auth-entry .auth-body .field input {
+    font-size: 16px;
+  }
+}
+@media (max-height: 680px) {
+  .auth-entry .auth-header {
+    padding-block: 12px;
+  }
+  .auth-entry .auth-footer {
+    display: none;
+  }
+  .auth-entry .auth-left {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .auth-entry .auth-body h1 {
+    font-size: 29px;
+  }
+  .auth-entry .auth-subtitle {
+    font-size: 14px;
+    line-height: 1.4;
+    margin: 7px 0 12px;
+  }
+  .auth-entry .auth-body .field {
+    margin-bottom: 8px;
+  }
+  .auth-entry .auth-body .field > :is(label, span) {
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+  .auth-entry .auth-body .field input {
+    min-height: 42px;
+    height: 42px;
+  }
+  .auth-entry .auth-body .field small {
+    font-size: 11px;
+  }
+  .auth-entry .google-button {
+    height: 42px;
+    min-height: 42px;
+  }
+  .auth-entry .divider {
+    margin: 8px 0;
+  }
+  .auth-entry .auth-body .auth-submit {
+    min-height: 44px;
+    padding-block: 10px;
+  }
+  .auth-entry .auth-body .skip-signin {
+    margin-top: 6px;
+    min-height: 36px;
+  }
+}
+@media (max-height: 680px) {
+  .auth-entry .auth-body .field > :is(label, span),
+  .auth-entry .auth-body .field > small:not(.error-text) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .auth-entry .terms-note {
+    margin-top: 10px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .auth-entry .terms-note button {
+    font-size: 12px;
+  }
+  .auth-entry .auth-body .password-heading:empty {
+    display: none;
+  }
+}

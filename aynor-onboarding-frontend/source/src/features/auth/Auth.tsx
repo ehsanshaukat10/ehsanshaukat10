@@ -238,7 +238,13 @@ export function Auth({ mode: initial }: { mode?: string }) {
     }
   }
   return (
-    <main className="auth-canvas">
+    <main
+      className={
+        "auth-canvas" +
+        (["login", "signup"].includes(mode) ? " auth-entry" : "")
+      }
+      data-auth-mode={mode}
+    >
       <div className="auth-frame">
         <section className="auth-left">
           <header className="auth-header">
@@ -397,7 +403,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
                       placeholder={
                         mode === "login"
                           ? "Enter your password"
-                          : "Create a strong password"
+                          : "Password (10+ characters)"
                       }
                       required
                       minLength={mode === "login" ? 1 : 10}
@@ -509,7 +515,10 @@ export function Auth({ mode: initial }: { mode?: string }) {
               </form>
             )}
             {["login", "signup"].includes(mode) && (
-              <SkipSignIn label="Skip for now · continue to onboarding" />
+              <SkipSignIn
+                label="Skip for now · continue to onboarding"
+                destination="/companies/new"
+              />
             )}
           </div>
           <footer className="auth-footer">

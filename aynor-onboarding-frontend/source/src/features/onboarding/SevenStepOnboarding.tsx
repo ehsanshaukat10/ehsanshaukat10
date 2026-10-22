@@ -370,20 +370,22 @@ export function SevenStepOnboarding({
     );
   return (
     <div className="seven-setup">
-      <div className="seven-heading">
-        <span className="seven-eyebrow">
-          {step === "review"
-            ? "YOUR WORKSPACE, AT A GLANCE"
-            : step === "complete"
-              ? "A CLEARER BEGINNING"
-              : "SHAPED AROUND YOUR BUSINESS"}
-        </span>
-        <h1>{title[0]}</h1>
-        <p>{title[1]}</p>
-        {["priorities", "goals", "mapping"].includes(step) && (
-          <Badge>Optional step</Badge>
-        )}
-      </div>
+      {step !== "complete" && (
+        <div className="seven-heading">
+          <span className="seven-eyebrow">
+            {step === "review"
+              ? "YOUR WORKSPACE, AT A GLANCE"
+              : step === "complete"
+                ? "A CLEARER BEGINNING"
+                : "SHAPED AROUND YOUR BUSINESS"}
+          </span>
+          <h1>{title[0]}</h1>
+          <p>{title[1]}</p>
+          {["priorities", "goals", "mapping"].includes(step) && (
+            <Badge>Optional step</Badge>
+          )}
+        </div>
+      )}
       <ErrorBox>{error}</ErrorBox>
       {step === "departments" && (
         <>
@@ -968,16 +970,28 @@ export function SevenStepOnboarding({
         </div>
       )}
       {step === "complete" && (
-        <div className="seven-complete">
-          <CheckCircle2 size={60} />
-          <h2>Ready for your next chapter.</h2>
+        <div className="seven-complete seven-complete-restored">
+          <div className="seven-complete-symbol" aria-hidden="true">
+            <Check size={54} strokeWidth={1.65} />
+          </div>
+          <span className="seven-complete-eyebrow">
+            A CLEARER PERSPECTIVE STARTS HERE
+          </span>
+          <h1>
+            Make room for
+            <br />
+            <span>better decisions.</span>
+          </h1>
           <p>
-            Your company setup is saved. You can refine every detail from your
-            workspace.
+            {company.name} has a place of its own.
+            <br />
+            Your workspace is ready to explore.
           </p>
+          <Badge>Workspace ready</Badge>
           <Link className="button" to={`/companies/${company.id}/overview`}>
-            Open dashboard <ArrowRight size={17} />
+            Open dashboard <ArrowRight size={22} />
           </Link>
+          <small>Setup is saved. You can refine every detail later.</small>
         </div>
       )}
       {step !== "complete" && (

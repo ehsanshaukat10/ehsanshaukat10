@@ -163,11 +163,38 @@ try {
       await page
         .getByRole("button", { name: "Enter Aynor", exact: true })
         .click();
-      await heading(page, "Your workspace is ready.");
+      await heading(page, "Make room for better decisions.");
+      await expect(
+        page.getByText("A CLEARER BEGINNING", { exact: true }),
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole("heading", {
+          name: "Your workspace is ready.",
+          exact: true,
+        }),
+      ).toHaveCount(0);
+      await expect(page.locator(".seven-complete-restored")).toContainText(
+        "Meridian Updated has a place of its own.",
+      );
+      await page.screenshot({
+        path: "/tmp/aynor-restored-completion.png",
+        fullPage: true,
+      });
       await page
         .getByRole("link", { name: "Open dashboard", exact: true })
         .click();
       await heading(page, "A clearer picture.");
+      for (const mode of ["login", "signup"]) {
+        await page.goto(base + "/auth/" + mode);
+        await page
+          .getByRole("button", {
+            name: "Skip for now · continue to onboarding",
+            exact: true,
+          })
+          .click();
+        await heading(page, "Let’s build your workspace.");
+        await expect(page).toHaveURL(base + "/companies/new");
+      }
       await context.close();
     },
   );
@@ -323,6 +350,52 @@ try {
       await heading(page, "How does your company work?");
       await expect(page).toHaveURL(second);
       await context.close();
+    },
+  );
+  await check(
+    "login and signup fit desktop, tablet and small mobile viewports",
+    async () => {
+      for (const [width, height] of [
+        [1440, 900],
+        [1366, 768],
+        [1024, 768],
+        [768, 1024],
+        [390, 844],
+        [360, 640],
+        [320, 568],
+      ]) {
+        for (const mode of ["login", "signup"]) {
+          const context = await browser.newContext({
+            viewport: { width, height },
+            reducedMotion: "reduce",
+          });
+          const page = await context.newPage();
+          await page.goto(base + "/auth/" + mode);
+          await heading(
+            page,
+            mode === "login" ? "Welcome back." : "Create your account",
+          );
+          assert.ok(
+            await page.evaluate(
+              () => document.documentElement.scrollHeight <= innerHeight,
+            ),
+            mode + " page scroll at " + width + "x" + height,
+          );
+          const controls = await page
+            .locator(".auth-body input,.auth-submit,.skip-signin")
+            .evaluateAll((es) =>
+              es.map((e) => {
+                const b = e.getBoundingClientRect();
+                return { top: b.top, bottom: b.bottom };
+              }),
+            );
+          assert.ok(
+            controls.every((b) => b.top >= 0 && b.bottom <= height),
+            mode + " controls exceed viewport at " + width + "x" + height,
+          );
+          await context.close();
+        }
+      }
     },
   );
   assert.deepEqual(errors, []);
