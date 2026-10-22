@@ -21,6 +21,7 @@ export type KPI = {
   calculation: string;
 };
 export type Goal = {
+  description?: string;
   id: string;
   name: string;
   kpi: string;

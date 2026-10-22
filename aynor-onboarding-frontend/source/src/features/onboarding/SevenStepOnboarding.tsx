@@ -69,7 +69,14 @@ const titles: Record<string, [string, string]> = {
   ],
   complete: ["Your workspace is ready.", "A clearer perspective starts here."],
 };
-const freshGoal = { name: "", kpi: "", target: "", deadline: "", owner: "" };
+const freshGoal = {
+  description: "",
+  name: "",
+  kpi: "",
+  target: "",
+  deadline: "",
+  owner: "",
+};
 function csvHeaders(text: string, separator: string): string[] {
   const fields: string[] = [];
   let field = "",
@@ -212,26 +219,17 @@ export function SevenStepOnboarding({
       step === "mapping" &&
       !skip &&
       data.mappings.some(
-        (m) =>
-          !m.ignored &&
-          (!m.field.trim() ||
-            !m.meaning.trim() ||
-            !m.department ||
-            !m.confirmed),
+        (m) => !m.ignored && (!m.field.trim() || !m.department || !m.confirmed),
       )
     ) {
       setMappingPage(
         data.mappings.findIndex(
           (m) =>
-            !m.ignored &&
-            (!m.field.trim() ||
-              !m.meaning.trim() ||
-              !m.department ||
-              !m.confirmed),
+            !m.ignored && (!m.field.trim() || !m.department || !m.confirmed),
         ),
       );
       setError(
-        "Give every active field a name, department and meaning, then confirm it. Or skip mapping for now.",
+        "Give every active field a name and department, then confirm it. Or skip mapping for now.",
       );
       return;
     }
@@ -664,6 +662,7 @@ export function SevenStepOnboarding({
                                   ? {
                                       ...x,
                                       field: e.target.value,
+                                      meaning: e.target.value,
                                       confirmed: false,
                                     }
                                   : x,
@@ -684,25 +683,6 @@ export function SevenStepOnboarding({
                               data.mappings.map((x, j) =>
                                 j === i
                                   ? { ...x, department: v, confirmed: false }
-                                  : x,
-                              ),
-                            )
-                          }
-                        />
-                        <Field
-                          label={`Business meaning for ${m.field}`}
-                          value={m.meaning}
-                          disabled={m.ignored}
-                          onChange={(e) =>
-                            update(
-                              "mappings",
-                              data.mappings.map((x, j) =>
-                                j === i
-                                  ? {
-                                      ...x,
-                                      meaning: e.target.value,
-                                      confirmed: false,
-                                    }
                                   : x,
                               ),
                             )
@@ -783,6 +763,9 @@ export function SevenStepOnboarding({
                 <Target size={23} />
                 <div>
                   <h3>{g.name}</h3>
+                  {g.description && (
+                    <p className="goal-description-copy">{g.description}</p>
+                  )}
                   <p>
                     Target: {g.target} · Due {g.deadline}
                   </p>
@@ -792,7 +775,7 @@ export function SevenStepOnboarding({
                   className="icon-button"
                   aria-label={`Edit goal ${g.name}`}
                   onClick={() => {
-                    setGoal(g);
+                    setGoal({ ...g, description: g.description || "" });
                     setEditing(i);
                     document
                       .getElementById("inline-goal")
@@ -860,6 +843,18 @@ export function SevenStepOnboarding({
                 onChange={(e) => setGoal({ ...goal, deadline: e.target.value })}
               />
             </div>
+            <label className="field seven-goal-description">
+              <span>Goal description (optional)</span>
+              <textarea
+                rows={2}
+                value={goal.description}
+                onChange={(e) =>
+                  setGoal({ ...goal, description: e.target.value })
+                }
+                placeholder="Add context, milestones or what success looks like."
+                maxLength={1000}
+              />
+            </label>
             <div className="seven-form-actions">
               <button
                 type="button"
@@ -952,7 +947,7 @@ export function SevenStepOnboarding({
                 <p>
                   {data.mappings
                     .filter((m) => m.confirmed && !m.ignored)
-                    .map((m) => `${m.field} → ${m.meaning}`)
+                    .map((m) => `${m.field} · ${m.department}`)
                     .join(" · ") || "No fields confirmed yet."}
                 </p>
               ),
@@ -985,6 +980,7 @@ export function SevenStepOnboarding({
                   {data.goals.map((g) => (
                     <li key={g.id}>
                       <strong>{g.name}</strong>
+                      {g.description && <p>{g.description}</p>}
                       <span>
                         Target: {g.target} · Due {g.deadline}
                         {g.owner ? ` · Owner: ${g.owner}` : ""}

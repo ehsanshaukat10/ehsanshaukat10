@@ -86,9 +86,7 @@ try {
       await next(page);
       await heading(page, "Give your data meaning.");
       await page.getByLabel("Source field 1").fill("Monthly revenue");
-      await page
-        .getByLabel("Business meaning for Monthly revenue")
-        .fill("Revenue");
+      await expect(page.getByLabel(/Business meaning for/)).toHaveCount(0);
       await next(page);
       await expect(page.getByRole("alert")).toContainText("confirm it");
       await page.getByRole("checkbox").check();
@@ -107,6 +105,9 @@ try {
       await heading(page, "Give ambition a direction.");
       assert.equal(await page.getByRole("dialog").count(), 0);
       await page.getByLabel("Goal name").fill("Grow recurring revenue");
+      await page
+        .getByLabel("Goal description (optional)")
+        .fill("Focus on recurring contracts.");
       await page.getByLabel("Target value").fill("20%");
       await page.getByLabel("Deadline").fill("2027-12-31");
       await page.getByLabel("Goal owner (optional)").fill("Alex");

@@ -1267,3 +1267,97 @@
     padding-bottom: 16px;
   }
 }
+/* Aligned custom controls and a quieter goal/review surface. */
+.onboarding-canvas .onboarding-form-content .seven-setup .seven-custom {
+  align-items: end;
+}
+.onboarding-canvas .onboarding-form-content .seven-setup .seven-custom .field {
+  margin: 0;
+}
+.onboarding-canvas
+  .onboarding-form-content
+  .seven-setup
+  .seven-custom
+  > .button {
+  height: 44px;
+  min-height: 44px;
+  margin: 0;
+  align-self: end;
+  padding-block: 0;
+}
+.onboarding-canvas .onboarding-form-content .seven-goal-form {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  margin-top: 20px;
+}
+.onboarding-canvas .onboarding-form-content .seven-goal-description textarea {
+  height: auto;
+  min-height: 76px;
+  width: 100%;
+  border: 1px solid #dce2ee;
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+  resize: vertical;
+  font: inherit;
+  font-size: 16px;
+}
+.onboarding-canvas .onboarding-form-content .seven-review {
+  gap: 0 24px;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-company {
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0 0 18px;
+  margin-bottom: 4px;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-company > span {
+  background: #eaf0ff;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-section {
+  border: 0;
+  border-bottom: 1px solid #e5eaf2;
+  border-radius: 0;
+  background: transparent;
+  padding: 16px 0;
+  box-shadow: none;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-icon {
+  background: transparent;
+  width: 22px;
+  border-radius: 0;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-section-head h3 {
+  letter-spacing: -0.3px;
+  font-size: 16px;
+}
+.onboarding-canvas .seven-review-expand summary {
+  color: #8a98ad;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-body {
+  border: 0;
+  padding-top: 8px;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-tags span {
+  background: #eef2fa;
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+@media (max-width: 640px) {
+  .onboarding-canvas .onboarding-form-content .seven-review {
+    gap: 0 16px;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-review-section-head h3 {
+    font-size: 14px;
+  }
+}
+.onboarding-canvas
+  .onboarding-form-content
+  .seven-map-fields
+  .field:last-child {
+  grid-column: auto;
+}

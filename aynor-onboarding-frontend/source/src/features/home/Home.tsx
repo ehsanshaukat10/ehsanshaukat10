@@ -98,14 +98,12 @@ const questions = [
   ],
 ];
 function scrollToSection(id: string) {
-  document
-    .getElementById(id)
-    ?.scrollIntoView({
-      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "auto"
-        : "smooth",
-      block: "start",
-    });
+  document.getElementById(id)?.scrollIntoView({
+    behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? "auto"
+      : "smooth",
+    block: "start",
+  });
 }
 export function Home() {
   const { user } = useApp();
@@ -137,10 +135,10 @@ export function Home() {
               {label}
             </button>
           ))}
-          <Link to="/auth/login">Log in</Link>
           <Link className="lp-button lp-nav-cta" to={destination}>
             Get started <ArrowRight size={16} />
           </Link>
+          <Link to="/auth/login">Log in</Link>
         </nav>
         <button
           className="lp-menu"

@@ -81,6 +81,7 @@ export default function App() {
         />
         <Route path="/prototype" element={<ScreenGallery />} />
         <Route path="/welcome" element={<Home />} />
+        <Route path="/auth" element={<Navigate to="/auth/signup" replace />} />
         <Route path="/auth/:mode" element={<Auth />} />
         <Route
           path="/companies"
@@ -165,7 +166,7 @@ function Guard({ children }: { children: ReactNode }) {
   if (!user)
     return (
       <Navigate
-        to={"/auth/login?next=" + encodeURIComponent(loc.pathname)}
+        to={"/auth/signup?next=" + encodeURIComponent(loc.pathname)}
         replace
       />
     );

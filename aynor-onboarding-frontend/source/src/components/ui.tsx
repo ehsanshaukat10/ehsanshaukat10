@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -179,7 +180,7 @@ export function Modal({
     const focusable = () =>
       Array.from(
         element.current?.querySelectorAll<HTMLElement>(
-          'button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),[tabindex="0"]',
+          'button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex="0"]',
         ) || [],
       );
     focusable()[0]?.focus();
@@ -208,7 +209,7 @@ export function Modal({
       previous?.focus();
     };
   }, []);
-  return (
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <section
         ref={element}
@@ -226,7 +227,8 @@ export function Modal({
         </header>
         {children}
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
 export function Empty({

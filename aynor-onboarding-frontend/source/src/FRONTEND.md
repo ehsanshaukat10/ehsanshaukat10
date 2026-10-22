@@ -8,7 +8,7 @@ Home → login/signup or guest skip → company → departments → connect data
 
 Company details include name, industry, website, size, country and business model. Departments support existing and custom selections without the old arrange/refine panel. One connection screen supports Google Sheets consent, local CSV/TSV/JSON upload (5 MB maximum), and URL entry. File uploads read headers locally, including quoted CSV headers. Google and URL connections clearly disclose their simulation. Replacing a source replaces its mappings.
 
-Mapping fields, department assignments and meanings are editable. Mapping, priorities and goals can be skipped. Priorities support custom entries. Goals are added, edited and deleted directly on the page. Review displays six icon-led detail sections with edit links; edits save directly back to review. The company section shows all six fields. The standalone completion screen follows step 7 and is not an eighth onboarding step.
+Mapping source fields and department assignments are editable. Business meaning is derived internally rather than shown as a separate input. Mapping, priorities and goals can be skipped. Priorities support custom entries. Goals, including optional descriptions, are added, edited and deleted directly on the page. Review displays six icon-led detail sections with edit links; edits save directly back to review. The company section shows all six fields. The standalone completion screen follows step 7 and is not an eighth onboarding step.
 
 The removed source selection, discovery, readiness, KPI and collaborator steps no longer appear in onboarding. Existing workspace member-management and invitation acceptance remain available outside onboarding. Old browser-local step names and deep links resolve to the nearest retained step.
 
@@ -35,3 +35,6 @@ Completion uses the earlier centered design: a checkmark tile, “Make room for 
 ## Compact onboarding
 
 Supporting text and department/priority cards use smaller regular-weight styling. Mapping displays one field at a time with Previous/Next controls; Continue directs validation to the first unfinished field. The review uses compact summary cards with expandable details and keeps each step's edit link. This avoids long default forms without clipping content; expanded details, extra custom entries and smaller screens can still scroll as needed. Company website fields accept a bare domain and add the protocol internally, while invalid addresses show an inline error. The divider above the company form actions is removed.
+
+
+Signup is the default authentication entry. Shared dialogs render through a body portal so their overlay covers the entire viewport. Goal inputs retain individual borders with no surrounding card border. Review uses flat, lightly separated sections with expandable details.

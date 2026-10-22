@@ -14,9 +14,9 @@ Seven onboarding steps:
 3. Data sheets — connect Google Sheets, upload CSV/TSV/JSON (up to 5 MB),
    or paste a Google Sheets URL. Google/URL previews use example fields.
    Uploaded files are read locally; only column headers are retained.
-4. Mapping — edit source fields, departments and business meaning; optional.
+4. Mapping — edit source fields and department assignments; optional.
 5. Business priorities — existing and custom options; optional.
-6. Goals — add and edit goals inline; optional.
+6. Goals — add and edit goals and descriptions inline; optional.
 7. Review — full details and an edit link for each step, then open workspace.
 
 Progress persists in this browser. No real email, OAuth, payment or network
