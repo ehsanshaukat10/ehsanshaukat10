@@ -109,12 +109,14 @@ export function Select({
   onChange,
   options,
   required = false,
+  disabled = false,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   options: string[];
   required?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <label className="field">
@@ -123,6 +125,7 @@ export function Select({
         {required && <span className="required"> *</span>}
       </span>
       <select
+        disabled={disabled}
         value={value}
         required={required}
         onChange={(e) => onChange(e.target.value)}

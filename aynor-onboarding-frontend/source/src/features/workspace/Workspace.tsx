@@ -27,12 +27,13 @@ import {
   api,
   stepLabels,
   steps,
+  resolveSetupStep,
   type Company,
   type WorkspaceData,
 } from "../../lib/api";
 import { useApp } from "../../lib/context";
 import { Overview } from "../companies/Overview";
-import { Onboarding } from "../onboarding/Onboarding";
+import { SevenStepOnboarding as Onboarding } from "../onboarding/SevenStepOnboarding";
 import { Members } from "../team/Team";
 const message = (e: unknown) =>
   e instanceof Error ? e.message : "Please try again.";
@@ -93,14 +94,15 @@ export function Workspace({
     }
   }
   const editable = !!company && ["Owner", "Admin"].includes(company.role);
-  const index = steps.indexOf(step);
-  const completed = Object.values(company?.data.steps || {}).filter(
-    (v) => v === "completed",
+  const currentStep = resolveSetupStep(step);
+  const index = steps.indexOf(currentStep);
+  const completed = steps.filter(
+    (s) => company?.data.steps[s] === "completed",
   ).length;
   if (!overview && !members)
     return (
       <OnboardingFrame
-        step={step}
+        step={currentStep}
         company={company && company.id === id ? company.name : undefined}
       >
         {loading || (company?.id !== id && !error) ? (
@@ -137,9 +139,9 @@ export function Workspace({
               </>
             )}
             <Onboarding
-              key={step + company.id}
+              key={currentStep + company.id}
               company={company}
-              step={step}
+              step={currentStep}
               save={save}
               busy={busy}
               onReload={load}
@@ -323,9 +325,9 @@ export function Workspace({
               />
             ) : (
               <Onboarding
-                key={step + company.id}
+                key={currentStep + company.id}
                 company={company}
-                step={step}
+                step={currentStep}
                 save={save}
                 busy={busy}
                 onReload={load}

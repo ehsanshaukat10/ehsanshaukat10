@@ -182,8 +182,11 @@ export function OnboardingFrame({
   company?: string;
   children: ReactNode;
 }) {
-  const index = step === "company" ? 0 : Math.max(1, steps.indexOf(step) + 1);
-  const total = steps.length + 1;
+  const index =
+    step === "company"
+      ? 0
+      : Math.min(steps.length - 1, Math.max(1, steps.indexOf(step) + 1));
+  const total = steps.length;
   return (
     <main className="onboarding-canvas">
       <div className="onboarding-frame">

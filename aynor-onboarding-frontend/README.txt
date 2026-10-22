@@ -1,23 +1,32 @@
 AYNOR — Onboarding frontend
 
-Open index.html in your browser. Everything is included in this standalone file.
-Start at Home, choose Log in or Create account, or Skip for now to explore as a guest.
+Open index.html directly in your browser. Application code, Google Sans Flex,
+styles and visuals are embedded. No backend or installation is required.
 
-The uploaded detailed onboarding is retained: company, departments, priorities,
-Google Sheets connection, sources, discovery, mapping, readiness, KPIs, goals,
-invitations, review and completion. Onboarding has a clean form on the left
-and an original visual on the right, with no sidebar. Mobile focuses on the form.
-The workspace dashboard retains its existing navigation.
+Start at Home, log in/create an account, or skip to explore as a guest.
+Verification code: 123456. Authentication and Google connections are simulated.
 
-All accounts, invitations and integrations are simulated locally. Verification
-code: 123456. No real emails, account creation or Google connections occur.
-Progress and drafts are stored in this browser. Do not enter sensitive data.
+Seven onboarding steps:
+1. Company details — name, industry, website, size, country, city,
+   business model, time zone and currency.
+2. Departments — choose existing options or add custom departments.
+3. Data sheets — connect Google Sheets, upload CSV/TSV/JSON (up to 5 MB),
+   or paste a Google Sheets URL. Google/URL previews use example fields.
+   Uploaded files are read locally; only column headers are retained.
+4. Mapping — edit source fields, departments and business meaning; optional.
+5. Business priorities — existing and custom options; optional.
+6. Goals — add and edit goals inline; optional.
+7. Review — full details and an edit link for each step, then open workspace.
 
-Editable React/TypeScript source: source/.
+Progress persists in this browser. No real email, OAuth, payment or network
+integration is performed. Do not enter sensitive information in the preview.
+
+Editable source: source/.
 Development: cd source, npm ci, npm run dev.
 Build: npm run build.
-Browser checks, with Vite running: npm run test:frontend.
-Regenerate standalone HTML: node src/export-html.mjs
-Then copy source/aynor.html to this folder as index.html.
+Browser checks with Vite running: npm run test:frontend.
+Export: node src/export-html.mjs; copy generated aynor.html to ../index.html.
 
-No backend, database, authentication service or API configuration changes.
+Font: Google Sans Flex, bundled under the SIL Open Font License.
+License: source/src/assets/fonts/OFL-GoogleSansFlex.txt.
+Backend services, databases and API/authentication configuration are unchanged.

@@ -102,20 +102,7 @@ export const screens = [
     group: "03 · Build your intelligence",
     kind: "integration",
   },
-  {
-    name: "Choose spreadsheets",
-    description: "The right sources. A clearer picture.",
-    path: "/companies/:id/onboarding/sources",
-    group: "03 · Build your intelligence",
-    kind: "sources",
-  },
-  {
-    name: "Data discovery",
-    description: "Finding the connections beneath the surface.",
-    path: "/companies/:id/onboarding/discovery",
-    group: "03 · Build your intelligence",
-    kind: "discovery",
-  },
+
   {
     name: "Data mapping",
     description: "Give every field the right meaning.",
@@ -123,20 +110,7 @@ export const screens = [
     group: "03 · Build your intelligence",
     kind: "mapping",
   },
-  {
-    name: "Intelligence readiness",
-    description: "An honest view of what’s ready.",
-    path: "/companies/:id/onboarding/readiness",
-    group: "03 · Build your intelligence",
-    kind: "readiness",
-  },
-  {
-    name: "Performance metrics",
-    description: "Thoughtfully defined measures of success.",
-    path: "/companies/:id/onboarding/kpis",
-    group: "03 · Build your intelligence",
-    kind: "kpis",
-  },
+
   {
     name: "Company goals",
     description: "Give your ambition a clear direction.",
@@ -144,13 +118,7 @@ export const screens = [
     group: "03 · Build your intelligence",
     kind: "goals",
   },
-  {
-    name: "Invite your team",
-    description: "Better decisions start with the right people.",
-    path: "/companies/:id/onboarding/invite",
-    group: "04 · Better, together",
-    kind: "team",
-  },
+
   {
     name: "Accept invitation",
     description: "A warm welcome to a shared perspective.",
@@ -305,7 +273,7 @@ export function ScreenGallery() {
           <span className="gallery-status">
             <i /> Interactive prototype
           </span>
-          <span className="gallery-count">23 screens</span>
+          <span className="gallery-count">{screens.length} screens</span>
         </div>
       </header>
       <main className="gallery-main">
@@ -354,7 +322,7 @@ export function ScreenGallery() {
               <span>
                 <Sparkles size={15} /> THE BIGGER PICTURE
               </span>
-              <span>01 — 23</span>
+              <span>01 — {screens.length}</span>
             </div>
             <h2>
               From first impression
@@ -491,11 +459,13 @@ export function FlowNavigator() {
       <div className="flow-nav-main">
         <Link to="/prototype" className="flow-index-link">
           <LayoutGrid size={15} />
-          <span>All 23 screens</span>
+          <span>All {screens.length} screens</span>
         </Link>
         <span className="flow-nav-divider" />
         <button className="flow-current" onClick={() => setExpanded(!expanded)}>
-          <span>{String(Math.max(index + 1, 1)).padStart(2, "0")} / 23</span>
+          <span>
+            {String(Math.max(index + 1, 1)).padStart(2, "0")} / {screens.length}
+          </span>
           <strong>{screens[index]?.name || "Onboarding journey"}</strong>
           <ChevronDown size={13} />
         </button>

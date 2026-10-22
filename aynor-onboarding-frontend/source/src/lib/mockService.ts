@@ -179,6 +179,16 @@ function load(): PrototypeState {
         if (legacy[c.data.step]) c.data.step = legacy[c.data.step];
       }
     }
+    for (const c of saved.companies || []) {
+      const routes: Record<string, string> = {
+        sources: "integrations",
+        discovery: "mapping",
+        readiness: "mapping",
+        kpis: "goals",
+        invite: "review",
+      };
+      if (c.data && routes[c.data.step]) c.data.step = routes[c.data.step];
+    }
     return saved;
   } catch {
     return seed();
@@ -690,6 +700,7 @@ function handle(
         (m) =>
           !m.ignored &&
           m.department &&
+          m.department !== "Company-wide" &&
           !data.departments.includes(m.department),
       )
     )

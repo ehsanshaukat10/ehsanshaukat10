@@ -1,38 +1,27 @@
 # AYNOR frontend prototype
 
-This version restores the uploaded detailed onboarding with a new Home entry and a quieter split composition.
+Run `npm ci` and `npm run dev` from `aynor-onboarding-frontend/source`. Only Vite is needed. The distribution `index.html` also opens directly without a server.
 
-From `aynor-onboarding-frontend/source`, run `npm ci` then `npm run dev`. Only Vite is required. Alternatively, open the distribution's `index.html` directly; application code, styles and fonts are embedded.
+## Seven-step journey
 
-## Journey
+Home → login/signup or guest skip → company → departments → connect data sheets → mapping → business priorities → goals → review → completion → workspace.
 
-Home offers Log in, Create account and Skip for now. Skip creates a browser-local guest persona and opens company creation. Returning guests can resume their workspace or choose authentication. Verification uses the sample code **123456**. Password inputs demonstrate validation; passwords are discarded rather than persisted.
+Company details include name, industry, website, size, country, city, business model, time zone and currency. Departments support existing and custom selections without the old arrange/refine panel. One connection screen supports Google Sheets consent, local CSV/TSV/JSON upload (5 MB maximum), and URL entry. File uploads read headers locally, including quoted CSV headers. Google and URL connections clearly disclose their simulation. Replacing a source replaces its mappings.
 
-The detailed flow remains company → departments → priorities → integrations → sources → discovery → mapping → readiness → KPIs → goals → invite → review → complete → dashboard. Optional steps can be skipped. Refresh preserves form drafts. Back, save for later and resume preserve company progress.
+Mapping fields, department assignments and meanings are editable. Mapping, priorities and goals can be skipped. Priorities support custom entries. Goals are added, edited and deleted directly on the page. Review displays six icon-led detail sections with edit links; edits save directly back to review. The company section shows all nine fields. The standalone completion screen follows step 7 and is not an eighth onboarding step.
 
-Authentication keeps the reference-inspired split composition. Onboarding removes the sidebar and places original illustrative cards on the right. Smaller screens focus on the form. The dashboard and member management retain workspace navigation and multi-company functionality. The separate screen gallery remains available at `/prototype`, without a floating screen navigator during onboarding.
+The removed source selection, discovery, readiness, KPI and collaborator steps no longer appear in onboarding. Existing workspace member-management and invitation acceptance remain available outside onboarding. Old browser-local step names and deep links resolve to the nearest retained step.
 
-All responses come from `src/lib/mockService.ts`. Its API-shaped helper is an in-browser mock, not a network API. There are no backend requests. Companies persist under `aynor.frontend-prototype.v1` in localStorage; persona selection and drafts use sessionStorage. Google consent, spreadsheet discovery, invitations and email actions are clearly simulated.
+Google Sans Flex is bundled locally from Google Fonts' official repository under the SIL Open Font License, including the standalone export. The local font retains variable weights; other axes are fixed for consistent rendering. The original blue palette, 60/40 desktop composition and single-column mobile layout are preserved.
 
-The workspace's Prototype control provides sample companies, sample invitation, next-action failure and slow-response states, expiry preview and a confirmation-protected local reset. It is hidden during Home, authentication and onboarding.
+## Local state and boundaries
 
-## Validation and export
+All application responses come from `src/lib/mockService.ts`. The API-shaped helper sends no network API requests. Company state is stored under `aynor.frontend-prototype.v1` in localStorage; persona selection and drafts use sessionStorage. Passwords are discarded rather than persisted. Verification code: **123456**.
 
-With Vite running:
+Only frontend files, browser checks, documentation and the standalone distribution change. Backend services, database code and API/authentication configuration are untouched. Real authentication, OAuth, email, permissions and Sheets access require a separate integration task.
 
-```sh
-npm run build
-npm run test:frontend
-```
+## Validate and export
 
-Use `PROTOTYPE_URL` to override the browser test target (default `http://127.0.0.1:5173`). Chromium is expected at `/usr/bin/chromium`, overridable with `CHROMIUM_PATH`. Tests cover entry choices, full detailed onboarding, invitation signup, saved progress, optional skips and desktop/tablet/mobile overflow. They assert zero backend API requests.
+With Vite running, use `npm run build` and `npm run test:frontend`. Tests expect Chromium at `/usr/bin/chromium`, overridable with `CHROMIUM_PATH`. Set `PROTOTYPE_URL` if the frontend runs on a port other than 5173. Coverage includes all seven steps, uploads, mapping validation, goals, review edit routes, optional skips, saved drafts, source errors, old routes and responsive typography/layout. Tests assert zero backend API requests.
 
-Generate the standalone distribution with `node src/export-html.mjs`, then copy generated `aynor.html` to `../index.html`. The standalone uses hash routing so it can be opened directly without a server.
-
-## Integration boundary
-
-Changes are limited to frontend source, tests, documentation and the standalone distribution. Existing backend files, database code, API/authentication configuration and production infrastructure are untouched. Live verification, email, OAuth, permissions and Sheets integration require a separate integration task; this prototype only demonstrates their UI states.
-
-## Visual refinement
-
-Authentication and onboarding use an edge-to-edge 60/40 desktop split, collapsing to a focused single column on smaller devices. Supporting UI text has a 14px minimum, body copy is 16px, and form fields use 16px to prevent mobile input zoom. The landing page has a separate corporate composition. Onboarding illustrations change by stage and reflect entered company details and selected departments, priorities, mapping, KPIs and goals. Short entrance/selection transitions respect reduced-motion preferences. Repeated prototype/adapter banners have been removed; connection consent dialogs retain an explicit simulation disclosure.
+Generate standalone HTML with `node src/export-html.mjs`, then copy `aynor.html` to `../index.html`. Hash routing allows direct browser access without a server. Google Sans Flex's license is included in `src/assets/fonts/OFL-GoogleSansFlex.txt`.

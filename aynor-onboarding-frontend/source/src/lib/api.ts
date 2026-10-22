@@ -51,6 +51,8 @@ export type Company = {
   currency: string;
   website: string;
   size: string;
+  city?: string;
+  businessModel?: string;
   role: string;
   scope: string[];
   version: number;
@@ -67,32 +69,32 @@ export async function api<T = any>(
 }
 export const steps = [
   "departments",
-  "priorities",
   "integrations",
-  "sources",
-  "discovery",
   "mapping",
-  "readiness",
-  "kpis",
+  "priorities",
   "goals",
-  "invite",
   "review",
   "complete",
 ];
 export const stepLabels = [
-  "Departments",
+  "Add departments",
+  "Connect data sheets",
+  "Mapping",
   "Business priorities",
-  "Connect data",
-  "Select sources",
-  "Data discovery",
-  "Data mapping",
-  "Readiness",
-  "Performance metrics",
-  "Company goals",
-  "Invite your team",
-  "Review setup",
-  "All set",
+  "Goal set",
+  "Review",
+  "Complete",
 ];
+export const resolveSetupStep = (step: string) =>
+  (
+    ({
+      sources: "integrations",
+      discovery: "mapping",
+      readiness: "mapping",
+      kpis: "goals",
+      invite: "review",
+    }) as Record<string, string>
+  )[step] || step;
 export const departmentOptions = [
   "Finance",
   "Sales",

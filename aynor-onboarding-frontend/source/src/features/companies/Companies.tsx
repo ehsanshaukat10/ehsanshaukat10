@@ -259,12 +259,15 @@ export function NewCompany() {
     currency: "PKR",
     website: "",
     size: "",
+    city: "",
+    businessModel: "",
   };
   const [form, setForm] = useState<typeof initial>(() => {
       try {
-        return (
-          JSON.parse(sessionStorage.getItem(draftKey) || "null") || initial
-        );
+        return {
+          ...initial,
+          ...JSON.parse(sessionStorage.getItem(draftKey) || "null"),
+        };
       } catch {
         return initial;
       }
@@ -434,6 +437,28 @@ export function NewCompany() {
               "500+ employees",
             ]}
           />
+          <div className="form-grid">
+            <Field
+              label="City"
+              value={form.city}
+              onChange={(e) => change("city", e.target.value)}
+              placeholder="e.g. Lahore"
+              maxLength={100}
+            />
+            <Select
+              label="Business model"
+              value={form.businessModel}
+              onChange={(v) => change("businessModel", v)}
+              options={[
+                "B2B",
+                "B2C",
+                "B2B & B2C",
+                "Marketplace",
+                "Nonprofit",
+                "Other",
+              ]}
+            />
+          </div>
           <div className="form-bottom">
             <span>
               <ShieldCheck size={14} /> You’ll be the workspace Owner.
