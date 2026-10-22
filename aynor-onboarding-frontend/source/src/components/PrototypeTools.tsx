@@ -19,11 +19,10 @@ export function PrototypeTools() {
   const nav = useNavigate();
   const location = useLocation();
   if (
-    location.pathname.includes("/onboarding/") ||
+    ["/", "/home", "/welcome", "/companies/new"].includes(location.pathname) ||
     location.pathname.startsWith("/auth/") ||
     location.pathname.startsWith("/invite/") ||
-    location.pathname === "/welcome" ||
-    location.pathname === "/companies/new"
+    location.pathname.includes("/onboarding/")
   )
     return null;
   return (

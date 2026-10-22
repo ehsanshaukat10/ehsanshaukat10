@@ -1,3 +1,7 @@
+import { Home } from "./features/home/Home";
+import { Entry } from "./features/entry/Entry";
+import { ScreenGallery } from "./features/preview/ScreenGallery";
+import { PrototypeTools } from "./components/PrototypeTools";
 import { CheckCheck, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import {
@@ -7,16 +11,11 @@ import {
   Routes,
   useLocation,
   useNavigate,
-  useParams,
 } from "react-router-dom";
-import { PrototypeTools } from "./components/PrototypeTools";
 import { Button, ErrorBox, Logo } from "./components/ui";
 import { Auth } from "./features/auth/Auth";
-import { Companies } from "./features/companies/Companies";
-import { ScreenGallery } from "./features/preview/ScreenGallery";
+import { Companies, NewCompany } from "./features/companies/Companies";
 import { Invitation } from "./features/team/Team";
-import { Entry, OnboardingWelcome } from "./features/wizard/Entry";
-import { Wizard } from "./features/wizard/Wizard";
 import { Workspace } from "./features/workspace/Workspace";
 import { api, type User } from "./lib/api";
 import { Context, useApp } from "./lib/context";
@@ -70,10 +69,8 @@ export default function App() {
   return (
     <Context.Provider value={{ user, setUser, development, toast: setToast }}>
       <Routes>
-        <Route
-          path="/"
-          element={<Navigate to={user ? "/entry" : "/auth/signup"} replace />}
-        />
+        <Route path="/" element={<Home />} />
+        <Route path="/home" element={<Home />} />
         <Route
           path="/entry"
           element={
@@ -82,32 +79,8 @@ export default function App() {
             </Guard>
           }
         />
-        <Route
-          path="/onboarding/welcome"
-          element={
-            <Guard>
-              <OnboardingWelcome />
-            </Guard>
-          }
-        />
-        <Route
-          path="/companies/:id/settings/setup"
-          element={
-            <Guard>
-              <Workspace />
-            </Guard>
-          }
-        />
-        <Route
-          path="/companies/:id/settings/setup/:step"
-          element={
-            <Guard>
-              <Workspace />
-            </Guard>
-          }
-        />
         <Route path="/prototype" element={<ScreenGallery />} />
-        <Route path="/welcome" element={<Auth mode="signup" />} />
+        <Route path="/welcome" element={<Home />} />
         <Route path="/auth/:mode" element={<Auth />} />
         <Route
           path="/companies"
@@ -121,7 +94,7 @@ export default function App() {
           path="/companies/new"
           element={
             <Guard>
-              <Wizard />
+              <NewCompany />
             </Guard>
           }
         />
@@ -129,7 +102,7 @@ export default function App() {
           path="/companies/:id/onboarding/:step"
           element={
             <Guard>
-              <OnboardingRoute />
+              <Workspace />
             </Guard>
           }
         />
@@ -204,20 +177,4 @@ function Guard({ children }: { children: ReactNode }) {
       />
     );
   return children;
-}
-
-function OnboardingRoute() {
-  const { id, step } = useParams();
-  if (
-    [
-      "priorities",
-      "kpis",
-      "goals",
-      "mapping",
-      "discovery",
-      "readiness",
-    ].includes(step || "")
-  )
-    return <Navigate to={`/companies/${id}/settings/setup/${step}`} replace />;
-  return <Wizard />;
 }

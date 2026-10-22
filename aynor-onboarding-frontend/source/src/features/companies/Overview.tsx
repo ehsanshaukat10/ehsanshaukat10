@@ -13,7 +13,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { Badge, Button, Empty, ErrorBox, Modal } from "../../components/ui";
 import { api, type Company, type WorkspaceData } from "../../lib/api";
 import { useApp } from "../../lib/context";
-import { wizardUrl } from "../wizard/progress";
 const message = (e: unknown) =>
   e instanceof Error ? e.message : "Please try again.";
 
@@ -51,13 +50,9 @@ export function Overview({
         {editable && (
           <Link
             className="button secondary"
-            to={
-              data.completed
-                ? `/companies/${company.id}/settings/setup`
-                : wizardUrl(company)
-            }
+            to={`/companies/${company.id}/onboarding/${data.completed ? "review" : data.step || "departments"}`}
           >
-            {data.completed ? "Workspace settings" : "Resume setup"}{" "}
+            {data.completed ? "Refine workspace" : "Resume setup"}{" "}
             <ArrowRight size={15} />
           </Link>
         )}
@@ -77,7 +72,7 @@ export function Overview({
           </p>
         </div>
         {editable && (
-          <Link to={`/companies/${company.id}/settings/setup/integrations`}>
+          <Link to={`/companies/${company.id}/onboarding/integrations`}>
             Connect your data <ArrowUpRight size={16} />
           </Link>
         )}
@@ -128,7 +123,7 @@ export function Overview({
               editable ? (
                 <Link
                   className="button secondary"
-                  to={`/companies/${company.id}/settings/setup/integrations`}
+                  to={`/companies/${company.id}/onboarding/integrations`}
                 >
                   Set up a data source <ArrowUpRight size={15} />
                 </Link>
@@ -141,7 +136,7 @@ export function Overview({
             <h3>Your business priorities</h3>
             {editable && (
               <Link
-                to={`/companies/${company.id}/settings/setup/priorities`}
+                to={`/companies/${company.id}/onboarding/priorities`}
                 aria-label="Edit business priorities"
               >
                 <ArrowUpRight size={16} />

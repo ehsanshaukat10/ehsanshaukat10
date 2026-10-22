@@ -1,18 +1,22 @@
+import { SkipSignIn } from "../entry/SkipSignIn";
+import { prototype } from "../../lib/mockService";
 import {
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
+  Compass,
+  Users,
   BarChart3,
   BriefcaseBusiness,
   CircleUserRound,
-  Compass,
   Globe2,
   Link2,
   LockKeyhole,
   Mail,
+  MoreHorizontal,
   ShieldCheck,
   Sparkles,
-  Users,
+  Zap,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import {
@@ -25,7 +29,6 @@ import {
 import { Button, ErrorBox, Field, Logo, Modal } from "../../components/ui";
 import { api } from "../../lib/api";
 import { useApp } from "../../lib/context";
-import { prototype } from "../../lib/mockService";
 const message = (e: unknown) =>
   e instanceof Error ? e.message : "Please try again.";
 
@@ -126,7 +129,9 @@ export function Auth({ mode: initial }: { mode?: string }) {
     loc = useLocation();
   const [oauth, setOauth] = useState(false);
   const [name, setName] = useState(""),
-    [email, setEmail] = useState(user?.email || ""),
+    [email, setEmail] = useState(
+      user?.id === "onboarding-guest" ? "" : user?.email || "",
+    ),
     [password, setPassword] = useState(""),
     [token, setToken] = useState(
       new URLSearchParams(loc.search).get("token") ||
@@ -157,7 +162,11 @@ export function Auth({ mode: initial }: { mode?: string }) {
       return () => clearTimeout(t);
     }
   }, [cooldown]);
-  if (user?.verified && ["signup", "login"].includes(mode))
+  if (
+    user?.verified &&
+    user.id !== "onboarding-guest" &&
+    ["signup", "login"].includes(mode)
+  )
     return <Navigate to={safeNext} replace />;
   const titles: Record<string, string> = {
     signup: "Create your account",
@@ -233,7 +242,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
       <div className="auth-frame">
         <section className="auth-left">
           <header className="auth-header">
-            <Link to="/welcome" aria-label="Aynor home">
+            <Link to="/home" aria-label="Aynor home">
               <Logo />
             </Link>
             <span>
@@ -499,28 +508,9 @@ export function Auth({ mode: initial }: { mode?: string }) {
                 )}
               </form>
             )}
-            {["signup", "login"].includes(mode) && (
-              <button
-                className="explore-prototype"
-                onClick={async () => {
-                  setBusy(true);
-                  try {
-                    const r = await prototype.explore();
-                    setUser(r.user);
-                    nav("/entry");
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-                disabled={busy}
-              >
-                Just looking around?{" "}
-                <span>
-                  Explore the prototype <ArrowUpRight size={12} />
-                </span>
-              </button>
+            {["login", "signup"].includes(mode) && (
+              <SkipSignIn label="Skip for now · continue to onboarding" />
             )}
-
             <div className="auth-trust">
               <ShieldCheck size={14} />
               <span>Interactive prototype · No real authentication</span>

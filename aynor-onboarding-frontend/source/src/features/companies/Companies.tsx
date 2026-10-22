@@ -1,18 +1,29 @@
+import { OnboardingFrame } from "../onboarding/OnboardingFrame";
 import {
+  ArrowLeft,
   ArrowRight,
   ArrowUpRight,
+  Building2,
+  Compass,
+  LockKeyhole,
   Mail,
   Plus,
   Search,
   ShieldCheck,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AppHeader } from "../../components/AppHeader";
-import { Badge, Button, Empty, ErrorBox } from "../../components/ui";
+import {
+  Badge,
+  Button,
+  Empty,
+  ErrorBox,
+  Field,
+  Select,
+} from "../../components/ui";
 import { api, type Company } from "../../lib/api";
 import { useApp } from "../../lib/context";
-import { wizardUrl } from "../wizard/progress";
 const message = (e: unknown) =>
   e instanceof Error ? e.message : "Please try again.";
 
@@ -183,7 +194,10 @@ export function Companies() {
                     </Link>
                   </div>
                   {!c.data.completed && ["Owner", "Admin"].includes(c.role) && (
-                    <Link className="resume-strip" to={wizardUrl(c)}>
+                    <Link
+                      className="resume-strip"
+                      to={`/companies/${c.id}/onboarding/${c.data.step || "departments"}`}
+                    >
                       Continue setting up <ArrowRight size={14} />
                     </Link>
                   )}
@@ -230,5 +244,204 @@ export function Companies() {
         <span>Clarity for every business you lead.</span>
       </footer>
     </div>
+  );
+}
+
+export function NewCompany() {
+  const nav = useNavigate();
+  const { user } = useApp();
+  const draftKey = `aynor.company-draft.${user?.id || "guest"}`;
+  const initial = {
+    name: "",
+    industry: "",
+    country: "Pakistan",
+    timezone: "Asia/Karachi",
+    currency: "PKR",
+    website: "",
+    size: "",
+  };
+  const [form, setForm] = useState<typeof initial>(() => {
+      try {
+        return (
+          JSON.parse(sessionStorage.getItem(draftKey) || "null") || initial
+        );
+      } catch {
+        return initial;
+      }
+    }),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false);
+  const [key] = useState(() => {
+    const existing = sessionStorage.getItem(draftKey + ".key");
+    const k = existing || crypto.randomUUID();
+    sessionStorage.setItem(draftKey + ".key", k);
+    return k;
+  });
+  const change = (k: string, v: string) =>
+    setForm((f) => {
+      const next = { ...f, [k]: v };
+      sessionStorage.setItem(draftKey, JSON.stringify(next));
+      return next;
+    });
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const c = await api("/companies", "POST", form, {
+        "Idempotency-Key": key,
+      });
+      sessionStorage.removeItem(draftKey);
+      sessionStorage.removeItem(draftKey + ".key");
+      nav(`/companies/${c.id}/onboarding/departments`);
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <OnboardingFrame step="company">
+      {" "}
+      <section className="create-form">
+        <div className="section-counter">
+          01 <span>/ THE ESSENTIALS</span>
+        </div>
+        <h1>Let’s build your workspace.</h1>
+        <p>Start with the essentials. You can always update these later.</p>
+        <ErrorBox>{error}</ErrorBox>
+        <form onSubmit={submit}>
+          <Field
+            label="Company name"
+            required
+            placeholder="e.g. Vordx Technologies"
+            maxLength={120}
+            value={form.name}
+            onChange={(e) => change("name", e.target.value)}
+          />
+          <Field
+            label="Company website"
+            type="url"
+            placeholder="https://yourcompany.com"
+            value={form.website}
+            onChange={(e) => change("website", e.target.value)}
+          />
+          <Select
+            label="Industry"
+            required
+            value={form.industry}
+            onChange={(v) => change("industry", v)}
+            options={[
+              "Technology & software",
+              "Professional services",
+              "Finance & banking",
+              "Retail & commerce",
+              "Manufacturing",
+              "Healthcare",
+              "Education",
+              "Other",
+            ]}
+          />
+          <div className="form-grid">
+            <Select
+              label="Country"
+              required
+              value={form.country}
+              onChange={(v) => {
+                change("country", v);
+                const defaults: Record<string, string[]> = {
+                  Pakistan: ["Asia/Karachi", "PKR"],
+                  "United States": ["America/New_York", "USD"],
+                  "United Kingdom": ["Europe/London", "GBP"],
+                  "United Arab Emirates": ["Asia/Dubai", "AED"],
+                  India: ["Asia/Kolkata", "INR"],
+                  Canada: ["America/Toronto", "CAD"],
+                  Australia: ["Australia/Sydney", "AUD"],
+                };
+                if (defaults[v]) {
+                  change("timezone", defaults[v][0]);
+                  change("currency", defaults[v][1]);
+                }
+              }}
+              options={[
+                "Pakistan",
+                "United States",
+                "United Kingdom",
+                "United Arab Emirates",
+                "India",
+                "Canada",
+                "Australia",
+                "Germany",
+                "Singapore",
+                "Other",
+              ]}
+            />
+            <Select
+              label="Currency"
+              required
+              value={form.currency}
+              onChange={(v) => change("currency", v)}
+              options={[
+                "PKR",
+                "USD",
+                "GBP",
+                "AED",
+                "INR",
+                "EUR",
+                "CAD",
+                "AUD",
+                "SGD",
+              ]}
+            />
+          </div>
+          <Select
+            label="Time zone"
+            required
+            value={form.timezone}
+            onChange={(v) => change("timezone", v)}
+            options={[
+              "Asia/Karachi",
+              "America/New_York",
+              "America/Los_Angeles",
+              "Europe/London",
+              "Asia/Dubai",
+              "Asia/Kolkata",
+              "America/Toronto",
+              "Australia/Sydney",
+              "Europe/Berlin",
+              "Asia/Singapore",
+              "UTC",
+            ]}
+          />
+          <Select
+            label="Company size"
+            value={form.size}
+            onChange={(v) => change("size", v)}
+            options={[
+              "Just me",
+              "2–10 employees",
+              "11–50 employees",
+              "51–200 employees",
+              "201–500 employees",
+              "500+ employees",
+            ]}
+          />
+          <div className="form-bottom">
+            <span>
+              <ShieldCheck size={14} /> You’ll be the workspace Owner.
+            </span>
+            <div className="company-form-actions">
+              <Link className="text-button" to="/home">
+                <ArrowLeft size={14} /> Back
+              </Link>
+              <Button type="submit" busy={busy}>
+                Create workspace <ArrowRight size={16} />
+              </Button>
+            </div>
+          </div>
+        </form>
+      </section>
+    </OnboardingFrame>
   );
 }

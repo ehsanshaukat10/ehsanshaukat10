@@ -15,39 +15,15 @@ import { useApp } from "../../lib/context";
 const message = (e: unknown) =>
   e instanceof Error ? e.message : "Please try again.";
 
-export function TeamInvites({
-  company,
-  compact = false,
-  onComplete,
-  onDraftChange,
-  onBusyChange,
-  onInvited,
-}: {
-  company: Company;
-  compact?: boolean;
-  onComplete?: () => void;
-  onDraftChange?: (hasDraft: boolean) => void;
-  onBusyChange?: (busy: boolean) => void;
-  onInvited?: (count: number) => void;
-}) {
+export function TeamInvites({ company }: { company: Company }) {
   const [rows, setRows] = useState([
-      {
-        email: "",
-        role: compact ? "Executive" : "Viewer",
-        scope: [] as string[],
-      },
+      { email: "", role: "Viewer", scope: [] as string[] },
     ]),
     [invites, setInvites] = useState<any[]>([]),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [links, setLinks] = useState<{ email: string; link: string }[]>([]);
   const { toast } = useApp();
-  useEffect(() => {
-    onDraftChange?.(rows.some((r) => r.email.trim().length > 0));
-  }, [rows, onDraftChange]);
-  useEffect(() => {
-    onBusyChange?.(busy);
-  }, [busy, onBusyChange]);
   async function load() {
     try {
       setInvites(await api(`/companies/${company.id}/invitations`));
@@ -60,7 +36,6 @@ export function TeamInvites({
   }, [company.id]);
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (busy) return;
     setBusy(true);
     setError("");
     const failures: string[] = [];
@@ -80,7 +55,6 @@ export function TeamInvites({
       }
     }
     setLinks((l) => [...l, ...successes]);
-    if (successes.length) onInvited?.(successes.length);
     if (successes.length)
       toast(
         `${successes.length} sample invitation${successes.length > 1 ? "s" : ""} created. No email was sent.`,
@@ -93,21 +67,18 @@ export function TeamInvites({
     );
     await load();
     setBusy(false);
-    if (!failures.length && successes.length) onComplete?.();
   }
   return (
     <>
-      {!compact && (
-        <div className="quiet-note">
-          <ShieldCheck size={17} />
-          <span>
-            Give people the access they need. Ownership is never granted through
-            ordinary invitations.
-          </span>
-        </div>
-      )}
+      <div className="quiet-note">
+        <ShieldCheck size={17} />
+        <span>
+          Give people the access they need. Ownership is never granted through
+          ordinary invitations.
+        </span>
+      </div>
       <ErrorBox>{error}</ErrorBox>
-      <form id={compact ? "wizard-invitations" : undefined} onSubmit={submit}>
+      <form onSubmit={submit}>
         <div className="invite-form-head">
           <span>EMAIL ADDRESS</span>
           <span>ROLE</span>
@@ -198,37 +169,32 @@ export function TeamInvites({
           >
             <Plus size={15} /> Add another person
           </Button>
-          {!compact && (
-            <Button type="submit" busy={busy}>
-              <Mail size={15} /> Send invitations
-            </Button>
-          )}
+          <Button type="submit" busy={busy}>
+            <Mail size={15} /> Send invitations
+          </Button>
         </div>
       </form>
-      {!compact && (
-        <div className="role-explainer">
-          <h4>Thoughtful access. Better collaboration.</h4>
-          <div>
-            <p>
-              <strong>Admin</strong>Company configuration and team
-              administration.
-            </p>
-            <p>
-              <strong>Executive</strong>Company overview. Restricted data stays
-              private.
-            </p>
-            <p>
-              <strong>Department Manager</strong>Assigned departments and
-              permitted insights.
-            </p>
-            <p>
-              <strong>Viewer</strong>Read-only access to explicitly permitted
-              departments.
-            </p>
-          </div>
+      <div className="role-explainer">
+        <h4>Thoughtful access. Better collaboration.</h4>
+        <div>
+          <p>
+            <strong>Admin</strong>Company configuration and team administration.
+          </p>
+          <p>
+            <strong>Executive</strong>Company overview. Restricted data stays
+            private.
+          </p>
+          <p>
+            <strong>Department Manager</strong>Assigned departments and
+            permitted insights.
+          </p>
+          <p>
+            <strong>Viewer</strong>Read-only access to explicitly permitted
+            departments.
+          </p>
         </div>
-      )}
-      {!compact && links.length > 0 && (
+      </div>
+      {links.length > 0 && (
         <div className="development-links">
           <Badge>SIMULATED EMAIL DELIVERY · NO EMAIL SENT</Badge>
           {links.map((l, i) => (

@@ -1,2 +1,2 @@
-// Current frontend journey suite. Requires the Vite frontend running.
-import "./wizard.browser.mjs";
+// Frontend journey checks for the uploaded-version refinement.
+import "./home-onboarding.browser.mjs";

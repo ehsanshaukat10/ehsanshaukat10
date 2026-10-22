@@ -159,7 +159,27 @@ function seed(): PrototypeState {
 function load(): PrototypeState {
   try {
     const raw = localStorage.getItem(STORE);
-    return raw ? JSON.parse(raw) : seed();
+    if (!raw) return seed();
+    const saved = JSON.parse(raw);
+    // Preserve browser-local progress from the intervening five-step prototype.
+    const legacy: Record<string, string> = {
+      structure: "departments",
+      connect: "integrations",
+      team: "invite",
+      finish: "review",
+    };
+    for (const c of saved.companies || []) {
+      if (c.data?.wizard) {
+        for (const [stage, status] of Object.entries(
+          c.data.wizard.steps || {},
+        )) {
+          const key = legacy[stage];
+          if (key && !c.data.steps[key]) c.data.steps[key] = status;
+        }
+        if (legacy[c.data.step]) c.data.step = legacy[c.data.step];
+      }
+    }
+    return saved;
   } catch {
     return seed();
   }
@@ -210,6 +230,22 @@ function companyView(c: Company, u: User): Company {
   return copy;
 }
 export const prototype = {
+  async guest() {
+    await wait(300);
+    state = load();
+    let user = state.users.find((u) => u.id === "onboarding-guest");
+    if (!user) {
+      user = {
+        id: "onboarding-guest",
+        name: "Guest",
+        email: "guest@preview.aynor",
+        verified: true,
+      };
+      state.users.push(user);
+    }
+    persist();
+    return signIn(user);
+  },
   preview(screen: string) {
     state = load();
     sessionStorage.setItem("aynor.screen-preview", "active");

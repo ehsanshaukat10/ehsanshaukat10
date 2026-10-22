@@ -1,3 +1,4 @@
+import { sampleAdapter } from "../integrations/sampleAdapter";
 import {
   Activity,
   ArrowDown,
@@ -25,7 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Badge,
   Button,
@@ -46,7 +47,6 @@ import {
   type WorkspaceData,
 } from "../../lib/api";
 import { useApp } from "../../lib/context";
-import { sampleAdapter } from "../integrations/sampleAdapter";
 import { TeamInvites } from "../team/Team";
 const message = (e: unknown) =>
   e instanceof Error ? e.message : "Please try again.";
@@ -104,23 +104,27 @@ export function Onboarding({
   save,
   busy,
   onReload,
-  settings = false,
 }: {
   company: Company;
   step: string;
   save: (d: WorkspaceData) => Promise<boolean | undefined>;
   busy: boolean;
   onReload: () => void;
-  settings?: boolean;
 }) {
+  const route = useLocation();
+  const draftKey = `aynor.detailed-draft.${company.id}.${step}`;
   const nav = useNavigate(),
     { toast } = useApp();
   const [connecting, setConnecting] = useState(false);
   const [invitationCount, setInvitationCount] = useState<number | null>(null);
   const [pendingNav, setPendingNav] = useState("");
-  const [data, setData] = useState<WorkspaceData>(() =>
-      structuredClone(company.data),
-    ),
+  const [data, setData] = useState<WorkspaceData>(() => {
+      try {
+        const d = JSON.parse(sessionStorage.getItem(draftKey) || "null");
+        if (d?.version === company.version) return d.data;
+      } catch {}
+      return structuredClone(company.data);
+    }),
     [custom, setCustom] = useState(""),
     [error, setError] = useState(""),
     [sourceSearch, setSourceSearch] = useState(""),
@@ -162,16 +166,21 @@ export function Onboarding({
     if (!dirty) return;
     const intercept = (e: MouseEvent) => {
       const a = (e.target as HTMLElement).closest("a");
+      const target = a
+        ? a.hash.startsWith("#/")
+          ? a.hash.slice(1)
+          : a.pathname + a.search
+        : "";
       if (
         a &&
         a.origin === location.origin &&
-        a.pathname !== location.pathname &&
+        target !== route.pathname + route.search &&
         !e.metaKey &&
         !e.ctrlKey
       ) {
         e.preventDefault();
         e.stopPropagation();
-        setPendingNav(a.pathname + a.search);
+        setPendingNav(target);
       }
     };
     document.addEventListener("click", intercept, true);
@@ -187,7 +196,7 @@ export function Onboarding({
         action={
           <Link
             className="button"
-            to={`/companies/${company.id}/settings/setup/${company.data.step || "departments"}`}
+            to={`/companies/${company.id}/onboarding/${company.data.step || "departments"}`}
           >
             Resume setup
           </Link>
@@ -195,7 +204,14 @@ export function Onboarding({
       />
     );
   const change = (key: keyof WorkspaceData, value: unknown) =>
-    setData((d) => ({ ...d, [key]: value }));
+    setData((d) => {
+      const next = { ...d, [key]: value };
+      sessionStorage.setItem(
+        draftKey,
+        JSON.stringify({ version: company.version, data: next }),
+      );
+      return next;
+    });
   const toggle = (
     key: "departments" | "priorities" | "sources",
     value: string,
@@ -313,12 +329,10 @@ export function Onboarding({
             <h1>{heading[0]}</h1>
             <p>{heading[1]}</p>
           </div>
-          {!settings && (
-            <span className="step-number">
-              {String(index + 1).padStart(2, "0")}
-              <small> / 12</small>
-            </span>
-          )}
+          <span className="step-number">
+            {String(index + 1).padStart(2, "0")}
+            <small> / 12</small>
+          </span>
         </div>
       </div>
       <ErrorBox>{error}</ErrorBox>
@@ -582,14 +596,6 @@ export function Onboarding({
                 )}
               </Button>
             </div>
-            {data.connected && settings && (
-              <Link
-                className="text-button"
-                to={`/companies/${company.id}/settings/setup/sources`}
-              >
-                Select spreadsheets <ArrowUpRight size={13} />
-              </Link>
-            )}
             {data.connected && (
               <Button variant="text" onClick={() => setModal("disconnect")}>
                 Disconnect sample adapter
@@ -606,7 +612,7 @@ export function Onboarding({
                 action={
                   <Link
                     className="button"
-                    to={`/companies/${company.id}/settings/setup/integrations`}
+                    to={`/companies/${company.id}/onboarding/integrations`}
                   >
                     Go to connections <ArrowRight size={15} />
                   </Link>
@@ -798,7 +804,7 @@ export function Onboarding({
                 action={
                   <Link
                     className="button"
-                    to={`/companies/${company.id}/settings/setup/discovery`}
+                    to={`/companies/${company.id}/onboarding/discovery`}
                   >
                     Discover data
                   </Link>
@@ -1031,7 +1037,7 @@ export function Onboarding({
             </div>
             <Link
               className="text-button"
-              to={`/companies/${company.id}/settings/setup/mapping`}
+              to={`/companies/${company.id}/onboarding/mapping`}
             >
               Review mappings <ArrowUpRight size={13} />
             </Link>
@@ -1280,7 +1286,7 @@ export function Onboarding({
               </div>
               <Link
                 className="text-button"
-                to={`/companies/${company.id}/settings/setup/company`}
+                to={`/companies/${company.id}/onboarding/company`}
               >
                 Edit profile <ArrowUpRight size={13} />
               </Link>
@@ -1323,7 +1329,7 @@ export function Onboarding({
                 <div className="review-row" key={s}>
                   <span>{label}</span>
                   <strong>{value}</strong>
-                  <Link to={`/companies/${company.id}/settings/setup/${s}`}>
+                  <Link to={`/companies/${company.id}/onboarding/${s}`}>
                     Edit <ArrowUpRight size={13} />
                   </Link>
                 </div>
@@ -1374,16 +1380,23 @@ export function Onboarding({
           </div>
         )}
       </div>
-      {!settings && step !== "complete" && (
+      {step !== "complete" && (
         <div className="step-footer">
           <Button
             variant="text"
+            disabled={busy}
             onClick={async () => {
-              if (dirty && !(await save(data))) return;
+              if (
+                !(await save({
+                  ...data,
+                  step: index === 0 ? step : steps[index - 1],
+                }))
+              )
+                return;
               nav(
                 index === 0
                   ? "/companies"
-                  : `/companies/${company.id}/settings/setup/${steps[index - 1]}`,
+                  : `/companies/${company.id}/onboarding/${steps[index - 1]}`,
               );
             }}
           >
@@ -1413,22 +1426,19 @@ export function Onboarding({
           </div>
         </div>
       )}
-      {settings && (
-        <div className="step-footer">
-          <Link
-            className="text-button"
-            to={`/companies/${company.id}/settings/setup`}
-          >
-            <ArrowLeft size={15} /> Workspace settings
-          </Link>
-          <Button
-            busy={busy}
+      {step !== "complete" && (
+        <div className="finish-later">
+          <button
+            disabled={busy}
             onClick={async () => {
-              if (await save(data)) toast("Changes saved.");
+              if (await save({ ...data, step })) {
+                toast("Your progress is saved. Pick up where you left off.");
+                nav(`/companies/${company.id}/overview`);
+              }
             }}
           >
-            Save changes <Check size={15} />
-          </Button>
+            Save & finish later <ArrowUpRight size={12} />
+          </button>
         </div>
       )}
       {pendingNav && (
@@ -1701,7 +1711,7 @@ export function CompanyProfile({
               });
               toast("Company details saved.");
               onReload();
-              nav(`/companies/${company.id}/settings/setup`);
+              nav(`/companies/${company.id}/onboarding/review`);
             } catch (e) {
               setError(message(e));
             } finally {
@@ -1742,9 +1752,9 @@ export function CompanyProfile({
           <div className="modal-actions">
             <Link
               className="button secondary"
-              to={`/companies/${company.id}/settings/setup`}
+              to={`/companies/${company.id}/onboarding/review`}
             >
-              Workspace settings
+              Back to review
             </Link>
             <Button type="submit" busy={busy}>
               Save company details <Check size={16} />
