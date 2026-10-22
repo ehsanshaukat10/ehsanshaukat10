@@ -1,12 +1,26 @@
 @font-face {
-  font-family: "Google Sans Flex";
-  src: url("./assets/fonts/google-sans-flex.ttf") format("truetype");
-  font-weight: 100 1000;
+  font-family: "Geist";
   font-style: normal;
+  font-weight: 400;
   font-display: swap;
+  src: url("./assets/fonts/geist-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./assets/fonts/geist-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./assets/fonts/geist-latin-600-normal.woff2") format("woff2");
 }
 :root {
-  font-family: "Google Sans Flex", sans-serif;
+  font-family: "Geist", sans-serif;
   color: #20222a;
   background: #f5f6f8;
   font-synthesis: none;
@@ -87,7 +101,7 @@ p {
 }
 h1,
 h2 {
-  font-family: "Google Sans Flex", sans-serif;
+  font-family: "Manrope", "Geist", sans-serif;
   font-weight: 500;
   letter-spacing: -1.8px;
 }
@@ -691,7 +705,7 @@ input::placeholder {
   z-index: 2;
 }
 .brand-title h2 {
-  font-family: "Google Sans Flex", sans-serif;
+  font-family: "Geist", sans-serif;
   font-size: clamp(39px, 4.1vw, 66px);
   font-weight: 500;
   letter-spacing: -3px;
@@ -839,7 +853,7 @@ input::placeholder {
   color: #e4dcff;
 }
 .insight-art h3 {
-  font-family: "Google Sans Flex", sans-serif;
+  font-family: "Geist", sans-serif;
   font-size: 24px;
   line-height: 1.35;
   font-weight: 450;
@@ -1724,7 +1738,7 @@ input::placeholder {
   color: #686d7b;
 }
 .step-number {
-  font-family: "Google Sans Flex", sans-serif;
+  font-family: "Geist", sans-serif;
   font-size: 26px;
   font-weight: 450;
   color: #747987;
@@ -1732,7 +1746,7 @@ input::placeholder {
   padding-top: 4px;
 }
 .step-number small {
-  font-family: "Google Sans Flex", sans-serif;
+  font-family: "Geist", sans-serif;
   font-size: 14px;
   color: #686d7b;
   letter-spacing: 0.2px;
@@ -2753,7 +2767,7 @@ input::placeholder {
   display: block;
   margin: 20px 0 10px;
   font-size: 29px;
-  font-family: "Google Sans Flex", sans-serif;
+  font-family: "Geist", sans-serif;
   font-weight: 450;
   color: #4e5363;
 }

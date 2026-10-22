@@ -511,10 +511,6 @@ export function Auth({ mode: initial }: { mode?: string }) {
             {["login", "signup"].includes(mode) && (
               <SkipSignIn label="Skip for now · continue to onboarding" />
             )}
-            <div className="auth-trust">
-              <ShieldCheck size={14} />
-              <span>Explore your workspace at your own pace.</span>
-            </div>
           </div>
           <footer className="auth-footer">
             <span>© {new Date().getFullYear()} Aynor</span>

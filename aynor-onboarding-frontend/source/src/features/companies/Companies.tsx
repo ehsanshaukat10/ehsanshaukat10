@@ -259,7 +259,6 @@ export function NewCompany() {
     currency: "PKR",
     website: "",
     size: "",
-    city: "",
     businessModel: "",
   };
   const [form, setForm] = useState<typeof initial>(() => {
@@ -322,38 +321,51 @@ export function NewCompany() {
         <p>Start with the essentials. You can always update these later.</p>
         <ErrorBox>{error}</ErrorBox>
         <form onSubmit={submit}>
-          <Field
-            label="Company name"
-            required
-            placeholder="e.g. Vordx Technologies"
-            maxLength={120}
-            value={form.name}
-            onChange={(e) => change("name", e.target.value)}
-          />
-          <Field
-            label="Company website"
-            type="url"
-            placeholder="https://yourcompany.com"
-            value={form.website}
-            onChange={(e) => change("website", e.target.value)}
-          />
-          <Select
-            label="Industry"
-            required
-            value={form.industry}
-            onChange={(v) => change("industry", v)}
-            options={[
-              "Technology & software",
-              "Professional services",
-              "Finance & banking",
-              "Retail & commerce",
-              "Manufacturing",
-              "Healthcare",
-              "Education",
-              "Other",
-            ]}
-          />
-          <div className="form-grid">
+          <div className="form-grid company-input-grid">
+            <Field
+              label="Company name"
+              required
+              placeholder="e.g. Vordx Technologies"
+              maxLength={120}
+              value={form.name}
+              onChange={(e) => change("name", e.target.value)}
+            />
+            <Field
+              label="Company website"
+              type="url"
+              placeholder="https://yourcompany.com"
+              value={form.website}
+              onChange={(e) => change("website", e.target.value)}
+            />
+            <Select
+              label="Industry"
+              required
+              value={form.industry}
+              onChange={(v) => change("industry", v)}
+              options={[
+                "Technology & software",
+                "Professional services",
+                "Finance & banking",
+                "Retail & commerce",
+                "Manufacturing",
+                "Healthcare",
+                "Education",
+                "Other",
+              ]}
+            />
+            <Select
+              label="Company size"
+              value={form.size}
+              onChange={(v) => change("size", v)}
+              options={[
+                "Just me",
+                "2–10 employees",
+                "11–50 employees",
+                "51–200 employees",
+                "201–500 employees",
+                "500+ employees",
+              ]}
+            />
             <Select
               label="Country"
               required
@@ -388,64 +400,6 @@ export function NewCompany() {
               ]}
             />
             <Select
-              label="Currency"
-              required
-              value={form.currency}
-              onChange={(v) => change("currency", v)}
-              options={[
-                "PKR",
-                "USD",
-                "GBP",
-                "AED",
-                "INR",
-                "EUR",
-                "CAD",
-                "AUD",
-                "SGD",
-              ]}
-            />
-          </div>
-          <Select
-            label="Time zone"
-            required
-            value={form.timezone}
-            onChange={(v) => change("timezone", v)}
-            options={[
-              "Asia/Karachi",
-              "America/New_York",
-              "America/Los_Angeles",
-              "Europe/London",
-              "Asia/Dubai",
-              "Asia/Kolkata",
-              "America/Toronto",
-              "Australia/Sydney",
-              "Europe/Berlin",
-              "Asia/Singapore",
-              "UTC",
-            ]}
-          />
-          <Select
-            label="Company size"
-            value={form.size}
-            onChange={(v) => change("size", v)}
-            options={[
-              "Just me",
-              "2–10 employees",
-              "11–50 employees",
-              "51–200 employees",
-              "201–500 employees",
-              "500+ employees",
-            ]}
-          />
-          <div className="form-grid">
-            <Field
-              label="City"
-              value={form.city}
-              onChange={(e) => change("city", e.target.value)}
-              placeholder="e.g. Lahore"
-              maxLength={100}
-            />
-            <Select
               label="Business model"
               value={form.businessModel}
               onChange={(v) => change("businessModel", v)}
@@ -460,9 +414,6 @@ export function NewCompany() {
             />
           </div>
           <div className="form-bottom">
-            <span>
-              <ShieldCheck size={14} /> You’ll be the workspace Owner.
-            </span>
             <div className="company-form-actions">
               <Link className="text-button" to="/home">
                 <ArrowLeft size={14} /> Back

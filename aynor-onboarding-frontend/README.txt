@@ -1,14 +1,15 @@
 AYNOR — Onboarding frontend
 
-Open index.html directly in your browser. Application code, Google Sans Flex,
+Open index.html directly in your browser. Application code, Geist,
 styles and visuals are embedded. No backend or installation is required.
 
 Start at Home, log in/create an account, or skip to explore as a guest.
+Onboarding opens directly without a company-selection screen.
 Verification code: 123456. Authentication and Google connections are simulated.
 
 Seven onboarding steps:
-1. Company details — name, industry, website, size, country, city,
-   business model, time zone and currency.
+1. Company details — name, industry, website, size, country and
+   business model.
 2. Departments — choose existing options or add custom departments.
 3. Data sheets — connect Google Sheets, upload CSV/TSV/JSON (up to 5 MB),
    or paste a Google Sheets URL. Google/URL previews use example fields.
@@ -27,6 +28,5 @@ Build: npm run build.
 Browser checks with Vite running: npm run test:frontend.
 Export: node src/export-html.mjs; copy generated aynor.html to ../index.html.
 
-Font: Google Sans Flex, bundled under the SIL Open Font License.
-License: source/src/assets/fonts/OFL-GoogleSansFlex.txt.
+Font: Geist, bundled with the frontend.
 Backend services, databases and API/authentication configuration are unchanged.

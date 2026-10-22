@@ -17,11 +17,8 @@ export function CompanyProfile({
       name: company.name,
       industry: company.industry,
       country: company.country,
-      currency: company.currency,
-      timezone: company.timezone,
       website: company.website,
       size: company.size,
-      city: company.city || "",
       businessModel: company.businessModel || "",
     }),
     [error, setError] = useState(""),
@@ -60,54 +57,47 @@ export function CompanyProfile({
             }
           }}
         >
-          {(
-            ["name", "industry", "country", "currency", "timezone"] as const
-          ).map((k) => (
+          <div className="form-grid company-input-grid">
+            {(["name", "industry", "country"] as const).map((k) => (
+              <Field
+                key={k}
+                label={
+                  {
+                    name: "Company name",
+                    industry: "Industry",
+                    country: "Country",
+                  }[k]
+                }
+                required
+                value={profile[k]}
+                onChange={(e) => field(k, e.target.value)}
+              />
+            ))}
             <Field
-              key={k}
-              label={
-                {
-                  name: "Company name",
-                  industry: "Industry",
-                  country: "Country",
-                  currency: "Currency",
-                  timezone: "Time zone",
-                }[k]
-              }
-              required
-              value={profile[k]}
-              onChange={(e) => field(k, e.target.value)}
+              label="Website"
+              type="url"
+              value={profile.website}
+              onChange={(e) => field("website", e.target.value)}
             />
-          ))}
-          <Field
-            label="Website"
-            type="url"
-            value={profile.website}
-            onChange={(e) => field("website", e.target.value)}
-          />
-          <Field
-            label="Company size"
-            value={profile.size}
-            onChange={(e) => field("size", e.target.value)}
-          />
-          <Field
-            label="City"
-            value={profile.city}
-            onChange={(e) => field("city", e.target.value)}
-          />
-          <Select
-            label="Business model"
-            value={profile.businessModel}
-            options={[
-              "B2B",
-              "B2C",
-              "B2B & B2C",
-              "Marketplace",
-              "Nonprofit",
-              "Other",
-            ]}
-            onChange={(v) => field("businessModel", v)}
-          />
+            <Field
+              label="Company size"
+              value={profile.size}
+              onChange={(e) => field("size", e.target.value)}
+            />
+            <Select
+              label="Business model"
+              value={profile.businessModel}
+              options={[
+                "B2B",
+                "B2C",
+                "B2B & B2C",
+                "Marketplace",
+                "Nonprofit",
+                "Other",
+              ]}
+              onChange={(v) => field("businessModel", v)}
+            />
+          </div>
           <div className="modal-actions">
             <Link
               className="button secondary"

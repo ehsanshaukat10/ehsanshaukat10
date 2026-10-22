@@ -29,8 +29,12 @@ async function company(page, name = "Meridian Group") {
   await page.getByLabel("Industry").selectOption("Technology & software");
   await page.getByLabel("Company website").fill("https://meridian.example");
   await page.getByLabel("Company size").selectOption("11–50 employees");
-  await page.getByLabel("City", { exact: true }).fill("Lahore");
   await page.getByLabel("Business model").selectOption("B2B");
+  for (const label of ["City", "Time zone", "Currency"])
+    await expect(page.getByLabel(label, { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByText("You’ll be the workspace Owner.", { exact: true }),
+  ).toHaveCount(0);
   await page
     .getByRole("button", { name: "Create workspace", exact: true })
     .click();
@@ -125,7 +129,7 @@ try {
         "07 / 7",
       );
       await expect(page.locator(".seven-review-section")).toHaveCount(6);
-      await expect(page.locator(".seven-review")).toContainText("Lahore");
+      await expect(page.locator(".seven-review")).toContainText("B2B");
       await expect(page.locator(".seven-review")).toContainText("25%");
       for (const [label, title] of [
         ["departments", "How does your company work?"],
@@ -146,12 +150,16 @@ try {
       await page
         .getByRole("link", { name: "Edit company details", exact: true })
         .click();
-      await page.getByLabel("City", { exact: true }).fill("Karachi");
+      await page
+        .getByLabel("Company name", { exact: true })
+        .fill("Meridian Updated");
       await page
         .getByRole("button", { name: "Save company details", exact: true })
         .click();
       await heading(page, "Everything in its place.");
-      await expect(page.locator(".seven-review")).toContainText("Karachi");
+      await expect(page.locator(".seven-review")).toContainText(
+        "Meridian Updated",
+      );
       await page
         .getByRole("button", { name: "Enter Aynor", exact: true })
         .click();
@@ -268,16 +276,12 @@ try {
         );
         assert.ok(
           await page.evaluate(() =>
-            getComputedStyle(document.body).fontFamily.includes(
-              "Google Sans Flex",
-            ),
+            getComputedStyle(document.body).fontFamily.includes("Geist"),
           ),
         );
         await page.evaluate(() => document.fonts.ready);
         assert.ok(
-          await page.evaluate(() =>
-            document.fonts.check('400 16px "Google Sans Flex"'),
-          ),
+          await page.evaluate(() => document.fonts.check('400 16px "Geist"')),
         );
         if (width === 1440 || width === 390)
           await page.screenshot({
@@ -304,6 +308,20 @@ try {
         await page.goto(root + "/onboarding/" + old);
         await heading(page, title);
       }
+      await context.close();
+    },
+  );
+  await check(
+    "entry bypasses company selection with multiple workspaces",
+    async () => {
+      const { page, context } = await start();
+      await company(page, "First Workspace");
+      await page.goto(base + "/companies/new");
+      await company(page, "Second Workspace");
+      const second = page.url();
+      await page.goto(base + "/entry");
+      await heading(page, "How does your company work?");
+      await expect(page).toHaveURL(second);
       await context.close();
     },
   );

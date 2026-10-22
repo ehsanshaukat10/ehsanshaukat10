@@ -775,13 +775,21 @@ export function SevenStepOnboarding({
                 {editing === null ? "Add a business goal" : "Edit your goal"}
               </h2>
             </div>
-            <Field
-              label="Goal name"
-              required
-              value={goal.name}
-              onChange={(e) => setGoal({ ...goal, name: e.target.value })}
-              placeholder="e.g. Grow recurring revenue"
-            />
+            <div className="form-grid">
+              <Field
+                label="Goal name"
+                required
+                value={goal.name}
+                onChange={(e) => setGoal({ ...goal, name: e.target.value })}
+                placeholder="e.g. Grow recurring revenue"
+              />
+              <Field
+                label="Goal owner (optional)"
+                value={goal.owner}
+                onChange={(e) => setGoal({ ...goal, owner: e.target.value })}
+                placeholder="Who will lead this goal?"
+              />
+            </div>
             <div className="form-grid">
               <Field
                 label="Target value"
@@ -798,12 +806,6 @@ export function SevenStepOnboarding({
                 onChange={(e) => setGoal({ ...goal, deadline: e.target.value })}
               />
             </div>
-            <Field
-              label="Goal owner (optional)"
-              value={goal.owner}
-              onChange={(e) => setGoal({ ...goal, owner: e.target.value })}
-              placeholder="Who will lead this goal?"
-            />
             <div className="seven-form-actions">
               <button
                 type="button"
@@ -850,10 +852,7 @@ export function SevenStepOnboarding({
                     ["Website", company.website],
                     ["Company size", company.size],
                     ["Country", company.country],
-                    ["City", company.city],
                     ["Business model", company.businessModel],
-                    ["Time zone", company.timezone],
-                    ["Currency", company.currency],
                   ].map(([label, value]) => (
                     <div key={label}>
                       <dt>{label}</dt>
