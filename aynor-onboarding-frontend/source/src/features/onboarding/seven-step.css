@@ -639,105 +639,98 @@
   display: none;
 }
 .onboarding-completion .onboarding-form-content {
-  max-width: 1000px;
+  max-width: 680px;
   margin: auto;
-  padding: 28px 24px 48px;
+  padding: 16px 24px 24px;
 }
 .seven-complete-restored {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px 0;
+  padding: 12px 0;
 }
 .seven-complete-symbol {
-  width: 104px;
-  height: 104px;
-  border-radius: 32px;
+  width: 56px;
+  height: 56px;
+  border-radius: 17px;
   border: 1px solid #8e95a5;
   background: linear-gradient(140deg, #f0f1f7, #999fac);
-  box-shadow: 0 12px 30px #333c5b0a;
+  box-shadow: 0 8px 20px #333c5b08;
   display: grid;
   place-items: center;
   color: #596174;
 }
+.seven-complete-symbol svg {
+  width: 28px;
+  height: 28px;
+}
 .seven-complete-eyebrow {
   display: block;
-  font-size: 12px;
-  letter-spacing: 2px;
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 1.4px;
   color: #7a8092;
-  margin: 42px 0 28px;
+  margin: 22px 0 16px;
 }
-.onboarding-form-content .seven-complete-restored h1 {
-  font-size: clamp(44px, 5.3vw, 72px);
-  font-weight: 500;
-  letter-spacing: -3px;
-  line-height: 1.14;
+.onboarding-completion .onboarding-form-content .seven-complete-restored h1 {
+  font-size: 40px;
+  font-weight: 450;
+  line-height: 1.16;
+  letter-spacing: -1.5px;
 }
 .seven-complete-restored h1 > span {
   color: #545c70;
 }
-.onboarding-form-content .seven-complete-restored p {
-  font-size: 17px;
-  line-height: 1.7;
+.onboarding-completion .onboarding-form-content .seven-complete-restored p {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
   color: #7b8091;
-  margin: 32px 0 24px;
+  margin: 18px 0 14px;
 }
 .seven-complete-restored > .badge {
   background: #fffaf1;
   border: 1px solid #ebd8b2;
   color: #ab8545;
+  font-size: 12px;
+  font-weight: 400;
+  padding: 4px 8px;
 }
-.onboarding-form-content .seven-complete-restored > .button {
-  font-size: 18px;
-  padding: 18px 28px;
-  min-width: 260px;
-  justify-content: space-between;
-  margin: 30px 0 24px;
-  border-radius: 10px;
-}
-.seven-complete-restored > small {
+.onboarding-completion
+  .onboarding-form-content
+  .seven-setup
+  .seven-complete-restored
+  > .button {
   font-size: 14px;
+  font-weight: 400;
+  min-height: 44px;
+  padding: 10px 18px;
+  min-width: 200px;
+  justify-content: space-between;
+  margin: 20px 0 16px;
+  border-radius: 8px;
+}
+.seven-complete-restored > .button svg {
+  width: 17px;
+  height: 17px;
+}
+.onboarding-completion .seven-complete-restored > small {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
   color: #697487;
 }
 @media (max-width: 640px) {
-  .seven-complete-symbol {
-    width: 80px;
-    height: 80px;
-    border-radius: 25px;
+  .onboarding-completion .onboarding-form-content .seven-complete-restored h1 {
+    font-size: 32px;
+    letter-spacing: -1px;
   }
   .seven-complete-eyebrow {
     font-size: 10px;
     letter-spacing: 1px;
-    margin: 30px 0 24px;
   }
-  .onboarding-form-content .seven-complete-restored h1 {
-    font-size: 43px;
-    letter-spacing: -2px;
-  }
-  .onboarding-form-content .seven-complete-restored p {
-    font-size: 16px;
-  }
-  .seven-complete-restored > small {
+  .onboarding-completion .seven-complete-restored > small {
     max-width: 270px;
-    line-height: 1.6;
-  }
-}
-.onboarding-completion .onboarding-form-content .seven-complete-restored h1 {
-  font-size: clamp(44px, 5.3vw, 72px);
-  font-weight: 500;
-  line-height: 1.14;
-  letter-spacing: -3px;
-}
-.onboarding-completion .onboarding-form-content .seven-complete-restored p {
-  font-size: 17px;
-}
-@media (max-width: 640px) {
-  .onboarding-completion .onboarding-form-content .seven-complete-restored h1 {
-    font-size: 43px;
-    letter-spacing: -2px;
-  }
-  .onboarding-completion .onboarding-form-content .seven-complete-restored p {
-    font-size: 16px;
   }
 }
 /* Compact onboarding: regular supporting text, with space reserved for titles. */
@@ -1260,5 +1253,17 @@
 @media (max-width: 380px) {
   .onboarding-canvas:not(.onboarding-completion) .onboarding-frame-footer {
     display: none;
+  }
+}
+@media (max-height: 680px) {
+  .onboarding-completion .onboarding-brand-header {
+    padding-block: 12px;
+  }
+  .onboarding-completion .onboarding-frame-footer {
+    display: none;
+  }
+  .onboarding-completion .onboarding-form-content {
+    padding-top: 8px;
+    padding-bottom: 16px;
   }
 }
