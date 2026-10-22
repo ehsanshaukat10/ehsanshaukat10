@@ -106,7 +106,7 @@ try {
         .click();
       await page
         .getByRole("button", {
-          name: "Discover sample structures",
+          name: "Discover structures",
           exact: true,
         })
         .click();

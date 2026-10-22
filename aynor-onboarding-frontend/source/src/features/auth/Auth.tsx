@@ -513,7 +513,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
             )}
             <div className="auth-trust">
               <ShieldCheck size={14} />
-              <span>Interactive prototype · No real authentication</span>
+              <span>Explore your workspace at your own pace.</span>
             </div>
           </div>
           <footer className="auth-footer">

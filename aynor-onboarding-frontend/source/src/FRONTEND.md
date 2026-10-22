@@ -32,3 +32,7 @@ Generate the standalone distribution with `node src/export-html.mjs`, then copy 
 ## Integration boundary
 
 Changes are limited to frontend source, tests, documentation and the standalone distribution. Existing backend files, database code, API/authentication configuration and production infrastructure are untouched. Live verification, email, OAuth, permissions and Sheets integration require a separate integration task; this prototype only demonstrates their UI states.
+
+## Visual refinement
+
+Authentication and onboarding use an edge-to-edge 60/40 desktop split, collapsing to a focused single column on smaller devices. Supporting UI text has a 14px minimum, body copy is 16px, and form fields use 16px to prevent mobile input zoom. The landing page has a separate corporate composition. Onboarding illustrations change by stage and reflect entered company details and selected departments, priorities, mapping, KPIs and goals. Short entrance/selection transitions respect reduced-motion preferences. Repeated prototype/adapter banners have been removed; connection consent dialogs retain an explicit simulation disclosure.

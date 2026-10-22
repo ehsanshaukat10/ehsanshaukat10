@@ -139,6 +139,13 @@ export function Onboarding({
       deadline: "",
       owner: "",
     });
+  useEffect(() => {
+    queueMicrotask(() =>
+      window.dispatchEvent(
+        new CustomEvent("aynor-visual-update", { detail: data }),
+      ),
+    );
+  }, [data, step]);
   const index = steps.indexOf(step);
   const heading = headlines[step];
   const dirty = JSON.stringify(data) !== JSON.stringify(company.data);
@@ -243,7 +250,7 @@ export function Onboarding({
       return;
     }
     if (!skip && step === "sources" && !data.sources.length) {
-      setError("Select at least one sample source, or skip this step.");
+      setError("Select at least one source, or skip this step.");
       return;
     }
     if (
@@ -301,7 +308,7 @@ export function Onboarding({
       if (await save(updated)) {
         setData(updated);
         setProcessing(4);
-        toast("Sample structures loaded. Review the proposed mappings.");
+        toast("Structures ready. Review the proposed mappings.");
       } else {
         setProcessing(-1);
         setDiscoveryError("Discovery could not be saved. Reload and retry.");
@@ -534,7 +541,7 @@ export function Onboarding({
                   <FileSpreadsheet size={30} />
                 </span>
                 <Badge tone={data.connected ? "success" : ""}>
-                  {data.connected ? "Sample adapter active" : "Not connected"}
+                  {data.connected ? "Connection ready" : "Not connected"}
                 </Badge>
               </div>
               <h2>Google Sheets</h2>
@@ -560,7 +567,7 @@ export function Onboarding({
               </div>
               <ErrorBox>
                 {modal === "denied"
-                  ? "Access wasn’t granted. Your workspace hasn’t changed. Retry the connection or continue with sample data."
+                  ? "Access wasn’t granted. Your workspace hasn’t changed. Retry the connection or continue later."
                   : null}
               </ErrorBox>
               <Button busy={connecting} onClick={() => setModal("connect")}>
@@ -568,37 +575,9 @@ export function Onboarding({
                 <ArrowUpRight size={16} />
               </Button>
             </div>
-            <div className="sample-banner">
-              <div>
-                <Badge>PROTOTYPE ADAPTER</Badge>
-                <h3>Take a look around first.</h3>
-                <p>
-                  Use clearly labeled sample sources. No Google account is
-                  connected.
-                </p>
-              </div>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  change("demo", true);
-                  change("connected", true);
-                  toast(
-                    "Sample adapter selected. No Google connection was made.",
-                  );
-                }}
-              >
-                {data.connected ? (
-                  <>
-                    <Check size={15} /> Sample adapter selected
-                  </>
-                ) : (
-                  "Explore with sample data"
-                )}
-              </Button>
-            </div>
             {data.connected && (
               <Button variant="text" onClick={() => setModal("disconnect")}>
-                Disconnect sample adapter
+                Disconnect source
               </Button>
             )}
           </>
@@ -608,7 +587,7 @@ export function Onboarding({
             {!data.connected ? (
               <Empty
                 title="Connect a source to get started"
-                description="Connect Google Sheets when configured, or use the sample adapter to explore."
+                description="Connect Google Sheets to choose the sources for your workspace."
                 action={
                   <Link
                     className="button"
@@ -671,7 +650,7 @@ export function Onboarding({
                         <FileSpreadsheet size={21} />
                         <div>
                           <strong>{s}</strong>
-                          <small>Sample workbook · No live account</small>
+                          <small>Spreadsheet workbook</small>
                         </div>
                         <button
                           className="text-button"
@@ -752,13 +731,13 @@ export function Onboarding({
                   : "Let’s look beneath the surface."}
               </h2>
               <p>
-                {data.sources.length} sample source
-                {data.sources.length !== 1 ? "s" : ""} selected · Simulated data
+                {data.sources.length} source
+                {data.sources.length !== 1 ? "s" : ""} selected
               </p>
               <div className="discovery-stages">
                 {[
-                  "Read sample source definitions",
-                  "Identify example structures",
+                  "Read source definitions",
+                  "Identify worksheet structures",
                   "Identify business fields",
                   "Prepare proposed relationships",
                   "Save mapping suggestions",
@@ -783,14 +762,13 @@ export function Onboarding({
                 busy={processing >= 0 && processing < 4}
               >
                 {data.discovered
-                  ? "Run sample discovery again"
-                  : "Discover sample structures"}
+                  ? "Run discovery again"
+                  : "Discover structures"}
                 <ArrowRight size={16} />
               </Button>
               <ErrorBox>{discoveryError}</ErrorBox>
               <p className="micro-note">
-                Processes built-in sample definitions locally. No live
-                spreadsheet analysis.
+                Review the proposed fields before confirming your mapping.
               </p>
             </div>
           </>
@@ -979,12 +957,12 @@ export function Onboarding({
               <div>
                 <h3>
                   {data.mappings.some((m) => m.confirmed && !m.ignored)
-                    ? "Ready to explore sample intelligence."
+                    ? "Your workspace is taking shape."
                     : "Your workspace needs a little more context."}
                 </h3>
                 <p>
                   {data.demo
-                    ? "Sample data only. Live business intelligence is not available."
+                    ? "Review your source mappings and choose the measures you want to follow."
                     : "No valid source connected. Your workspace is available with limitations."}
                 </p>
               </div>
@@ -1005,7 +983,7 @@ export function Onboarding({
                         {confirmed} confirmed field{confirmed !== 1 ? "s" : ""}
                       </small>
                       <Badge tone={confirmed ? "success" : "warning"}>
-                        {confirmed ? "Sample mapping ready" : "Needs mapping"}
+                        {confirmed ? "Mapping ready" : "Needs mapping"}
                       </Badge>
                     </div>
                   );
@@ -1021,10 +999,7 @@ export function Onboarding({
               <div>
                 <Check size={17} />
                 <h4>Available now</h4>
-                <p>
-                  Company setup, goals, team access, and sample data
-                  exploration.
-                </p>
+                <p>Company setup, goals, and team access exploration.</p>
               </div>
               <div>
                 <LockKeyhole size={17} />
@@ -1048,8 +1023,8 @@ export function Onboarding({
             <div className="quiet-note">
               <BarChart3 size={17} />
               <span>
-                Define how you measure performance. Sample mappings never
-                produce real business metrics.
+                Define how you measure performance. Choose the KPIs that reflect
+                your priorities.
               </span>
             </div>
             {data.kpis.length === 0 && (
@@ -1069,7 +1044,7 @@ export function Onboarding({
                           m.confirmed &&
                           m.meaning.toLowerCase() === k.name.toLowerCase(),
                       )
-                        ? "Sample mapping ready"
+                        ? "Mapping ready"
                         : "Manual data required"}
                     </Badge>
                     <button
@@ -1301,7 +1276,7 @@ export function Onboarding({
                 ],
                 [
                   "Connected sources",
-                  `${data.sources.length} ${data.demo ? "sample sources" : "live sources"}`,
+                  `${data.sources.length} ${"sources"}`,
                   "integrations",
                 ],
                 [
@@ -1339,7 +1314,7 @@ export function Onboarding({
               <CircleHelp size={17} />
               <span>
                 {data.demo
-                  ? "Your setup uses sample data. Real business analysis requires a live integration."
+                  ? "Your workspace is configured. Review your choices before continuing."
                   : "No live data is connected. Enter a limited workspace and connect sources later."}
               </span>
             </div>
@@ -1370,8 +1345,8 @@ export function Onboarding({
             </p>
             <Badge tone="warning">
               {data.demo
-                ? "Sample data workspace"
-                : "Limited workspace · No live source"}
+                ? "Workspace ready"
+                : "Workspace · No source connected"}
             </Badge>
             <Link className="button" to={`/companies/${company.id}/overview`}>
               Open dashboard <ArrowRight size={17} />

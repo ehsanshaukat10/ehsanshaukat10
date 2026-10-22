@@ -12,7 +12,7 @@ import {
   Target,
   Users,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Logo } from "../../components/ui";
 import { steps, stepLabels } from "../../lib/api";
@@ -193,7 +193,6 @@ export function OnboardingFrame({
               <Logo />
             </Link>
             <span>{company || "YOUR NEW WORKSPACE"}</span>
-            <span className="onboarding-prototype">Prototype</span>
           </header>
           <div
             className="onboarding-progress"
@@ -213,7 +212,9 @@ export function OnboardingFrame({
               <span style={{ width: `${((index + 1) / total) * 100}%` }} />
             </div>
           </div>
-          <div className="onboarding-form-content">{children}</div>
+          <div className="onboarding-form-content" key={step}>
+            {children}
+          </div>
           <footer className="onboarding-frame-footer">
             <span>© {new Date().getFullYear()} Aynor</span>
             <span>
@@ -221,12 +222,40 @@ export function OnboardingFrame({
             </span>
           </footer>
         </section>
-        <OnboardingVisual step={step} />
+        <OnboardingVisual key={step} step={step} company={company} />
       </div>
     </main>
   );
 }
-export function OnboardingVisual({ step }: { step: string }) {
+export function OnboardingVisual({
+  step,
+  company,
+}: {
+  step: string;
+  company?: string;
+}) {
+  const [details, setDetails] = useState<Record<string, any>>({});
+  useEffect(() => {
+    const update = (e: Event) => setDetails((e as CustomEvent).detail);
+    window.addEventListener("aynor-visual-update", update);
+    return () => window.removeEventListener("aynor-visual-update", update);
+  }, []);
+  const selected =
+    step === "departments"
+      ? details.departments
+      : step === "priorities"
+        ? details.priorities
+        : step === "goals"
+          ? details.goals?.map((g: any) => g.name)
+          : step === "kpis"
+            ? details.kpis?.map((k: any) => k.name)
+            : step === "mapping"
+              ? details.mappings
+                  ?.filter((m: any) => m.confirmed)
+                  .map((m: any) => m.meaning)
+              : [];
+  const labels: string[] = selected?.slice(0, 3) || [];
+
   const copy = visualCopy[step] || visualCopy.company;
   return (
     <aside className={"onboarding-visual visual-" + copy.scene}>
@@ -405,9 +434,26 @@ export function OnboardingVisual({ step }: { step: string }) {
           AYNOR <span>®</span>
         </span>
       </div>
-      <span className="illustration-caption">
-        ILLUSTRATION · NOT COMPANY DATA
-      </span>
+      <div className="visual-live-context" aria-live="polite">
+        <strong>
+          {details.name || company || "Your workspace, taking shape"}
+        </strong>
+        <div>
+          {labels.length ? (
+            labels.map((label) => (
+              <span className="visual-choice" key={label}>
+                {label}
+              </span>
+            ))
+          ) : (
+            <span key={step}>
+              {step === "company"
+                ? details.industry || "Made for the way you work"
+                : copy.caption}
+            </span>
+          )}
+        </div>
+      </div>
     </aside>
   );
 }

@@ -277,6 +277,13 @@ export function NewCompany() {
     sessionStorage.setItem(draftKey + ".key", k);
     return k;
   });
+  useEffect(() => {
+    queueMicrotask(() =>
+      window.dispatchEvent(
+        new CustomEvent("aynor-visual-update", { detail: form }),
+      ),
+    );
+  }, [form]);
   const change = (k: string, v: string) =>
     setForm((f) => {
       const next = { ...f, [k]: v };
