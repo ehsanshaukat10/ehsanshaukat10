@@ -27,7 +27,7 @@ async function start(width = 1440) {
 async function company(page, name = "Meridian Group") {
   await page.getByLabel("Company name", { exact: true }).fill(name);
   await page.getByLabel("Industry").selectOption("Technology & software");
-  await page.getByLabel("Company website").fill("https://meridian.example");
+  await page.getByLabel("Company website").fill("meridian.example");
   await page.getByLabel("Company size").selectOption("11–50 employees");
   await page.getByLabel("Business model").selectOption("B2B");
   for (const label of ["City", "Time zone", "Currency"])
@@ -91,8 +91,11 @@ try {
         .fill("Revenue");
       await next(page);
       await expect(page.getByRole("alert")).toContainText("confirm it");
-      for (const box of await page.getByRole("checkbox").all())
-        await box.check();
+      await page.getByRole("checkbox").check();
+      await page
+        .getByRole("button", { name: "Next field", exact: true })
+        .click();
+      await page.getByRole("checkbox").check();
       await next(page);
       await heading(page, "What matters most?");
       await page.getByRole("button", { name: /Revenue growth/ }).click();

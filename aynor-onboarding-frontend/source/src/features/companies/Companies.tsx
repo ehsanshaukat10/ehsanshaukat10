@@ -1,3 +1,4 @@
+import { normalizeWebsite } from "../../lib/website";
 import { OnboardingFrame } from "../onboarding/OnboardingFrame";
 import {
   ArrowLeft,
@@ -298,9 +299,14 @@ export function NewCompany() {
     setBusy(true);
     setError("");
     try {
-      const c = await api("/companies", "POST", form, {
-        "Idempotency-Key": key,
-      });
+      const c = await api(
+        "/companies",
+        "POST",
+        { ...form, website: normalizeWebsite(form.website) },
+        {
+          "Idempotency-Key": key,
+        },
+      );
       sessionStorage.removeItem(draftKey);
       sessionStorage.removeItem(draftKey + ".key");
       nav(`/companies/${c.id}/onboarding/departments`);
@@ -332,8 +338,9 @@ export function NewCompany() {
             />
             <Field
               label="Company website"
-              type="url"
-              placeholder="https://yourcompany.com"
+              type="text"
+              inputMode="url"
+              placeholder="yourcompany.com"
               value={form.website}
               onChange={(e) => change("website", e.target.value)}
             />

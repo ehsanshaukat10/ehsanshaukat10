@@ -12,7 +12,7 @@ Mapping fields, department assignments and meanings are editable. Mapping, prior
 
 The removed source selection, discovery, readiness, KPI and collaborator steps no longer appear in onboarding. Existing workspace member-management and invitation acceptance remain available outside onboarding. Old browser-local step names and deep links resolve to the nearest retained step.
 
-The original Geist font is restored. Related company and goal inputs share a row on larger screens and stack on mobile. Onboarding entry opens the latest editable incomplete workspace directly, or the existing dashboard when setup is complete; company management remains available in the workspace.
+The original Geist font is restored. Related company and goal inputs use compact responsive grids. Onboarding entry opens the latest editable incomplete workspace directly, or the existing dashboard when setup is complete; company management remains available in the workspace.
 
 ## Local state and boundaries
 
@@ -31,3 +31,7 @@ Generate standalone HTML with `node src/export-html.mjs`, then copy `aynor.html`
 Login and signup use viewport-height layouts with compact spacing on shorter screens. Supporting labels remain accessible when visually condensed; all primary fields and entry actions fit the tested desktop, tablet and portrait mobile viewports. Their “Skip for now · continue to onboarding” action always opens `/companies/new`, including when the guest already has a completed workspace. Home's guest continuation retains its existing resume behavior.
 
 Completion uses the earlier centered design: a checkmark tile, “Make room for better decisions,” company-specific copy, workspace status and a single Open dashboard action. The duplicate readiness heading and right-hand illustration are omitted on completion. The seven-step review remains intact before completion.
+
+## Compact onboarding
+
+Supporting text and department/priority cards use smaller regular-weight styling. Mapping displays one field at a time with Previous/Next controls; Continue directs validation to the first unfinished field. The review uses compact summary cards with expandable details and keeps each step's edit link. This avoids long default forms without clipping content; expanded details, extra custom entries and smaller screens can still scroll as needed. Company website fields accept a bare domain and add the protocol internally, while invalid addresses show an inline error. The divider above the company form actions is removed.

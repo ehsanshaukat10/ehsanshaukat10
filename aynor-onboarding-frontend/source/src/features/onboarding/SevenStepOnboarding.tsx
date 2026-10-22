@@ -127,6 +127,7 @@ export function SevenStepOnboarding({
     [pending, setPending] = useState("");
   const [goal, setGoal] = useState(freshGoal),
     [editing, setEditing] = useState<number | null>(null);
+  const [mappingPage, setMappingPage] = useState(0);
   const dirty = JSON.stringify(data) !== JSON.stringify(company.data);
   const reviewEdit =
     new URLSearchParams(location.search).get("return") === "review";
@@ -219,6 +220,16 @@ export function SevenStepOnboarding({
             !m.confirmed),
       )
     ) {
+      setMappingPage(
+        data.mappings.findIndex(
+          (m) =>
+            !m.ignored &&
+            (!m.field.trim() ||
+              !m.meaning.trim() ||
+              !m.department ||
+              !m.confirmed),
+        ),
+      );
       setError(
         "Give every active field a name, department and meaning, then confirm it. Or skip mapping for now.",
       );
@@ -577,107 +588,148 @@ export function SevenStepOnboarding({
             />
           ) : (
             <div className="seven-mappings">
-              {data.mappings.map((m, i) => (
-                <article
-                  key={i}
-                  className={m.ignored ? "seven-map is-ignored" : "seven-map"}
-                >
-                  <div className="seven-map-title">
-                    <FileSpreadsheet size={18} />
-                    <strong>Field {String(i + 1).padStart(2, "0")}</strong>
-                    <button
-                      type="button"
-                      className="text-button"
-                      onClick={() =>
-                        update(
-                          "mappings",
-                          data.mappings.map((x, j) =>
-                            j === i
-                              ? { ...x, ignored: !x.ignored, confirmed: false }
-                              : x,
-                          ),
-                        )
+              <div
+                className="seven-mapping-pagination"
+                aria-label="Mapping fields"
+              >
+                <span>
+                  Field {mappingPage + 1} of {data.mappings.length}
+                </span>
+                <div>
+                  <Button
+                    variant="text"
+                    disabled={mappingPage === 0}
+                    onClick={() => {
+                      setMappingPage((p) => p - 1);
+                      setError("");
+                    }}
+                  >
+                    Previous field
+                  </Button>
+                  <Button
+                    variant="text"
+                    disabled={mappingPage >= data.mappings.length - 1}
+                    onClick={() => {
+                      setMappingPage((p) => p + 1);
+                      setError("");
+                    }}
+                  >
+                    Next field
+                  </Button>
+                </div>
+              </div>
+              {data.mappings.map(
+                (m, i) =>
+                  i === mappingPage && (
+                    <article
+                      key={i}
+                      className={
+                        m.ignored ? "seven-map is-ignored" : "seven-map"
                       }
                     >
-                      {m.ignored ? "Restore field" : "Ignore field"}
-                    </button>
-                  </div>
-                  <div className="seven-map-fields">
-                    <Field
-                      label={`Source field ${i + 1}`}
-                      value={m.field}
-                      disabled={m.ignored}
-                      onChange={(e) =>
-                        update(
-                          "mappings",
-                          data.mappings.map((x, j) =>
-                            j === i
-                              ? {
-                                  ...x,
-                                  field: e.target.value,
-                                  confirmed: false,
-                                }
-                              : x,
-                          ),
-                        )
-                      }
-                    />
-                    <Select
-                      label={`Department for ${m.field}`}
-                      value={m.department}
-                      disabled={m.ignored}
-                      options={[
-                        ...new Set([...data.departments, "Company-wide"]),
-                      ]}
-                      onChange={(v) =>
-                        update(
-                          "mappings",
-                          data.mappings.map((x, j) =>
-                            j === i
-                              ? { ...x, department: v, confirmed: false }
-                              : x,
-                          ),
-                        )
-                      }
-                    />
-                    <Field
-                      label={`Business meaning for ${m.field}`}
-                      value={m.meaning}
-                      disabled={m.ignored}
-                      onChange={(e) =>
-                        update(
-                          "mappings",
-                          data.mappings.map((x, j) =>
-                            j === i
-                              ? {
-                                  ...x,
-                                  meaning: e.target.value,
-                                  confirmed: false,
-                                }
-                              : x,
-                          ),
-                        )
-                      }
-                    />
-                  </div>
-                  <label className="seven-check">
-                    <input
-                      type="checkbox"
-                      checked={m.confirmed}
-                      disabled={m.ignored}
-                      onChange={(e) =>
-                        update(
-                          "mappings",
-                          data.mappings.map((x, j) =>
-                            j === i ? { ...x, confirmed: e.target.checked } : x,
-                          ),
-                        )
-                      }
-                    />
-                    Confirm this field
-                  </label>
-                </article>
-              ))}
+                      <div className="seven-map-title">
+                        <FileSpreadsheet size={18} />
+                        <strong>Field {String(i + 1).padStart(2, "0")}</strong>
+                        <button
+                          type="button"
+                          className="text-button"
+                          onClick={() =>
+                            update(
+                              "mappings",
+                              data.mappings.map((x, j) =>
+                                j === i
+                                  ? {
+                                      ...x,
+                                      ignored: !x.ignored,
+                                      confirmed: false,
+                                    }
+                                  : x,
+                              ),
+                            )
+                          }
+                        >
+                          {m.ignored ? "Restore field" : "Ignore field"}
+                        </button>
+                      </div>
+                      <div className="seven-map-fields">
+                        <Field
+                          label={`Source field ${i + 1}`}
+                          value={m.field}
+                          disabled={m.ignored}
+                          onChange={(e) =>
+                            update(
+                              "mappings",
+                              data.mappings.map((x, j) =>
+                                j === i
+                                  ? {
+                                      ...x,
+                                      field: e.target.value,
+                                      confirmed: false,
+                                    }
+                                  : x,
+                              ),
+                            )
+                          }
+                        />
+                        <Select
+                          label={`Department for ${m.field}`}
+                          value={m.department}
+                          disabled={m.ignored}
+                          options={[
+                            ...new Set([...data.departments, "Company-wide"]),
+                          ]}
+                          onChange={(v) =>
+                            update(
+                              "mappings",
+                              data.mappings.map((x, j) =>
+                                j === i
+                                  ? { ...x, department: v, confirmed: false }
+                                  : x,
+                              ),
+                            )
+                          }
+                        />
+                        <Field
+                          label={`Business meaning for ${m.field}`}
+                          value={m.meaning}
+                          disabled={m.ignored}
+                          onChange={(e) =>
+                            update(
+                              "mappings",
+                              data.mappings.map((x, j) =>
+                                j === i
+                                  ? {
+                                      ...x,
+                                      meaning: e.target.value,
+                                      confirmed: false,
+                                    }
+                                  : x,
+                              ),
+                            )
+                          }
+                        />
+                      </div>
+                      <label className="seven-check">
+                        <input
+                          type="checkbox"
+                          checked={m.confirmed}
+                          disabled={m.ignored}
+                          onChange={(e) =>
+                            update(
+                              "mappings",
+                              data.mappings.map((x, j) =>
+                                j === i
+                                  ? { ...x, confirmed: e.target.checked }
+                                  : x,
+                              ),
+                            )
+                          }
+                        />
+                        Confirm this field
+                      </label>
+                    </article>
+                  ),
+              )}
             </div>
           )}
         </>
@@ -964,7 +1016,10 @@ export function SevenStepOnboarding({
                   Edit
                 </Link>
               </div>
-              <div className="seven-review-body">{body}</div>
+              <details className="seven-review-expand">
+                <summary>View details</summary>
+                <div className="seven-review-body">{body}</div>
+              </details>
             </section>
           ))}
         </div>

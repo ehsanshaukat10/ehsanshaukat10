@@ -1,3 +1,4 @@
+import { normalizeWebsite } from "../../lib/website";
 import { Check } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -45,6 +46,7 @@ export function CompanyProfile({
             try {
               await api(`/companies/${company.id}/profile`, "PATCH", {
                 ...profile,
+                website: normalizeWebsite(profile.website),
                 version: company.version,
               });
               toast("Company details saved.");
@@ -75,7 +77,8 @@ export function CompanyProfile({
             ))}
             <Field
               label="Website"
-              type="url"
+              type="text"
+              inputMode="url"
               value={profile.website}
               onChange={(e) => field("website", e.target.value)}
             />

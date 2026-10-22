@@ -740,3 +740,525 @@
     font-size: 16px;
   }
 }
+/* Compact onboarding: regular supporting text, with space reserved for titles. */
+.onboarding-canvas:not(.onboarding-completion) .onboarding-brand-header {
+  padding-block: 20px;
+}
+.onboarding-canvas:not(.onboarding-completion) .onboarding-form-content {
+  padding-top: 22px;
+  padding-bottom: 14px;
+}
+.onboarding-canvas:not(.onboarding-completion) .onboarding-frame-footer {
+  padding-block: 16px;
+}
+.onboarding-canvas .create-form .form-bottom {
+  border: 0;
+  padding-top: 16px;
+  margin-top: 6px;
+}
+.onboarding-canvas .onboarding-form-content .seven-heading {
+  margin-bottom: 22px;
+}
+.onboarding-canvas .onboarding-form-content .seven-heading h1 {
+  margin: 12px 0 10px;
+  font-size: clamp(30px, 2.7vw, 40px);
+}
+.onboarding-canvas .onboarding-form-content .seven-heading p,
+.onboarding-canvas .onboarding-form-content .seven-source-panel p,
+.onboarding-canvas .onboarding-form-content .seven-goals-list p {
+  font-size: 14px;
+  line-height: 1.55;
+  font-weight: 400;
+}
+.onboarding-canvas
+  .onboarding-form-content
+  .seven-setup
+  :is(strong, button, label, small),
+.onboarding-canvas .onboarding-form-content .seven-setup .button {
+  font-weight: 400;
+}
+.onboarding-canvas .onboarding-form-content .seven-setup .button {
+  min-height: 42px;
+  font-size: 14px;
+  padding: 9px 15px;
+}
+.onboarding-canvas .onboarding-form-content .seven-choice-grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.onboarding-canvas .onboarding-form-content .seven-choice {
+  min-height: 62px;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border-radius: 9px;
+}
+.onboarding-canvas .onboarding-form-content .seven-choice strong {
+  font-size: 14px;
+  font-weight: 400;
+}
+.onboarding-canvas .onboarding-form-content .seven-choice-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  flex-shrink: 0;
+}
+.onboarding-canvas .onboarding-form-content .seven-choice-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.onboarding-canvas
+  .onboarding-form-content
+  .seven-choice
+  > .seven-choice-check {
+  position: static;
+  width: 17px;
+  height: 17px;
+}
+.onboarding-canvas .onboarding-form-content .seven-custom {
+  margin: 16px 0 0;
+  gap: 12px;
+}
+.onboarding-canvas .onboarding-form-content .seven-source-tabs {
+  margin-bottom: 14px;
+}
+.onboarding-canvas .onboarding-form-content .seven-source-tabs button {
+  padding: 10px 6px;
+}
+.onboarding-canvas .onboarding-form-content .seven-source-panel {
+  padding: 22px;
+}
+.onboarding-canvas .onboarding-form-content .seven-source-icon {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 14px;
+}
+.onboarding-canvas .onboarding-form-content .seven-source-panel h2 {
+  font-size: 24px;
+  font-weight: 400;
+  margin-bottom: 10px;
+}
+.onboarding-canvas .onboarding-form-content .seven-source-panel p {
+  margin-bottom: 16px;
+}
+.onboarding-canvas .onboarding-form-content .seven-upload {
+  min-height: 110px;
+  padding: 16px;
+}
+.onboarding-canvas .onboarding-form-content .seven-attached {
+  padding: 13px 16px;
+  margin-top: 14px;
+}
+.onboarding-canvas .onboarding-form-content .seven-attached :is(strong, small) {
+  font-size: 13px;
+}
+.onboarding-canvas .onboarding-form-content .seven-mapping-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: #73829b;
+  margin-bottom: 8px;
+}
+.seven-mapping-pagination > div {
+  display: flex;
+  gap: 6px;
+}
+.onboarding-canvas .onboarding-form-content .seven-mapping-pagination .button {
+  padding: 6px 9px;
+  font-size: 13px;
+}
+.onboarding-canvas .onboarding-form-content .seven-map {
+  padding: 18px;
+  margin-bottom: 0;
+}
+.onboarding-canvas .onboarding-form-content .seven-map-title {
+  margin-bottom: 14px;
+}
+.onboarding-canvas .onboarding-form-content .seven-map-title strong {
+  font-size: 14px;
+}
+.onboarding-canvas .onboarding-form-content .seven-map-fields {
+  gap: 0 14px;
+}
+.onboarding-canvas .onboarding-form-content .seven-priorities {
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.onboarding-canvas .onboarding-form-content .seven-priority {
+  font-size: 14px;
+  padding: 12px 14px;
+  min-height: 46px;
+  gap: 10px;
+}
+.onboarding-canvas .onboarding-form-content .seven-goal-form {
+  padding: 18px;
+  margin-top: 16px;
+}
+.onboarding-canvas .onboarding-form-content .seven-form-title {
+  margin-bottom: 16px;
+  gap: 10px;
+}
+.onboarding-canvas .onboarding-form-content .seven-form-title h2 {
+  font-size: 21px;
+  font-weight: 400;
+}
+.onboarding-canvas .onboarding-form-content .seven-goals-list > article {
+  padding: 12px 0;
+}
+.onboarding-canvas .onboarding-form-content .seven-goals-list h3 {
+  font-size: 16px;
+  font-weight: 400;
+}
+.onboarding-canvas .onboarding-form-content .seven-footer {
+  padding-top: 16px;
+  margin-top: 22px;
+  gap: 12px;
+}
+.onboarding-canvas .onboarding-form-content .seven-footer > div {
+  gap: 8px;
+}
+.onboarding-canvas .onboarding-form-content .seven-finish-later {
+  margin-top: 8px;
+  padding: 8px;
+  font-size: 13px;
+}
+.onboarding-canvas .onboarding-form-content .seven-setup .field {
+  margin-bottom: 12px;
+}
+.onboarding-canvas
+  .onboarding-form-content
+  .seven-setup
+  .field
+  > :is(span, label) {
+  font-size: 13px;
+  font-weight: 400;
+}
+.onboarding-canvas .onboarding-form-content .seven-review {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: start;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-company {
+  grid-column: 1/-1;
+  margin-bottom: 2px;
+  padding: 15px 18px;
+  gap: 14px;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-company > span {
+  width: 42px;
+  height: 42px;
+  font-size: 18px;
+  border-radius: 12px;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-company h2 {
+  font-size: 24px;
+  font-weight: 400;
+  margin: 4px 0;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-company p {
+  font-size: 13px;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-section {
+  margin: 0;
+  padding: 14px;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-section-head {
+  gap: 10px;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-icon svg {
+  width: 17px;
+  height: 17px;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-section-head h3 {
+  font-size: 16px;
+  font-weight: 400;
+  margin: 2px 0;
+  letter-spacing: -0.2px;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-section-head small {
+  display: none;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-section-head p {
+  font-size: 12px;
+  line-height: 1.45;
+}
+.onboarding-canvas .onboarding-form-content .seven-edit {
+  font-size: 12px;
+  gap: 4px;
+  min-height: 28px;
+}
+.seven-review-expand {
+  margin-top: 10px;
+}
+.seven-review-expand summary {
+  cursor: pointer;
+  color: #607ba9;
+  font-size: 12px;
+  padding: 3px 0;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-body {
+  margin-top: 10px;
+  padding-top: 10px;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-details {
+  gap: 12px;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-details :is(dt, dd),
+.onboarding-canvas .onboarding-form-content .seven-review-body p,
+.onboarding-canvas .onboarding-form-content .seven-review-tags span,
+.onboarding-canvas
+  .onboarding-form-content
+  .seven-review-goals
+  :is(strong, span) {
+  font-size: 13px;
+  font-weight: 400;
+}
+@media (max-width: 640px) {
+  .onboarding-canvas:not(.onboarding-completion) .onboarding-brand-header {
+    padding-block: 16px;
+  }
+  .onboarding-canvas:not(.onboarding-completion) .onboarding-form-content {
+    padding-top: 18px;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-choice {
+    padding: 11px;
+    min-height: 58px;
+    gap: 8px;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-choice strong {
+    font-size: 13px;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-choice-icon {
+    display: none;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-custom {
+    gap: 10px;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-source-panel {
+    padding: 18px;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-priorities {
+    grid-template-columns: 1fr;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-priority {
+    min-height: 40px;
+    padding: 9px 12px;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-review {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-review-section {
+    padding: 12px 14px;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-review-section-head p {
+    font-size: 12px;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-footer > div {
+    width: auto;
+    margin-left: auto;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-review-company small {
+    font-size: 10px;
+  }
+}
+.onboarding-canvas:not(.onboarding-completion)
+  .onboarding-form-content
+  .field
+  :is(input, select) {
+  min-height: 44px;
+  height: 44px;
+  font-weight: 400;
+}
+.onboarding-canvas:not(.onboarding-completion)
+  .onboarding-form-content
+  .create-form
+  > p {
+  font-size: 14px;
+  line-height: 1.55;
+}
+.onboarding-canvas:not(.onboarding-completion)
+  .onboarding-form-content
+  .create-form
+  :is(label, button, .button) {
+  font-weight: 400;
+}
+.onboarding-canvas:not(.onboarding-completion) .onboarding-visual-title p {
+  font-size: 14px;
+}
+.onboarding-canvas:not(.onboarding-completion) .visual-live-context > strong {
+  font-size: 14px;
+  font-weight: 400;
+}
+.onboarding-canvas:not(.onboarding-completion) .onboarding-brand-header {
+  padding-block: 14px;
+}
+.onboarding-canvas:not(.onboarding-completion) .onboarding-frame-footer {
+  padding-block: 8px;
+}
+.onboarding-canvas .onboarding-form-content .seven-heading {
+  margin-bottom: 16px;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-company {
+  padding: 12px 16px;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-company small {
+  display: none;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-company h2 {
+  font-size: 22px;
+  margin: 0 0 3px;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-section {
+  padding: 10px 12px;
+}
+.onboarding-canvas .seven-review-expand {
+  margin-top: 6px;
+}
+.onboarding-canvas .seven-review-expand summary {
+  padding: 1px 0;
+  line-height: 1.5;
+}
+.onboarding-canvas .onboarding-form-content .seven-heading h1 {
+  margin-top: 8px;
+}
+.onboarding-canvas:not(.onboarding-completion)
+  .onboarding-form-content
+  .create-form
+  :is(h1, h2) {
+  font-size: clamp(30px, 2.7vw, 40px);
+  margin-bottom: 10px;
+}
+.onboarding-canvas:not(.onboarding-completion)
+  .onboarding-form-content
+  .create-form
+  > p {
+  margin-bottom: 20px;
+}
+.onboarding-canvas .onboarding-form-content .company-input-grid {
+  gap: 10px 20px;
+}
+.onboarding-canvas .onboarding-form-content .company-input-grid .field {
+  margin: 0;
+}
+@media (max-width: 640px) {
+  .onboarding-canvas .onboarding-form-content .seven-review-section {
+    padding: 8px 12px;
+  }
+  .onboarding-canvas .seven-review-expand {
+    margin-top: 4px;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-review-company h2 {
+    font-size: 22px;
+  }
+  .onboarding-canvas:not(.onboarding-completion)
+    .onboarding-form-content
+    .create-form
+    > p {
+    margin-bottom: 16px;
+  }
+}
+.onboarding-canvas .seven-setup:has(.seven-review) .seven-eyebrow {
+  display: none;
+}
+.onboarding-canvas .seven-setup:has(.seven-review) .seven-heading {
+  margin-bottom: 12px;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-company p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.onboarding-canvas .onboarding-form-content .seven-review-company h2 {
+  line-height: 1.15;
+}
+.onboarding-canvas .onboarding-form-content .seven-footer {
+  margin-top: 16px;
+  padding-top: 12px;
+}
+.onboarding-canvas .onboarding-form-content .seven-finish-later {
+  margin-top: 4px;
+  padding: 6px;
+}
+@media (max-width: 640px) {
+  .onboarding-canvas .onboarding-form-content .company-input-grid,
+  .onboarding-canvas .onboarding-form-content .seven-goal-form .form-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px 12px;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-custom {
+    flex-direction: row;
+    align-items: end;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-custom .button {
+    align-self: auto;
+    padding: 10px;
+    font-size: 13px;
+    gap: 6px;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-priorities {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .onboarding-canvas .onboarding-form-content .seven-priority {
+    padding: 8px 10px;
+    font-size: 13px;
+    line-height: 1.4;
+    gap: 7px;
+  }
+  .onboarding-canvas
+    .onboarding-form-content
+    .seven-priority
+    > span:first-child {
+    display: none;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-review {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .onboarding-canvas .onboarding-form-content .seven-review-section {
+    padding: 10px;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-review-icon {
+    display: none;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-review-section-head {
+    gap: 5px;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-review-section-head h3 {
+    font-size: 14px;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-edit {
+    font-size: 0;
+    width: 20px;
+    flex-shrink: 0;
+    justify-content: end;
+  }
+  .onboarding-canvas .onboarding-form-content .seven-edit svg {
+    width: 14px;
+    height: 14px;
+  }
+  .onboarding-canvas .seven-review-section:has(details[open]) {
+    grid-column: 1/-1;
+  }
+}
+.onboarding-canvas .seven-goal-form :is(.field, .input-wrap, input) {
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .onboarding-canvas .onboarding-form-content .create-form .company-input-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+@media (max-width: 380px) {
+  .onboarding-canvas:not(.onboarding-completion) .onboarding-frame-footer {
+    display: none;
+  }
+}
