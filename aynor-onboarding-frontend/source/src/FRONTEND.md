@@ -12,7 +12,7 @@ Mapping source fields and department assignments are editable. Business meaning 
 
 The removed source selection, discovery, readiness, KPI and collaborator steps no longer appear in onboarding. Existing workspace member-management and invitation acceptance remain available outside onboarding. Old browser-local step names and deep links resolve to the nearest retained step.
 
-The original Geist font is restored. Related company and goal inputs use compact responsive grids. Onboarding entry opens the latest editable incomplete workspace directly, or the existing dashboard when setup is complete; company management remains available in the workspace.
+The frontend uses Helvetica Neue, with Helvetica/Arial system fallbacks where the font is not installed. Related company and goal inputs use compact responsive grids. Onboarding entry opens the latest editable incomplete workspace directly, or the existing dashboard when setup is complete; company management remains available in the workspace.
 
 ## Local state and boundaries
 
@@ -38,3 +38,8 @@ Supporting text and department/priority cards use smaller regular-weight styling
 
 
 Signup is the default authentication entry. Shared dialogs render through a body portal so their overlay covers the entire viewport. Goal inputs retain individual borders with no surrounding card border. Review uses flat, lightly separated sections with expandable details.
+
+
+## Alignment refinement
+
+Each onboarding form block is centered horizontally and vertically in the available left-panel area, between its header/progress and footer. Labels stay left-aligned and related inputs retain their existing grid. The right visual remains at 40% on desktop. Forms that exceed the available viewport grow naturally without clipping controls. The font stack is Helvetica Neue, Helvetica, Arial, sans-serif; no proprietary font file is bundled.

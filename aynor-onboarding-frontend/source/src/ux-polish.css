@@ -111,3 +111,31 @@ body .reference-brand-heading p {
     overflow-wrap: anywhere;
   }
 }
+/* Center the onboarding form as a block, retaining left-aligned field labels. */
+body .onboarding-canvas:not(.onboarding-completion) .onboarding-left {
+  display: grid;
+  grid-template-rows: auto auto minmax(min-content, 1fr) auto;
+  min-height: 100dvh;
+  align-items: start;
+}
+body .onboarding-canvas:not(.onboarding-completion) .onboarding-form-content {
+  grid-row: 3;
+  align-self: center;
+  justify-self: center;
+  flex: none;
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 24px 40px;
+  text-align: left;
+}
+body .onboarding-canvas:not(.onboarding-completion) .onboarding-frame-footer {
+  grid-row: 4;
+  width: 100%;
+  align-self: end;
+}
+@media (max-width: 640px) {
+  body .onboarding-canvas:not(.onboarding-completion) .onboarding-form-content {
+    padding: 24px;
+  }
+}

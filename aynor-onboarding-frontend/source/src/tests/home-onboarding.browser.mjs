@@ -307,12 +307,10 @@ try {
         );
         assert.ok(
           await page.evaluate(() =>
-            getComputedStyle(document.body).fontFamily.includes("Geist"),
+            getComputedStyle(document.body).fontFamily.includes(
+              "Helvetica Neue",
+            ),
           ),
-        );
-        await page.evaluate(() => document.fonts.ready);
-        assert.ok(
-          await page.evaluate(() => document.fonts.check('400 16px "Geist"')),
         );
         if (width === 1440 || width === 390)
           await page.screenshot({

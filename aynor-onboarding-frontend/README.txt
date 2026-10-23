@@ -1,6 +1,6 @@
 AYNOR — Onboarding frontend
 
-Open index.html directly in your browser. Application code, Geist,
+Open index.html directly in your browser. Application code,
 styles and visuals are embedded. No backend or installation is required.
 
 Start at Home, log in/create an account, or skip to explore as a guest.
@@ -28,5 +28,5 @@ Build: npm run build.
 Browser checks with Vite running: npm run test:frontend.
 Export: node src/export-html.mjs; copy generated aynor.html to ../index.html.
 
-Font: Geist, bundled with the frontend.
+Font: Helvetica Neue, with Helvetica/Arial system fallbacks.
 Backend services, databases and API/authentication configuration are unchanged.
