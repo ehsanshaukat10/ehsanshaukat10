@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  overviewExampleCompany,
   buildSample,
   totals,
   inferProfile,
@@ -97,4 +98,22 @@ assert.notEqual(
 );
 console.log(
   "PASS dashboard model: period arithmetic, source coverage, profiles, permissions, missing measures and preference isolation",
+);
+
+const sparse = {
+  ...c,
+  data: { ...c.data, departments: ["Finance"], goals: [] },
+};
+const original = JSON.stringify(sparse),
+  example = overviewExampleCompany(sparse);
+assert.equal(JSON.stringify(sparse), original);
+assert.ok(example.data.departments.length >= 3);
+assert.ok(example.data.goals.length > 0);
+assert.equal(
+  availableMetrics(inferProfile(example), example).slice(0, 3).length,
+  3,
+);
+assert.equal(overviewExampleCompany(viewer), viewer);
+console.log(
+  "PASS populated minimal-workspace fixture is display-only and preserves restricted scopes",
 );

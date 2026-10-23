@@ -148,7 +148,14 @@ export function defaults(c: Company): Preferences {
     profile: "auto",
     metrics: availableMetrics(profile, c).slice(0, 3),
     departments: null,
-    sections: ["departments", "goals", "dependencies", "deadlines"],
+    sections: [
+      "departments",
+      "goals",
+      "dependencies",
+      "deadlines",
+      "clients",
+      "activity",
+    ],
     order: [...order],
   };
 }
@@ -586,4 +593,41 @@ export function goalTarget(target: string): number | null {
       ({ k: 1000, m: 1000000, b: 1000000000 }[match[2]] || 1)
     : Number(target.replace(/[^\d.-]/g, ""));
   return target.trim() && Number.isFinite(number) && number > 0 ? number : null;
+}
+
+/** Display-only fixture. Never written back to the workspace. */
+export function overviewExampleCompany(company: Company): Company {
+  if (!["Owner", "Admin"].includes(company.role)) return company;
+  const departments =
+    company.data.departments.length < 3
+      ? Array.from(
+          new Set([
+            ...company.data.departments,
+            "Finance",
+            "Sales",
+            "Project Delivery",
+            "Operations",
+          ]),
+        )
+      : company.data.departments;
+  return {
+    ...company,
+    data: {
+      ...company.data,
+      departments,
+      goals: company.data.goals.length
+        ? company.data.goals
+        : [
+            {
+              id: "overview-example-goal",
+              name: "Grow quarterly revenue",
+              kpi: "Revenue",
+              target: "600000",
+              deadline: `${new Date().getFullYear()}-12-31`,
+              owner: "Company leadership",
+              description: "Illustrative target for exploring the dashboard.",
+            },
+          ],
+    },
+  };
 }

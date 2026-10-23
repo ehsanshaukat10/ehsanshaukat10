@@ -33,8 +33,8 @@ Backend services, databases and API/authentication configuration are unchanged.
 
 Executive dashboard:
 Open a workspace overview after onboarding, or use /prototype and select
-Workspace overview. The default shows honest missing-data states. Choose a
-clearly labeled Data preview scenario to explore interactive charts, risks,
+Workspace overview. Overview immediately shows clearly labeled example data. Use the Data view
+selector to explore limited-data states, or investigate interactive charts, risks,
 departments, goals, dependencies, deadlines and local Ask Aynor explanations.
 Customize saves layout preferences per user/company in this browser.
 Dashboard browser checks: node src/tests/dashboard.browser.mjs (Vite running).

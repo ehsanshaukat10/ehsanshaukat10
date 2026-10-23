@@ -1,5 +1,13 @@
 import { OnboardingFrame } from "../onboarding/OnboardingFrame";
 import {
+  CircleAlert,
+  BarChart3,
+  Building2,
+  Target,
+  Network,
+  CalendarDays,
+  Briefcase,
+  Activity,
   ArrowLeft,
   ArrowUpRight,
   Check,
@@ -14,15 +22,8 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import {
-  Badge,
-  Button,
-  Empty,
-  ErrorBox,
-  Logo,
-  Modal,
-} from "../../components/ui";
+import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
+import { Button, Empty, ErrorBox, Logo, Modal } from "../../components/ui";
 import {
   api,
   stepLabels,
@@ -45,6 +46,8 @@ export function Workspace({
   overview?: boolean;
   members?: boolean;
 }) {
+  const location = useLocation();
+  const [profileOpen, setProfileOpen] = useState(false);
   const { id, step = "departments" } = useParams(),
     nav = useNavigate();
   const [company, setCompany] = useState<Company | null>(null),
@@ -197,11 +200,42 @@ export function Workspace({
         </div>
         <nav className="primary-nav">
           <Link
-            className={overview ? "active" : ""}
+            className={overview && !location.hash ? "active" : ""}
             to={`/companies/${id}/overview`}
           >
             <LayoutDashboard size={17} /> Overview
           </Link>
+          {[
+            ["performance", "Performance", BarChart3],
+            ["risks", "Risks & decisions", CircleAlert],
+            ["departments", "Departments", Building2],
+            ["goals", "Goals", Target],
+            ["dependencies", "Dependencies", Network],
+            ["deadlines", "Delivery & deadlines", CalendarDays],
+            ["clients", "Clients", Briefcase],
+            ["activity", "Activity", Activity],
+          ]
+            .filter(
+              ([section]) =>
+                !["clients"].includes(String(section)) ||
+                !["Viewer", "Department Manager"].includes(company?.role || ""),
+            )
+            .map(([section, label, Icon]) => {
+              const I = Icon as typeof BarChart3;
+              return (
+                <Link
+                  key={String(section)}
+                  className={
+                    overview && location.hash === "#" + section ? "active" : ""
+                  }
+                  to={`/companies/${id}/overview#${section}`}
+                >
+                  <I size={17} />
+                  {String(label)}
+                </Link>
+              );
+            })}
+          <span className="workspace-nav-label">WORKSPACE</span>
           {editable && (
             <Link
               className={!overview && !members ? "active" : ""}
@@ -284,8 +318,28 @@ export function Workspace({
             </strong>
           </div>
           <div>
-            <Badge tone="neutral">Interactive prototype</Badge>
-            <span className="avatar">{user?.name.charAt(0)}</span>
+            <span className="workspace-header-date">
+              {new Date().toLocaleDateString("en", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+            <span className="workspace-example-label">
+              {overview ? "Example data" : "Local workspace"}
+            </span>
+            <button
+              className="workspace-profile"
+              onClick={() => setProfileOpen(true)}
+              aria-label="Open profile"
+            >
+              <span className="avatar">{user?.name.charAt(0) || "A"}</span>
+              <span>
+                {user?.name || "Your account"}
+                <small>{company?.role || "Member"}</small>
+              </span>
+              <ChevronDown size={13} />
+            </button>
           </div>
         </header>
         {loading || (company?.id !== id && !error) ? (
@@ -342,6 +396,24 @@ export function Workspace({
           </span>
         </footer>
       </div>
+      {profileOpen && (
+        <Modal title="Your profile" onClose={() => setProfileOpen(false)}>
+          <div className="workspace-profile-details">
+            <h3>{user?.name}</h3>
+            <p>{user?.email}</p>
+            <p>
+              {company?.name} · {company?.role}
+            </p>
+            <Link
+              className="button secondary"
+              to="/companies"
+              onClick={() => setProfileOpen(false)}
+            >
+              Manage companies
+            </Link>
+          </div>
+        </Modal>
+      )}
       {help && (
         <Modal
           title="A clearer path to your workspace"

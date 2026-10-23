@@ -43,6 +43,47 @@ try {
     .click();
   await heading();
   const path = new URL(page.url()).pathname;
+  await expect(page.getByLabel("Data preview", { exact: true })).toHaveValue(
+    "connected",
+  );
+  await expect(page.locator(".exec-chart")).toBeVisible();
+  assert.equal(await page.locator(".exec-metric strong").count(), 3);
+  await page.getByRole("button", { name: "Open profile" }).click();
+  await expect(page.getByRole("dialog")).toContainText("Alex Morgan");
+  await close();
+  for (const label of [
+    "Performance",
+    "Risks & decisions",
+    "Departments",
+    "Goals",
+    "Dependencies",
+    "Delivery & deadlines",
+    "Clients",
+    "Activity",
+  ]) {
+    await page
+      .locator(".primary-nav")
+      .getByRole("link", { name: label, exact: true })
+      .click();
+    await expect(
+      page
+        .locator(".primary-nav")
+        .getByRole("link", { name: label, exact: true }),
+    ).toHaveClass("active");
+    const target = await page.evaluate(() =>
+      document.querySelector(".primary-nav .active")?.getAttribute("href"),
+    );
+    assert.ok(target.includes("#"));
+    assert.equal(await page.locator(".primary-nav .active").count(), 1);
+  }
+  await page
+    .locator(".primary-nav")
+    .getByRole("link", { name: "Overview", exact: true })
+    .click();
+  await preview("workspace");
+  console.log(
+    "PASS populated default, header profile and all dashboard navigation links",
+  );
   await expect(page.locator(".exec-quality")).toContainText(
     "Awaiting validated data",
   );
@@ -201,6 +242,7 @@ try {
       .count(),
     3,
   );
+  await preview("workspace");
   await expect(page.locator(".exec-secondary")).toContainText(
     "No goals configured",
   );

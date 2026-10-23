@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
   ArrowUpRight,
   SlidersHorizontal,
@@ -10,6 +10,7 @@ import { Button, Modal, Select, Field } from "../../components/ui";
 import type { Company } from "../../lib/api";
 import { useApp } from "../../lib/context";
 import {
+  overviewExampleCompany,
   defaults,
   readPreferences,
   preferenceKey,
@@ -35,12 +36,27 @@ import {
 } from "./model";
 import "./dashboard.css";
 type Detail = { title: string; lines: string[] };
-export function ExecutiveDashboard({ company: c }: { company: Company }) {
+export function ExecutiveDashboard({
+  company: workspaceCompany,
+}: {
+  company: Company;
+}) {
+  const [scenario, setScenario] = useState<Scenario>("connected");
+  const c =
+    scenario === "workspace"
+      ? workspaceCompany
+      : overviewExampleCompany(workspaceCompany);
+  const location = useLocation();
   const { user } = useApp(),
     key = preferenceKey(user?.id || "guest", c);
-  const [prefs, setPrefs] = useState(() => readPreferences(key, c)),
+  const [prefs, setPrefs] = useState(() => {
+      const p = readPreferences(key, c);
+      return {
+        ...p,
+        metrics: p.metrics.length ? p.metrics : defaults(c).metrics,
+      };
+    }),
     [draft, setDraft] = useState<Preferences | null>(null),
-    [scenario, setScenario] = useState<Scenario>("workspace"),
     [detail, setDetail] = useState<Detail | null>(null),
     [ask, setAsk] = useState(false),
     [question, setQuestion] = useState(""),
@@ -64,6 +80,23 @@ export function ExecutiveDashboard({ company: c }: { company: Company }) {
         return {};
       }
     });
+  useEffect(() => {
+    const section = location.hash.replace("#", "");
+    if (!section) return;
+    if (Object.hasOwn(sectionLabels, section))
+      setPrefs((p) => ({
+        ...p,
+        sections: Array.from(new Set([...p.sections, section as Section])),
+      }));
+    const timer = window.setTimeout(
+      () =>
+        document
+          .getElementById("dashboard-" + section)
+          ?.scrollIntoView({ block: "start", behavior: "smooth" }),
+      80,
+    );
+    return () => clearTimeout(timer);
+  }, [location.hash]);
   const profile = prefs.profile === "auto" ? inferProfile(c) : prefs.profile,
     sample =
       scenario === "workspace"
@@ -111,7 +144,11 @@ export function ExecutiveDashboard({ company: c }: { company: Company }) {
     if (section === "departments")
       return (
         c.data.departments.length > 0 && (
-          <section className="exec-panel" key={section}>
+          <section
+            id={`dashboard-${section}`}
+            className="exec-panel"
+            key={section}
+          >
             <h2>Department intelligence</h2>
             <p className="exec-muted">
               Coverage and next decisions, in one view.
@@ -152,7 +189,11 @@ export function ExecutiveDashboard({ company: c }: { company: Company }) {
       );
     if (section === "goals")
       return (
-        <section className="exec-panel" key={section}>
+        <section
+          id={`dashboard-${section}`}
+          className="exec-panel"
+          key={section}
+        >
           <div className="exec-section-head">
             <h2>Goals</h2>
             {editable && <Link to={setup("goals")}>Edit goals ↗</Link>}
@@ -213,7 +254,11 @@ export function ExecutiveDashboard({ company: c }: { company: Company }) {
       return (
         sample &&
         sample.projects.length > 0 && (
-          <section className="exec-panel" key={section}>
+          <section
+            id={`dashboard-${section}`}
+            className="exec-panel"
+            key={section}
+          >
             <h2>Dependencies</h2>
             <p>A shared resource connects these commitments.</p>
             <div className="exec-nodes">
@@ -246,7 +291,11 @@ export function ExecutiveDashboard({ company: c }: { company: Company }) {
       return (
         sample &&
         sample.projects.length > 0 && (
-          <section className="exec-panel" key={section}>
+          <section
+            id={`dashboard-${section}`}
+            className="exec-panel"
+            key={section}
+          >
             <h2>Delivery & deadlines</h2>
             <p>Illustrative commitments · relative to the data cutoff.</p>
             {sample.projects.map((p) => (
@@ -283,7 +332,11 @@ export function ExecutiveDashboard({ company: c }: { company: Company }) {
       return (
         sample &&
         financial && (
-          <section className="exec-panel" key={section}>
+          <section
+            id={`dashboard-${section}`}
+            className="exec-panel"
+            key={section}
+          >
             <h2>Client concentration</h2>
             <p>Share of illustrative revenue · {periods[prefs.period]}</p>
             {sample.clients.map((client) => (
@@ -313,7 +366,11 @@ export function ExecutiveDashboard({ company: c }: { company: Company }) {
     if (section === "activity")
       return (
         sample && (
-          <section className="exec-panel" key={section}>
+          <section
+            id={`dashboard-${section}`}
+            className="exec-panel"
+            key={section}
+          >
             <h2>Activity patterns</h2>
             <p>Last 14 days · darker dots indicate more events.</p>
             <div className="exec-activity">
@@ -340,7 +397,7 @@ export function ExecutiveDashboard({ company: c }: { company: Company }) {
     return null;
   }
   return (
-    <div className="exec-dashboard">
+    <div className="exec-dashboard" id="dashboard-overview">
       <div className="exec-toolbar">
         <div>
           <span className="exec-eyebrow">EXECUTIVE PERSPECTIVE</span>
@@ -398,7 +455,7 @@ export function ExecutiveDashboard({ company: c }: { company: Company }) {
         </label>
         <span>
           {sample
-            ? `Illustrative data · not company performance · as of ${sample.asOf.toISOString().slice(0, 10)}`
+            ? `Illustrative data · not company performance · example departments/goals added where needed · as of ${sample.asOf.toISOString().slice(0, 10)}`
             : "No live performance data connected"}
         </span>
       </div>
@@ -468,7 +525,7 @@ export function ExecutiveDashboard({ company: c }: { company: Company }) {
           </Button>
         )}
       </div>
-      <section className="exec-action">
+      <section id="dashboard-risks" className="exec-action">
         <div className="exec-section-head">
           <h2>Needs action</h2>
           <small>
@@ -544,7 +601,10 @@ export function ExecutiveDashboard({ company: c }: { company: Company }) {
             : "Existing mappings describe configuration, not a successful data import."}
         </p>
       </details>
-      <section className="exec-panel exec-performance">
+      <section
+        id="dashboard-performance"
+        className="exec-panel exec-performance"
+      >
         <div className="exec-section-head">
           <div>
             <h2>
