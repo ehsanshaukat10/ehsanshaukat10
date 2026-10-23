@@ -263,7 +263,7 @@ body > .modal-backdrop .field.field :is(input, select, textarea):disabled {
 }
 /* Consistent overview shell: header and content share the same horizontal rails. */
 body .workspace-shell .workspace-content {
-  max-width: 1440px;
+  max-width: none;
   padding: 32px 44px 40px;
 }
 body .workspace-shell .workspace-header {
@@ -501,3 +501,6 @@ body .workspace-shell .workspace-settings-nav .nav-count {
     min-height: 36px;
   }
 }
+
+/* Workspace and company pages fill the available viewport on wide displays. */
+body .app-shell .companies-page { max-width: none; }
