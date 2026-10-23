@@ -9,6 +9,7 @@ import {
   goalTarget,
   goalActual,
   preferenceKey,
+  readPreferences,
 } from "../features/dashboard/model.ts";
 const c = {
   id: "test",
@@ -107,13 +108,33 @@ const sparse = {
 const original = JSON.stringify(sparse),
   example = overviewExampleCompany(sparse);
 assert.equal(JSON.stringify(sparse), original);
-assert.ok(example.data.departments.length >= 3);
-assert.ok(example.data.goals.length > 0);
+assert.equal(example.data.departments.length, 1);
+assert.equal(example.data.goals.length, 0);
 assert.equal(
   availableMetrics(inferProfile(example), example).slice(0, 3).length,
-  3,
+  2,
 );
 assert.equal(overviewExampleCompany(viewer), viewer);
 console.log(
-  "PASS populated minimal-workspace fixture is display-only and preserves restricted scopes",
+  "PASS sparse workspaces do not invent departments, goals or out-of-scope metrics",
+);
+
+const legacy = {
+  period: "year",
+  currency: "GBP",
+  profile: "services",
+  sections: ["departments", "goals", "clients", "activity"],
+  metrics: ["margin"],
+  order: ["goals", "departments"],
+};
+globalThis.localStorage = { getItem: () => JSON.stringify(legacy) };
+const migrated = readPreferences("legacy", c);
+assert.equal(migrated.period, "year");
+assert.equal(migrated.currency, "GBP");
+assert.deepEqual(migrated.sections, ["departments", "goals"]);
+assert.equal(migrated.order[0], "goals");
+legacy.layoutRevision = 2;
+assert.ok(readPreferences("current", c).sections.includes("activity"));
+console.log(
+  "PASS layout migration removes legacy default noise and preserves explicit current preferences",
 );

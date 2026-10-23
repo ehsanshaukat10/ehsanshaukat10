@@ -25,7 +25,6 @@ import {
   goalTarget,
   periods,
   profiles,
-  scenarios,
   sectionLabels,
   metricLabels,
   type Preferences,
@@ -41,12 +40,29 @@ export function ExecutiveDashboard({
 }: {
   company: Company;
 }) {
-  const [scenario, setScenario] = useState<Scenario>("connected");
+  const location = useLocation();
+  const stateFromUrl = () => {
+    const value = new URLSearchParams(location.search).get("state");
+    return [
+      "workspace",
+      "connected",
+      "partial",
+      "sync-error",
+      "stale",
+      "clear",
+    ].includes(value || "")
+      ? (value as Scenario)
+      : "connected";
+  };
+  const [scenario, setScenario] = useState<Scenario>(stateFromUrl);
+  useEffect(() => {
+    setScenario(stateFromUrl());
+    setSelected(0);
+  }, [location.search]);
   const c =
     scenario === "workspace"
       ? workspaceCompany
       : overviewExampleCompany(workspaceCompany);
-  const location = useLocation();
   const { user } = useApp(),
     key = preferenceKey(user?.id || "guest", c);
   const [prefs, setPrefs] = useState(() => {
@@ -65,7 +81,6 @@ export function ExecutiveDashboard({
     [busy, setBusy] = useState(false),
     [storageError, setStorageError] = useState(""),
     [chart, setChart] = useState("line"),
-    [departmentFilter, setDepartmentFilter] = useState("all"),
     [selected, setSelected] = useState(0),
     [reviewed, setReviewed] = useState<string[]>([]),
     [note, setNote] = useState(""),
@@ -84,6 +99,13 @@ export function ExecutiveDashboard({
   useEffect(() => {
     const section = location.hash.replace("#", "");
     if (!section) return;
+    if (section === "ask") {
+      setAsk(true);
+      setAskContext(null);
+      setQuestion("");
+      setAnswer("");
+      return;
+    }
     if (Object.hasOwn(sectionLabels, section))
       setPrefs((p) => ({
         ...p,
@@ -91,19 +113,27 @@ export function ExecutiveDashboard({
       }));
     const timer = window.setTimeout(
       () =>
-        document
-          .getElementById("dashboard-" + section)
-          ?.scrollIntoView({
-            block: "start",
-            behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
-              .matches
-              ? "auto"
-              : "smooth",
-          }),
+        document.getElementById("dashboard-" + section)?.scrollIntoView({
+          block: "start",
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
+            .matches
+            ? "auto"
+            : "smooth",
+        }),
       80,
     );
     return () => clearTimeout(timer);
   }, [location.hash]);
+  useEffect(() => {
+    const openAsk = () => {
+      setAsk(true);
+      setAskContext(null);
+      setQuestion("");
+      setAnswer("");
+    };
+    window.addEventListener("aynor:ask", openAsk);
+    return () => window.removeEventListener("aynor:ask", openAsk);
+  }, []);
   const profile = prefs.profile === "auto" ? inferProfile(c) : prefs.profile,
     sample =
       scenario === "workspace"
@@ -136,12 +166,7 @@ export function ExecutiveDashboard({
     },
     setup = (step: string) => `/companies/${c.id}/onboarding/${step}`;
   const depts = c.data.departments.filter(
-    (d) =>
-      (prefs.departments === null || prefs.departments.includes(d)) &&
-      (departmentFilter === "all" ||
-        (departmentFilter === "attention"
-          ? sample?.risks.some((r) => r.department === d)
-          : !sample?.covered.includes(d))),
+    (d) => prefs.departments === null || prefs.departments.includes(d),
   );
   const performanceReady =
     sample &&
@@ -152,6 +177,68 @@ export function ExecutiveDashboard({
       ).test(d),
     );
   const values = performanceReady && sample ? totals(sample) : null;
+  function departmentSignal(d: string) {
+    if (!sample || !sample.covered.includes(d))
+      return {
+        metric: "—",
+        trend: "—",
+        status: "No data",
+        detail: "No validated records are available for this department.",
+      };
+    const attention = sample.risks.some((r) => r.department === d),
+      status = attention ? "Attention" : "Covered";
+    const points = sample.points,
+      last = points.at(-1)!,
+      previous = points.at(-2)!;
+    if (/finance/i.test(d))
+      return {
+        metric: `Costs ${money(totals(sample).costs)}`,
+        trend: `${((last.costs / previous.costs - 1) * 100).toFixed(1)}%`,
+        status,
+        detail: `Operating costs: ${money(totals(sample).costs)}. Latest interval versus previous: ${((last.costs / previous.costs - 1) * 100).toFixed(1)}%. Illustrative operating expense records.`,
+      };
+    if (/sales|customer|success/i.test(d) && profile === "saas")
+      return {
+        metric: "133 accounts",
+        trend: "+3.9%",
+        status,
+        detail:
+          "128 opening accounts, 122 retained and 11 new; 133 closing accounts. Customer growth: (133/128 − 1) × 100. Illustrative cutoff snapshot.",
+      };
+    if (/project|delivery|operations|engineering/i.test(d)) {
+      const projects = sample.projects.filter((p) => p.department === d);
+      if (projects.length)
+        return {
+          metric: `${projects.filter((p) => p.status === "On track").length}/${projects.length} on track`,
+          trend: "—",
+          status,
+          detail: `${projects.length} illustrative delivery commitments. A comparable previous delivery snapshot is unavailable.`,
+        };
+    }
+    if (/human|people|resource/i.test(d))
+      return {
+        metric: scenario === "clear" ? "40 / 40 h" : "46 / 40 h",
+        trend: scenario === "clear" ? "At capacity" : "+6 h demand",
+        status,
+        detail:
+          scenario === "clear"
+            ? "Capacity is balanced in this example snapshot."
+            : "One specialist has 46 assigned hours against 40 available. Snapshot, not a period-over-period trend.",
+      };
+    return {
+      metric: "—",
+      trend: "—",
+      status: "No measure",
+      detail:
+        "Department coverage exists, but no decision-grade measure is mapped. No metric or trend has been inferred.",
+    };
+  }
+  const activeGoals = c.data.goals
+    .filter(
+      (g) => !g.deadline || g.deadline >= new Date().toISOString().slice(0, 10),
+    )
+    .sort((a, b) => (a.deadline || "9999").localeCompare(b.deadline || "9999"))
+    .slice(0, 2);
   function secondary(section: Section) {
     if (section === "departments")
       return (
@@ -162,51 +249,40 @@ export function ExecutiveDashboard({
             key={section}
           >
             <h2>Department intelligence</h2>
-            <div className="exec-filter-tabs" aria-label="Filter departments">
-              {[
-                ["all", "All"],
-                ["attention", "Needs attention"],
-                ["missing", "No data"],
-              ].map(([v, l]) => (
-                <button
-                  key={v}
-                  aria-pressed={departmentFilter === v}
-                  onClick={() => setDepartmentFilter(v)}
-                >
-                  {l}
-                </button>
-              ))}
+            <div className="exec-matrix-head">
+              <span>Department</span>
+              <span>Key measure</span>
+              <span>Trend</span>
+              <span>Status</span>
             </div>
             {depts.length ? (
-              depts.map((d) => (
-                <button
-                  className="exec-row"
-                  key={d}
-                  onClick={() =>
-                    open(
-                      d,
-                      sample?.covered.includes(d)
-                        ? "Illustrative coverage available. Review underlying records before deciding."
-                        : "No validated records available for this department.",
-                      ...(sample?.risks
-                        .filter((r) => r.department === d)
-                        .map((r) => r.title) || []),
-                    )
-                  }
-                >
-                  <span>{d}</span>
-                  <small>
-                    {sample?.covered.includes(d)
-                      ? sample.risks.some((r) => r.department === d)
-                        ? "Needs attention"
-                        : "No flagged issues"
-                      : "Awaiting data"}
-                  </small>
-                  <ArrowUpRight size={14} />
-                </button>
-              ))
+              depts.map((d) => {
+                const signal = departmentSignal(d);
+                return (
+                  <button
+                    className="exec-row exec-matrix-row"
+                    key={d}
+                    onClick={() =>
+                      open(
+                        d,
+                        signal.detail,
+                        ...(sample?.risks
+                          .filter((r) => r.department === d)
+                          .map((r) => `${r.title}. ${r.impact}`) || []),
+                      )
+                    }
+                  >
+                    <span>{d}</span>
+                    <span>{signal.metric}</span>
+                    <span className="exec-matrix-trend" title={signal.detail}>
+                      {signal.trend}
+                    </span>
+                    <small data-status={signal.status}>{signal.status}</small>
+                  </button>
+                );
+              })
             ) : (
-              <p>No matching departments.</p>
+              <p>No departments selected.</p>
             )}
           </section>
         )
@@ -222,8 +298,8 @@ export function ExecutiveDashboard({
             <h2>Goals</h2>
             {editable && <Link to={setup("goals")}>Edit goals ↗</Link>}
           </div>
-          {c.data.goals.length ? (
-            c.data.goals.map((g) => {
+          {activeGoals.length ? (
+            activeGoals.map((g) => {
               const actual =
                   sample && scenario !== "partial"
                     ? goalActual(g, sample)
@@ -250,21 +326,34 @@ export function ExecutiveDashboard({
                   <span>
                     {g.name}
                     <small>
-                      Target {g.target} · {g.deadline || "No deadline"}
+                      {g.deadline
+                        ? new Date(
+                            g.deadline + "T12:00:00Z",
+                          ).toLocaleDateString("en", {
+                            month: "short",
+                            day: "numeric",
+                          })
+                        : "No deadline"}
                     </small>
                   </span>
                   <small>
-                    {percent === null
-                      ? "Awaiting data"
-                      : `${percent.toFixed(0)}%`}
+                    {actual === null || target === null
+                      ? "No measured progress"
+                      : `${new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(actual)} / ${new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(target)}`}
                   </small>
-                  {percent !== null && <progress max="100" value={percent} />}
+                  {percent !== null && (
+                    <progress
+                      aria-label={`${g.name}: actual versus target`}
+                      max="100"
+                      value={percent}
+                    />
+                  )}
                 </button>
               );
             })
           ) : (
             <p>
-              No goals configured.{" "}
+              No active goals.{" "}
               {editable ? (
                 <Link to={setup("goals")}>Set your first goal →</Link>
               ) : (
@@ -284,7 +373,26 @@ export function ExecutiveDashboard({
             key={section}
           >
             <h2>Dependencies</h2>
-
+            <button
+              className="exec-dependency-context"
+              onClick={() =>
+                open(
+                  "Shared delivery dependency",
+                  sample.projects[0].evidence,
+                  `${sample.projects[0].client} → ${sample.projects[0].name} → ${sample.projects[0].owner}.`,
+                  scenario === "clear"
+                    ? "No current conflict is flagged."
+                    : "Resolve approval and specialist capacity before the next client launch.",
+                )
+              }
+            >
+              <span>
+                {scenario === "clear"
+                  ? "Delivery chain on track"
+                  : "Shared specialist · launch at risk"}
+              </span>
+              <ArrowUpRight size={14} />
+            </button>
             <div className="exec-nodes">
               {[
                 sample.projects[0].client,
@@ -424,13 +532,17 @@ export function ExecutiveDashboard({
     <div className="exec-dashboard" id="dashboard-overview">
       <div className="exec-toolbar">
         <div>
-          <span className="exec-eyebrow">EXECUTIVE PERSPECTIVE</span>
           <h1>
             Overview<span className="accent">.</span>
           </h1>
-          <p>
-            {c.name} · {profiles[profile]}
-          </p>
+          {sample && values && sample.risks.length > 0 && (
+            <p className="exec-intelligence">
+              {financial
+                ? `Revenue ${values.growth >= 0 ? "+" : ""}${values.growth.toFixed(1)}%`
+                : "Delivery needs attention"}{" "}
+              · {sample.risks.length} decisions to review
+            </p>
+          )}
         </div>
         <div className="exec-tools">
           <label>
@@ -458,132 +570,54 @@ export function ExecutiveDashboard({
           </Button>
         </div>
       </div>
-      <div className="exec-context">
-        <label>
-          Data preview
-          <select
-            aria-label="Data preview"
-            value={scenario}
-            onChange={(e) => {
-              setScenario(e.target.value as Scenario);
-              setReviewed([]);
-              setSelected(0);
-            }}
-          >
-            {Object.entries(scenarios).map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-          </select>
-        </label>
-        <span>
-          {sample
-            ? `Example data · ${sample.asOf.toISOString().slice(0, 10)}`
-            : "No live performance data connected"}
-        </span>
-      </div>
       {storageError && <p role="status">{storageError}</p>}
-      <section className="exec-summary">
-        <div className="exec-pulse">
-          <span className="exec-live-dot" />
-          <span>
-            {!sample
-              ? "Awaiting data"
-              : scenario === "clear"
-                ? "On track"
-                : scenario === "partial"
-                  ? "Partial coverage"
-                  : `${sample.risks.length} decisions need you`}
-          </span>
-        </div>
-        <div className="exec-summary-actions">
-          <button
-            onClick={() =>
-              open(
-                "Data coverage",
-                `${sample?.covered.length || 0} of ${c.data.departments.length} departments covered.`,
-                sample
-                  ? "Illustrative records only; example departments and goals may supplement incomplete setup."
-                  : "No validated business records.",
-              )
-            }
-          >
-            <span>
-              {sample?.covered.length || 0}/{c.data.departments.length}
-            </span>{" "}
-            departments ↗
-          </button>
-          <button
-            onClick={() =>
-              open(
-                "Business priorities",
-                ...(c.data.priorities.length
-                  ? c.data.priorities
-                  : ["No priorities selected."]),
-              )
-            }
-          >
-            {c.data.priorities[0] || "Business focus"} ↗
-          </button>
-          <button
-            className="exec-ask-chip"
-            onClick={() => {
-              setAsk(true);
-              setAskContext(null);
-              setQuestion("");
-              setAnswer("");
-            }}
-          >
-            Ask Aynor <ArrowUpRight size={13} />
-          </button>
-        </div>
-      </section>
-      <div
-        className={`exec-quality ${["sync-error", "stale"].includes(scenario) ? "warning" : ""}`}
-        role="status"
-      >
-        <AlertTriangle size={15} />
-        <span>
-          {scenario === "sync-error"
-            ? "Example sync failed · cached data"
-            : scenario === "stale"
-              ? "Example data is 12 days old · refresh required"
-              : scenario === "partial"
-                ? `Partial example coverage · ${sample?.covered.length || 0}/${c.data.departments.length} departments`
-                : sample
-                  ? "Illustrative data · not live company performance"
-                  : "Awaiting validated data · connect a source"}
-        </span>
-        <button
-          className="exec-text-button"
-          onClick={() =>
-            open(
-              "Data details",
-              "Illustrative workbook only. No real account or source has been synchronized.",
-              sample
-                ? `Coverage: ${sample.covered.join(", ")}. As of ${sample.asOf.toISOString().slice(0, 10)}.`
-                : "Awaiting validated data. Missing values are not zero.",
-            )
-          }
+      {scenario !== "connected" && scenario !== "clear" && (
+        <div
+          className={`exec-quality ${["sync-error", "stale"].includes(scenario) ? "warning" : ""}`}
+          role="status"
         >
-          Details ↗
-        </button>
-        {scenario === "sync-error" && (
-          <Button
-            variant="secondary"
-            busy={busy}
-            onClick={async () => {
-              setBusy(true);
-              await new Promise((r) => setTimeout(r, 650));
-              setScenario("connected");
-              setBusy(false);
-            }}
+          <AlertTriangle size={15} />
+          <span>
+            {scenario === "sync-error"
+              ? "Example sync failed · cached data"
+              : scenario === "stale"
+                ? "Example data is 12 days old · refresh required"
+                : scenario === "partial"
+                  ? `Partial example coverage · ${sample?.covered.length || 0}/${c.data.departments.length} departments`
+                  : sample
+                    ? "Illustrative data · not live company performance"
+                    : "Awaiting validated data · connect a source"}
+          </span>
+          <button
+            className="exec-text-button"
+            onClick={() =>
+              open(
+                "Data details",
+                "Illustrative workbook only. No real account or source has been synchronized.",
+                sample
+                  ? `Coverage: ${sample.covered.join(", ")}. As of ${sample.asOf.toISOString().slice(0, 10)}.`
+                  : "Awaiting validated data. Missing values are not zero.",
+              )
+            }
           >
-            Retry example sync
-          </Button>
-        )}
-      </div>
+            Details ↗
+          </button>
+          {scenario === "sync-error" && (
+            <Button
+              variant="secondary"
+              busy={busy}
+              onClick={async () => {
+                setBusy(true);
+                await new Promise((r) => setTimeout(r, 650));
+                setScenario("connected");
+                setBusy(false);
+              }}
+            >
+              Retry example sync
+            </Button>
+          )}
+        </div>
+      )}
       <div className="exec-metrics">
         {prefs.metrics
           .filter((m) => availableMetrics(profile, c).includes(m))
@@ -620,7 +654,24 @@ export function ExecutiveDashboard({
                         : metric.value
                     : "—"}
                 </strong>
-                <small>{metric?.context || "Awaiting validated data"}</small>
+                <small>
+                  {metric
+                    ? {
+                        retention: "122 / 128 retained",
+                        churn: "6 accounts lost",
+                        customers: "128 → 133 accounts",
+                        sla: "94 / 100 tickets",
+                        tickets: "2 high priority",
+                        renewals: "Due in 30 days",
+                        receivables: "3 invoices · >30 days",
+                        utilization: "1,640 / 2,000 hours",
+                        margin: "Net operating margin",
+                        onTime: metric.context
+                          .replace("of", "/")
+                          .replace("planned milestones", "milestones"),
+                      }[m]
+                    : "No data"}
+                </small>
                 {m === "utilization" && metric && (
                   <span className="exec-utilization">
                     <span style={{ width: `${metric.value}%` }} />
@@ -648,10 +699,21 @@ export function ExecutiveDashboard({
                   : "Delivery performance"}
               </h2>
               <p>
-                {periods[prefs.period]}
                 {sample
-                  ? ` · ${sample.points[0].date} – ${sample.points.at(-1)?.date}`
-                  : ""}
+                  ? new Date(
+                      sample.points[0].date + "T12:00:00Z",
+                    ).toLocaleDateString("en", { month: "short" }) +
+                    (prefs.period === "30d"
+                      ? ""
+                      : " – " +
+                        new Date(
+                          sample.points.at(-1)!.date + "T12:00:00Z",
+                        ).toLocaleDateString("en", { month: "short" })) +
+                    " " +
+                    new Date(
+                      sample.points.at(-1)!.date + "T12:00:00Z",
+                    ).getFullYear()
+                  : periods[prefs.period]}
               </p>
             </div>
             {sample && (
@@ -757,6 +819,7 @@ export function ExecutiveDashboard({
                       <span>{r.severity}</span>
                     </div>
                     <h3>{r.title}</h3>
+                    <p className="exec-risk-impact">{r.impact.split(";")[0]}</p>
 
                     <button
                       className="exec-text-button"

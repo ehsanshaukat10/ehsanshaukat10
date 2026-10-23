@@ -22,6 +22,7 @@ export type MetricId =
   | "renewals"
   | "onTime";
 export type Preferences = {
+  layoutRevision: 2;
   period: Period;
   currency: string;
   profile: Profile | "auto";
@@ -143,19 +144,13 @@ const order: Section[] = [
 export function defaults(c: Company): Preferences {
   const profile = inferProfile(c);
   return {
+    layoutRevision: 2,
     period: "quarter",
     currency: c.currency || "USD",
     profile: "auto",
     metrics: availableMetrics(profile, c).slice(0, 3),
     departments: null,
-    sections: [
-      "departments",
-      "goals",
-      "dependencies",
-      "deadlines",
-      "clients",
-      "activity",
-    ],
+    sections: ["departments", "goals", "dependencies", "deadlines"],
     order: [...order],
   };
 }
@@ -176,6 +171,7 @@ export function readPreferences(key: string, c: Company): Preferences {
       c,
     );
     return {
+      layoutRevision: 2,
       period: Object.hasOwn(periods, p.period) ? p.period : initial.period,
       currency: [
         "USD",
@@ -198,7 +194,11 @@ export function readPreferences(key: string, c: Company): Preferences {
         ? p.departments.filter((d: string) => c.data.departments.includes(d))
         : null,
       sections: Array.isArray(p.sections)
-        ? p.sections.filter((s: Section) => order.includes(s))
+        ? p.sections.filter(
+            (s: Section) =>
+              order.includes(s) &&
+              (p.layoutRevision === 2 || !["clients", "activity"].includes(s)),
+          )
         : initial.sections,
       order: Array.isArray(p.order)
         ? [
@@ -595,39 +595,7 @@ export function goalTarget(target: string): number | null {
   return target.trim() && Number.isFinite(number) && number > 0 ? number : null;
 }
 
-/** Display-only fixture. Never written back to the workspace. */
+/** Illustrative measures use the existing configuration; no departments or goals are invented. */
 export function overviewExampleCompany(company: Company): Company {
-  if (!["Owner", "Admin"].includes(company.role)) return company;
-  const departments =
-    company.data.departments.length < 3
-      ? Array.from(
-          new Set([
-            ...company.data.departments,
-            "Finance",
-            "Sales",
-            "Project Delivery",
-            "Operations",
-          ]),
-        )
-      : company.data.departments;
-  return {
-    ...company,
-    data: {
-      ...company.data,
-      departments,
-      goals: company.data.goals.length
-        ? company.data.goals
-        : [
-            {
-              id: "overview-example-goal",
-              name: "Grow quarterly revenue",
-              kpi: "Revenue",
-              target: "600000",
-              deadline: `${new Date().getFullYear()}-12-31`,
-              owner: "Company leadership",
-              description: "Illustrative target for exploring the dashboard.",
-            },
-          ],
-    },
-  };
+  return company;
 }

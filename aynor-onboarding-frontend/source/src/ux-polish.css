@@ -454,3 +454,50 @@ body .workspace-shell .exec-performance {
     display: none;
   }
 }
+body .workspace-shell .workspace-settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 25px;
+}
+body .workspace-shell .workspace-settings-nav > a {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 39px;
+  padding: 10px 12px;
+  line-height: 1.4;
+  font-size: 13px;
+  color: #878da0;
+  border-radius: 7px;
+}
+body .workspace-shell .workspace-settings-nav > a svg {
+  flex-shrink: 0;
+}
+body .workspace-shell .workspace-settings-nav > a:hover {
+  background: #f6f5fb;
+}
+body .workspace-shell .workspace-settings-nav > a.active {
+  background: #f1edff;
+  color: #7b62d9;
+}
+body .workspace-shell .workspace-settings-nav .workspace-nav-label {
+  padding-top: 0;
+}
+body .workspace-shell .workspace-settings-nav .nav-count {
+  margin-left: auto;
+  font-size: 11px;
+}
+@media (max-width: 760px) {
+  body .workspace-shell .workspace-settings-nav {
+    margin: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  body .workspace-shell .workspace-settings-nav > a {
+    font-size: 12px;
+    padding: 8px 10px;
+    min-height: 36px;
+  }
+}

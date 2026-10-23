@@ -1,20 +1,30 @@
 # Executive overview
 
-Frontend-only dashboard, mounted in the existing company Overview route. Existing navigation, Helvetica Neue stack, colors, field components, company management and onboarding remain in place.
+Frontend-only refinement of the existing company Overview route. Branding, Helvetica Neue typography, colors, card surfaces and onboarding routes are preserved. No backend, authentication configuration or external integration changes.
 
-Overview opens directly with **clearly labeled illustrative performance data**, charts, metrics and goals. For Owner/Admin workspaces with fewer than three departments, display-only example departments are added; an illustrative goal is supplied when no goal is configured. These fixtures never change saved onboarding data. The Data view selector also provides an actual-configuration-only Your workspace state with unavailable performance values, plus workbook scenarios: connected, partial department coverage, failed sync with cached records/retry, stale records, or no critical issues. Scenarios reset to Connected example on reload or company change. No live integration, Google connection, AI service, notification or external assignment is performed.
+## Default interface
 
-Automatic business lenses use industry, operating model, priorities, goals and departments. Services emphasize delivery/utilization/receivables; SaaS emphasizes retention/churn/customer growth; managed IT emphasizes SLAs/tickets/renewals. Only department-relevant measures are offered. Existing frontend role scopes are respected; this is presentation logic, not server authorization.
+The page contains one Overview heading, a concise intelligence line when meaningful, reporting period and Customize. A single discreet Demo indicator identifies illustrative records. No scenario selector, shortcut-chip row, repeated company/industry, duplicate timestamps or floating debug controls appears in company views. Developer tools remain available on the explicit /prototype gallery route.
 
-Customize provides predefined layouts, up to three pinned measures, department visibility, secondary section visibility/order, reporting currency and period. The situation summary, critical priorities, data quality and primary performance section cannot be hidden. Layout and local decision notes persist per browser user/company. Selecting a reporting currency changes illustrative units; it does not convert exchange rates.
+Three relevant pinned measures lead into the existing interactive chart and at most three priorities. Metric contexts are compact; calculation, source and action evidence remain in drilldowns. Critical coverage/freshness/sync warnings appear only when relevant. The default optional sections are departments, goals, dependencies and deadlines. Client concentration and activity remain available through Customize; they are not default widgets.
 
-Monthly example totals are split into four periods; their sum reconciles exactly. The other reporting views show the last three or twelve complete months, with revenue compared to the preceding equivalent period. Revenue, expenses, margin and milestone totals follow that selection. Receivables, resource capacity, customer/SLA counts and renewals are illustrative snapshots at the reporting cutoff, with calculation details in their drilldowns. Dates follow the current clock; stale examples shift the cutoff back twelve days. Missing department coverage remains unavailable rather than zero. Goal bars are illustrative actual-versus-target previews, not forecasts or assertions of attainment by the goal deadline; mismatched measures remain unavailable.
+Primary navigation: Overview, Departments, Dependencies, Goals, Actions, Ask Aynor. Company settings and team permissions form a separate navigation landmark. Existing section hashes and company routes still resolve. Ask Aynor opens contextual local analysis and can be reopened after closing.
 
-Chart points support focus, hover, selection, comparative bars, expense categories and an accessible data table. Department, client, project, goal and risk details retain source/period context. Ask Aynor uses selected context in a clearly labeled local simulated explanation. Decisions can be recorded locally without hiding unresolved alerts. Optional dependencies, deadline strip, utilization segments, concentration bars and activity dots each have a specific analytical purpose.
+Departments display a compact matrix: department, key measure, change and status. Finance expense change compares the last two chart intervals; SaaS accounts show the defined customer-growth snapshot. Capacity variance is identified in details. Missing measures/trends remain unavailable rather than fabricated. Configured departments and goals are never supplemented merely to fill the layout.
+
+Goals show the two nearest active deadlines and actual-versus-target values, with details on click; arbitrary percentage labels are removed. They are illustrative previews, not forecasts of attainment by the deadline. Dependencies explain the existing shared-specialist delivery risk before exposing the connected client, project and resource. Deadlines retain their compact timeline and statuses.
+
+## Data and interaction boundaries
+
+Financial and operational measures adapt to business model, actual departments and frontend role scopes. The default view uses clearly labeled illustrative records, not live company performance. Existing scenario states remain testable through the overview query parameter `state=workspace|connected|partial|sync-error|stale|clear`, including within the standalone hash route. No scenario selector is exposed in the normal UI.
+
+Layout preferences, selected currency/period and local decision notes persist per browser user/company. Reporting currency changes illustrative units, not exchange rates. Monthly intervals reconcile to the last complete month; other views use the last three/twelve complete months. Revenue, expenses, margin and milestone totals follow the period. Customer, SLA, capacity, overdue invoice and renewal measures are cutoff snapshots. Source freshness and goal-period reconciliation must be validated during future integration.
+
+Chart hover/focus updates exact readings; selection opens expense breakdowns and contextual investigation. KPI, risk, department, goal, client and dependency controls retain meaningful details. Ask Aynor is explicitly simulated locally; decisions send no assignments or notifications. Reduced motion disables animations and smooth scrolling.
 
 ## Verification
 
-From source/ with Vite running at port 5174:
+From source/, with Vite running on port 5174:
 
 ```sh
 npm run build
@@ -23,12 +33,6 @@ node src/tests/dashboard-model.mjs
 PROTOTYPE_URL=http://127.0.0.1:5174 node src/tests/dashboard.browser.mjs
 ```
 
-The model checks period arithmetic, coverage, company lenses and role-appropriate metrics. Browser checks cover honest missing data, chart keyboard interactions and expenses, contextual analysis, local decisions, saved company preferences, partial/stale/failure/retry states, protected core sections, three/ten departments, no goals, company isolation, restricted viewers and responsive overflow. Tests assert zero backend requests.
+Browser checks cover the six main destinations, separate settings, absent debug/scenario controls, a single Demo indicator, optional widgets off by default, matrix drilldowns, chart pointer/keyboard interaction, contextual questions, local decisions, preference persistence, partial/stale/sync-failure/retry states, protected alerts, three/ten departments, no active goals, company isolation and restricted scopes. Responsive checks assert no horizontal overflow. Tests assert zero backend requests.
 
-Later integration needs authenticated validated records, server-enforced scopes, sync timestamps, stable reporting calendars, unit/goal-period reconciliation, source provenance, contextual analysis and storage of per-user layout/decisions. None of those backend changes are implemented here.
-
-Dashboard sidebar links open and scroll to Performance, Risks & decisions, Departments, Goals, Dependencies, Delivery & deadlines, Clients and Activity. Hidden optional sections reopen when selected. The header displays the active company, current date, example-data status and an interactive user profile. Header and body share horizontal padding, with compact responsive navigation on smaller screens.
-
-## Compact interaction pass
-
-Overview leads with pinned metric cards and an asymmetric chart/decision layout. The former narrative summary is replaced by coverage/focus chips; risk impact, source explanations and calculation details live in existing drilldowns. Department tabs filter all, attention-needed and missing-data rows. Chart pointer tracking and keyboard period controls update a shared reading/crosshair; selection opens the expense breakdown. Card lift, row highlights, node/activity hover states, selected tabs, chart draw/bar entrances and period transitions use short, restrained motion. Stable chart keys preserve keyboard focus during selection. Reduced-motion preferences disable animation and smooth scrolling. Data warnings stay visible in short form, with full provenance available through Details.
+Future backend work remains separate: validated records and provenance, server-enforced scopes, stable reporting calendars, source sync timestamps, goal-unit/period reconciliation, contextual analysis and durable per-user preferences. None is implemented here.

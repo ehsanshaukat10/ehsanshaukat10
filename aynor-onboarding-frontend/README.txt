@@ -33,10 +33,11 @@ Backend services, databases and API/authentication configuration are unchanged.
 
 Executive dashboard:
 Open a workspace overview after onboarding, or use /prototype and select
-Workspace overview. Overview immediately shows clearly labeled example data. Use the Data view
-selector to explore limited-data states, or investigate interactive charts, risks,
-departments, goals, dependencies, deadlines and local Ask Aynor explanations.
-Customize saves layout preferences per user/company in this browser.
-Dashboard browser checks: node src/tests/dashboard.browser.mjs (Vite running).
+Workspace overview. Overview immediately shows department-relevant example
+metrics and charts, identified by one discreet Demo label. Use Customize for
+optional sections. Company data, goals and departments are never invented to
+fill the layout. Primary navigation is Overview, Departments, Dependencies,
+Goals, Actions and Ask Aynor; company settings remain separate.
+Dashboard checks: node src/tests/dashboard.browser.mjs (Vite running).
 Calculation checks: node src/tests/dashboard-model.mjs.
 Implementation notes: source/src/features/dashboard/README.md.

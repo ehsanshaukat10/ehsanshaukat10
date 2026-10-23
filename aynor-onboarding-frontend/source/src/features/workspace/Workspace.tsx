@@ -1,13 +1,10 @@
 import { OnboardingFrame } from "../onboarding/OnboardingFrame";
 import {
   CircleAlert,
-  BarChart3,
+  MessageSquare,
   Building2,
   Target,
   Network,
-  CalendarDays,
-  Briefcase,
-  Activity,
   ArrowLeft,
   ArrowUpRight,
   Check,
@@ -206,36 +203,33 @@ export function Workspace({
             <LayoutDashboard size={17} /> Overview
           </Link>
           {[
-            ["performance", "Performance", BarChart3],
-            ["risks", "Risks & decisions", CircleAlert],
             ["departments", "Departments", Building2],
-            ["goals", "Goals", Target],
             ["dependencies", "Dependencies", Network],
-            ["deadlines", "Delivery & deadlines", CalendarDays],
-            ["clients", "Clients", Briefcase],
-            ["activity", "Activity", Activity],
-          ]
-            .filter(
-              ([section]) =>
-                !["clients"].includes(String(section)) ||
-                !["Viewer", "Department Manager"].includes(company?.role || ""),
-            )
-            .map(([section, label, Icon]) => {
-              const I = Icon as typeof BarChart3;
-              return (
-                <Link
-                  key={String(section)}
-                  className={
-                    overview && location.hash === "#" + section ? "active" : ""
-                  }
-                  to={`/companies/${id}/overview#${section}`}
-                >
-                  <I size={17} />
-                  {String(label)}
-                </Link>
-              );
-            })}
-          <span className="workspace-nav-label">WORKSPACE</span>
+            ["goals", "Goals", Target],
+            ["risks", "Actions", CircleAlert],
+            ["ask", "Ask Aynor", MessageSquare],
+          ].map(([section, label, Icon]) => {
+            const I = Icon as typeof Building2;
+            return (
+              <Link
+                key={String(section)}
+                className={
+                  overview && location.hash === "#" + section ? "active" : ""
+                }
+                onClick={() => {
+                  if (section === "ask" && overview)
+                    window.dispatchEvent(new Event("aynor:ask"));
+                }}
+                to={`/companies/${id}/overview#${section}`}
+              >
+                <I size={17} />
+                {String(label)}
+              </Link>
+            );
+          })}
+        </nav>
+        <nav className="workspace-settings-nav" aria-label="Company settings">
+          <span className="workspace-nav-label">COMPANY</span>
           {editable && (
             <Link
               className={!overview && !members ? "active" : ""}
@@ -318,15 +312,11 @@ export function Workspace({
             </strong>
           </div>
           <div>
-            <span className="workspace-header-date">
-              {new Date().toLocaleDateString("en", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-              })}
-            </span>
-            <span className="workspace-example-label">
-              {overview ? "Example data" : "Local workspace"}
+            <span
+              className="workspace-example-label"
+              title="Illustrative business data; not live company performance."
+            >
+              {overview ? "Demo" : "Workspace"}
             </span>
             <button
               className="workspace-profile"

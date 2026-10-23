@@ -18,8 +18,13 @@ page.on("request", (r) => {
 });
 const heading = () =>
   page.getByRole("heading", { name: "Overview.", exact: true }).waitFor();
-const preview = (value) =>
-  page.getByLabel("Data preview", { exact: true }).selectOption(value);
+const preview = async (value) => {
+  const url = new URL(page.url());
+  url.searchParams.set("state", value);
+  url.hash = "";
+  await page.goto(url.toString());
+  await heading();
+};
 const close = () =>
   page.getByRole("button", { name: "Close", exact: true }).click();
 async function customize() {
@@ -43,24 +48,39 @@ try {
     .click();
   await heading();
   const path = new URL(page.url()).pathname;
-  await expect(page.getByLabel("Data preview", { exact: true })).toHaveValue(
-    "connected",
+  assert.equal(
+    await page.getByLabel("Data preview", { exact: true }).count(),
+    0,
+  );
+  assert.equal(await page.locator(".prototype-tools").count(), 0);
+  assert.equal(
+    await page.locator(".exec-context,.exec-summary-actions").count(),
+    0,
+  );
+  assert.equal(await page.locator(".workspace-example-label").count(), 1);
+  assert.equal(
+    await page.locator("#dashboard-activity,#dashboard-clients").count(),
+    0,
+  );
+  assert.deepEqual(
+    (await page.locator(".primary-nav a").allTextContents()).map((t) =>
+      t.trim(),
+    ),
+    [
+      " Overview",
+      "Departments",
+      "Dependencies",
+      "Goals",
+      "Actions",
+      "Ask Aynor",
+    ].map((t) => t.trim()),
   );
   await expect(page.locator(".exec-chart")).toBeVisible();
   assert.equal(await page.locator(".exec-metric strong").count(), 3);
   await page.getByRole("button", { name: "Open profile" }).click();
   await expect(page.getByRole("dialog")).toContainText("Alex Morgan");
   await close();
-  for (const label of [
-    "Performance",
-    "Risks & decisions",
-    "Departments",
-    "Goals",
-    "Dependencies",
-    "Delivery & deadlines",
-    "Clients",
-    "Activity",
-  ]) {
+  for (const label of ["Departments", "Dependencies", "Goals", "Actions"]) {
     await page
       .locator(".primary-nav")
       .getByRole("link", { name: label, exact: true })
@@ -75,6 +95,16 @@ try {
     );
     assert.ok(target.includes("#"));
     assert.equal(await page.locator(".primary-nav .active").count(), 1);
+  }
+  for (let i = 0; i < 2; i++) {
+    await page
+      .locator(".primary-nav")
+      .getByRole("link", { name: "Ask Aynor", exact: true })
+      .click();
+    await expect(page.getByRole("dialog")).toContainText(
+      "Local simulated analysis",
+    );
+    await close();
   }
   await page
     .locator(".primary-nav")
@@ -96,21 +126,14 @@ try {
   console.log("PASS honest workspace baseline");
   await preview("connected");
   const departmentPanel = page.locator("#dashboard-departments");
-  await departmentPanel
-    .getByRole("button", { name: "Needs attention", exact: true })
-    .click();
-  assert.ok((await departmentPanel.locator(".exec-row").count()) > 0);
-  for (const text of await departmentPanel
-    .locator(".exec-row small")
-    .allTextContents())
-    assert.equal(text, "Needs attention");
-  await departmentPanel
-    .getByRole("button", { name: "No data", exact: true })
-    .click();
-  assert.equal(await departmentPanel.locator(".exec-row").count(), 0);
-  await departmentPanel
-    .getByRole("button", { name: "All", exact: true })
-    .click();
+  assert.equal(
+    await departmentPanel.locator(".exec-matrix-head span").count(),
+    4,
+  );
+  assert.ok((await departmentPanel.locator(".exec-matrix-row").count()) > 0);
+  await departmentPanel.locator(".exec-matrix-row").first().click();
+  await expect(page.getByRole("dialog")).toContainText("Operating costs");
+  await close();
   const plot = page.locator(".exec-chart svg");
   const bounds = await plot.boundingBox();
   await page.mouse.move(
@@ -120,9 +143,11 @@ try {
   await expect(
     page.locator(".exec-chart-points button").last(),
   ).toHaveAttribute("aria-pressed", "true");
-  console.log("PASS department filters and pointer-follow chart selection");
+  console.log(
+    "PASS department matrix drilldown and pointer-follow chart selection",
+  );
   assert.equal(await page.locator(".exec-risks article").count(), 3);
-  await expect(page.locator(".exec-context")).toContainText("Example data");
+  await expect(page.locator(".workspace-example-label")).toHaveText("Demo");
   assert.equal(await page.locator(".exec-chart-points button").count(), 3);
   await page.locator(".exec-chart-points button").nth(1).focus();
   await expect(page.locator(".exec-chart-reading")).toContainText(
@@ -153,14 +178,14 @@ try {
   await page.getByLabel("Client concentration", { exact: true }).check();
   await page.getByLabel("Activity patterns", { exact: true }).check();
   await page.getByRole("button", { name: "Save preferences" }).click();
-  await expect(page.locator(".exec-toolbar")).toContainText("Managed IT");
+  await expect(page.locator(".exec-metrics")).toContainText("SLA compliance");
   await expect(page.locator(".exec-metrics")).toContainText("SLA compliance");
   await page.reload();
   await heading();
   await expect(
     page.getByLabel("Reporting period", { exact: true }),
   ).toHaveValue("year");
-  await expect(page.locator(".exec-toolbar")).toContainText("Managed IT");
+  await expect(page.locator(".exec-metrics")).toContainText("SLA compliance");
   await preview("connected");
   await page.getByRole("button", { name: /Orion Group\s*37%/ }).click();
   await expect(page.getByRole("dialog")).toContainText(
@@ -193,14 +218,12 @@ try {
   await expect(page.locator(".exec-quality")).toContainText(
     "Partial example coverage",
   );
-  await expect(page.locator(".exec-secondary")).toContainText("Awaiting data");
+  await expect(page.locator(".exec-secondary")).toContainText("No data");
   await preview("stale");
   await expect(page.locator(".exec-quality")).toContainText("12 days old");
   await preview("sync-error");
   await page.getByRole("button", { name: "Retry example sync" }).click();
-  await expect(page.getByLabel("Data preview", { exact: true })).toHaveValue(
-    "connected",
-  );
+  await expect(page.locator(".exec-quality")).toHaveCount(0);
   await preview("clear");
   assert.equal(await page.locator(".exec-risks article").count(), 0);
   await expect(page.locator(".exec-action")).toContainText(
@@ -219,7 +242,7 @@ try {
   await page.getByRole("button", { name: "Save preferences" }).click();
   await preview("sync-error");
   await expect(page.locator(".exec-quality")).toBeVisible();
-  await expect(page.locator(".exec-summary")).toBeVisible();
+  await expect(page.locator(".exec-toolbar")).toBeVisible();
   assert.equal(await page.locator(".exec-risks article").count(), 3);
   assert.equal(await page.locator(".exec-secondary .exec-panel").count(), 0);
   console.log(
@@ -268,7 +291,7 @@ try {
   );
   await preview("workspace");
   await expect(page.locator(".exec-secondary")).toContainText(
-    "No goals configured",
+    "No active goals",
   );
   await seedChange(() => {
     const k = "aynor.frontend-prototype.v1",

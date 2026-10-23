@@ -18,13 +18,7 @@ export function PrototypeTools() {
   const { setUser, toast } = useApp();
   const nav = useNavigate();
   const location = useLocation();
-  if (
-    ["/", "/home", "/welcome", "/companies/new"].includes(location.pathname) ||
-    location.pathname.startsWith("/auth/") ||
-    location.pathname.startsWith("/invite/") ||
-    location.pathname.includes("/onboarding/")
-  )
-    return null;
+  if (location.pathname !== "/prototype") return null;
   return (
     <div className="prototype-tools">
       <button

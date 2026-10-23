@@ -1183,3 +1183,200 @@
 .exec-primary-grid .exec-no-chart {
   padding: 30px 12px;
 }
+/* Professional simplification: same surfaces and type, fewer visible controls. */
+.exec-dashboard .exec-toolbar {
+  margin: 0 0 24px;
+  align-items: center;
+}
+.exec-dashboard .exec-toolbar h1 {
+  margin: 0;
+  line-height: 1.15;
+}
+.exec-dashboard .exec-intelligence {
+  font-size: 12px;
+  margin: 10px 0 0;
+  color: #8490a3;
+}
+.exec-dashboard .exec-tools > label {
+  font-size: 0;
+  gap: 0;
+}
+.exec-dashboard .exec-tools select {
+  font-size: 13px !important;
+  min-height: 39px;
+}
+.exec-dashboard .exec-tools .button {
+  min-height: 39px;
+}
+.exec-dashboard .exec-metrics {
+  margin: 0 0 22px;
+}
+.exec-dashboard .exec-metric {
+  padding: 15px 18px;
+}
+.exec-dashboard .exec-metric strong {
+  font-size: 29px;
+  margin: 10px 0 6px;
+}
+.exec-dashboard .exec-metric small {
+  font-size: 11px;
+}
+.exec-dashboard .exec-metric > span {
+  min-height: 0;
+}
+.exec-dashboard .exec-quality {
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  background: #f1f3f9;
+  border-radius: 8px;
+}
+.exec-matrix-head,
+.exec-dashboard .exec-matrix-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(
+      0,
+      0.8fr
+    ) minmax(0, 0.8fr);
+  gap: 10px;
+  align-items: center;
+}
+.exec-matrix-head {
+  font-size: 10px;
+  color: #a0a7b7;
+  padding: 6px 0 12px;
+}
+.exec-dashboard .exec-matrix-row {
+  font-size: 12px;
+  padding: 13px 0;
+  border-radius: 0;
+  line-height: 1.5;
+}
+.exec-dashboard .exec-matrix-row > span {
+  font-size: 11px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.exec-dashboard .exec-matrix-row > span:first-child {
+  font-size: 12px;
+}
+.exec-dashboard .exec-matrix-row small {
+  font-size: 10px;
+  justify-self: start;
+  background: #f0f2f7;
+  color: #8c95a6;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+.exec-dashboard .exec-matrix-row small[data-status="Attention"] {
+  background: #fcf1e7;
+  color: #b78b65;
+}
+.exec-dashboard .exec-matrix-row small[data-status="Covered"] {
+  background: #edf5f1;
+  color: #7b9f90;
+}
+.exec-matrix-trend {
+  color: #929aac;
+}
+.exec-dashboard .exec-matrix-row:hover {
+  background: #f5f5fc;
+  padding-left: 0;
+  padding-right: 0;
+}
+.exec-secondary .exec-panel h2 {
+  font-size: 20px;
+  margin-bottom: 15px;
+}
+.exec-dependency-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  color: #7b7d97;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.exec-dashboard .exec-nodes {
+  padding: 16px 0 10px;
+}
+.exec-dashboard .exec-goal {
+  padding: 13px 0;
+}
+.exec-dashboard .exec-goal > small {
+  font-size: 12px;
+  color: #727d94;
+}
+.exec-dashboard .exec-goal span small {
+  font-size: 11px;
+}
+.exec-primary-grid .exec-risks .exec-risk-impact {
+  font-size: 11px;
+  line-height: 1.6;
+  min-height: 0;
+  margin: 5px 0 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: #929aae;
+}
+.exec-dashboard .exec-utilization {
+  margin: 12px 0 5px;
+}
+.exec-dashboard .exec-utilization small {
+  display: none;
+}
+@media (max-width: 1150px) {
+  .exec-matrix-head,
+  .exec-dashboard .exec-matrix-row {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(
+        0,
+        0.7fr
+      ) minmax(0, 0.8fr);
+    gap: 7px;
+  }
+  .exec-dashboard .exec-matrix-row small {
+    padding: 3px 4px;
+  }
+  .exec-primary-grid .exec-risks .exec-risk-impact {
+    -webkit-line-clamp: 2;
+  }
+}
+@media (max-width: 600px) {
+  .exec-dashboard .exec-toolbar {
+    gap: 18px;
+    margin-bottom: 22px;
+  }
+  .exec-dashboard .exec-tools {
+    justify-content: space-between;
+  }
+  .exec-dashboard .exec-metric {
+    padding: 13px 11px;
+  }
+  .exec-dashboard .exec-metric strong {
+    font-size: 24px;
+  }
+  .exec-dashboard .exec-metric > span {
+    min-height: 28px;
+  }
+  .exec-dashboard .exec-metric small {
+    font-size: 10px;
+  }
+  .exec-dashboard .exec-matrix-row > span:first-child {
+    font-size: 12px;
+  }
+  .exec-dashboard .exec-matrix-row > span {
+    font-size: 11px;
+  }
+  .exec-matrix-head {
+    font-size: 10px;
+  }
+  .exec-dashboard .exec-goal > small {
+    font-size: 11px;
+  }
+}
