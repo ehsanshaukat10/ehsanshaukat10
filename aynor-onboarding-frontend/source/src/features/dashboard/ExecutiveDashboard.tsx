@@ -65,6 +65,7 @@ export function ExecutiveDashboard({
     [busy, setBusy] = useState(false),
     [storageError, setStorageError] = useState(""),
     [chart, setChart] = useState("line"),
+    [departmentFilter, setDepartmentFilter] = useState("all"),
     [selected, setSelected] = useState(0),
     [reviewed, setReviewed] = useState<string[]>([]),
     [note, setNote] = useState(""),
@@ -92,7 +93,13 @@ export function ExecutiveDashboard({
       () =>
         document
           .getElementById("dashboard-" + section)
-          ?.scrollIntoView({ block: "start", behavior: "smooth" }),
+          ?.scrollIntoView({
+            block: "start",
+            behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
+              .matches
+              ? "auto"
+              : "smooth",
+          }),
       80,
     );
     return () => clearTimeout(timer);
@@ -129,7 +136,12 @@ export function ExecutiveDashboard({
     },
     setup = (step: string) => `/companies/${c.id}/onboarding/${step}`;
   const depts = c.data.departments.filter(
-    (d) => prefs.departments === null || prefs.departments.includes(d),
+    (d) =>
+      (prefs.departments === null || prefs.departments.includes(d)) &&
+      (departmentFilter === "all" ||
+        (departmentFilter === "attention"
+          ? sample?.risks.some((r) => r.department === d)
+          : !sample?.covered.includes(d))),
   );
   const performanceReady =
     sample &&
@@ -150,9 +162,21 @@ export function ExecutiveDashboard({
             key={section}
           >
             <h2>Department intelligence</h2>
-            <p className="exec-muted">
-              Coverage and next decisions, in one view.
-            </p>
+            <div className="exec-filter-tabs" aria-label="Filter departments">
+              {[
+                ["all", "All"],
+                ["attention", "Needs attention"],
+                ["missing", "No data"],
+              ].map(([v, l]) => (
+                <button
+                  key={v}
+                  aria-pressed={departmentFilter === v}
+                  onClick={() => setDepartmentFilter(v)}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
             {depts.length ? (
               depts.map((d) => (
                 <button
@@ -182,7 +206,7 @@ export function ExecutiveDashboard({
                 </button>
               ))
             ) : (
-              <p>No departments selected. Choose departments in Customize.</p>
+              <p>No matching departments.</p>
             )}
           </section>
         )
@@ -260,7 +284,7 @@ export function ExecutiveDashboard({
             key={section}
           >
             <h2>Dependencies</h2>
-            <p>A shared resource connects these commitments.</p>
+
             <div className="exec-nodes">
               {[
                 sample.projects[0].client,
@@ -297,7 +321,7 @@ export function ExecutiveDashboard({
             key={section}
           >
             <h2>Delivery & deadlines</h2>
-            <p>Illustrative commitments · relative to the data cutoff.</p>
+
             {sample.projects.map((p) => (
               <button
                 className="exec-row exec-deadline"
@@ -338,7 +362,7 @@ export function ExecutiveDashboard({
             key={section}
           >
             <h2>Client concentration</h2>
-            <p>Share of illustrative revenue · {periods[prefs.period]}</p>
+            <p>Revenue share</p>
             {sample.clients.map((client) => (
               <button
                 className="exec-client"
@@ -372,7 +396,7 @@ export function ExecutiveDashboard({
             key={section}
           >
             <h2>Activity patterns</h2>
-            <p>Last 14 days · darker dots indicate more events.</p>
+            <p>14 days · activity volume</p>
             <div className="exec-activity">
               {sample.activity.map((a) => (
                 <button
@@ -455,44 +479,65 @@ export function ExecutiveDashboard({
         </label>
         <span>
           {sample
-            ? `Illustrative data · not company performance · example departments/goals added where needed · as of ${sample.asOf.toISOString().slice(0, 10)}`
+            ? `Example data · ${sample.asOf.toISOString().slice(0, 10)}`
             : "No live performance data connected"}
         </span>
       </div>
       {storageError && <p role="status">{storageError}</p>}
       <section className="exec-summary">
-        <span className="exec-eyebrow">THE SITUATION</span>
-        <h2>
-          {!sample
-            ? "Your workspace is ready. Your data comes next."
-            : scenario === "partial"
-              ? "Some departments are visible. The rest need validated data."
+        <div className="exec-pulse">
+          <span className="exec-live-dot" />
+          <span>
+            {!sample
+              ? "Awaiting data"
               : scenario === "clear"
-                ? "A steady period, with room to look ahead."
-                : financial
-                  ? profile === "managed"
-                    ? "Service response and shared capacity need attention."
-                    : profile === "saas"
-                      ? "Revenue is moving. Renewals deserve a closer look."
-                      : "Performance is moving. A few commitments need attention."
-                  : "Delivery commitments need a closer look."}
-        </h2>
-        <p>
-          {sample
-            ? `${sample.covered.length} of ${c.data.departments.length} departments covered in this example. ${sample.risks.length ? `${sample.risks.length} decisions deserve attention.` : "No critical issues flagged in the available example records."} ${c.data.priorities.length ? `Current focus: ${c.data.priorities.slice(0, 2).join(" and ").toLowerCase()}.` : ""}`
-            : `${c.data.departments.length} departments and ${c.data.goals.length} goals configured. Connect and validate a source before interpreting business performance.`}
-        </p>
-        <button
-          className="exec-text-button"
-          onClick={() => {
-            setAsk(true);
-            setAskContext(null);
-            setQuestion("");
-            setAnswer("");
-          }}
-        >
-          Ask Aynor <ArrowUpRight size={13} />
-        </button>
+                ? "On track"
+                : scenario === "partial"
+                  ? "Partial coverage"
+                  : `${sample.risks.length} decisions need you`}
+          </span>
+        </div>
+        <div className="exec-summary-actions">
+          <button
+            onClick={() =>
+              open(
+                "Data coverage",
+                `${sample?.covered.length || 0} of ${c.data.departments.length} departments covered.`,
+                sample
+                  ? "Illustrative records only; example departments and goals may supplement incomplete setup."
+                  : "No validated business records.",
+              )
+            }
+          >
+            <span>
+              {sample?.covered.length || 0}/{c.data.departments.length}
+            </span>{" "}
+            departments ↗
+          </button>
+          <button
+            onClick={() =>
+              open(
+                "Business priorities",
+                ...(c.data.priorities.length
+                  ? c.data.priorities
+                  : ["No priorities selected."]),
+              )
+            }
+          >
+            {c.data.priorities[0] || "Business focus"} ↗
+          </button>
+          <button
+            className="exec-ask-chip"
+            onClick={() => {
+              setAsk(true);
+              setAskContext(null);
+              setQuestion("");
+              setAnswer("");
+            }}
+          >
+            Ask Aynor <ArrowUpRight size={13} />
+          </button>
+        </div>
       </section>
       <div
         className={`exec-quality ${["sync-error", "stale"].includes(scenario) ? "warning" : ""}`}
@@ -501,15 +546,29 @@ export function ExecutiveDashboard({
         <AlertTriangle size={15} />
         <span>
           {scenario === "sync-error"
-            ? "Example sync failed. Cached records remain visible; new changes are missing."
+            ? "Example sync failed · cached data"
             : scenario === "stale"
-              ? "Example data is 12 days old. Recheck freshness before acting."
+              ? "Example data is 12 days old · refresh required"
               : scenario === "partial"
-                ? `Partial example coverage: ${sample?.covered.join(", ") || "no departments"}. Other departments have no validated records.`
+                ? `Partial example coverage · ${sample?.covered.length || 0}/${c.data.departments.length} departments`
                 : sample
-                  ? "Illustrative workbook only. No Google account, file, or company source has been synchronized."
-                  : "Awaiting validated data. Empty values indicate missing evidence, not zero performance."}
+                  ? "Illustrative data · not live company performance"
+                  : "Awaiting validated data · connect a source"}
         </span>
+        <button
+          className="exec-text-button"
+          onClick={() =>
+            open(
+              "Data details",
+              "Illustrative workbook only. No real account or source has been synchronized.",
+              sample
+                ? `Coverage: ${sample.covered.join(", ")}. As of ${sample.asOf.toISOString().slice(0, 10)}.`
+                : "Awaiting validated data. Missing values are not zero.",
+            )
+          }
+        >
+          Details ↗
+        </button>
         {scenario === "sync-error" && (
           <Button
             variant="secondary"
@@ -525,186 +584,6 @@ export function ExecutiveDashboard({
           </Button>
         )}
       </div>
-      <section id="dashboard-risks" className="exec-action">
-        <div className="exec-section-head">
-          <h2>Needs action</h2>
-          <small>
-            {sample ? `${sample.risks.length} priorities` : "Start here"}
-          </small>
-        </div>
-        {sample ? (
-          sample.risks.length ? (
-            <div className="exec-risks">
-              {sample.risks.slice(0, 3).map((r, i) => (
-                <article key={r.id}>
-                  <div className="exec-risk-meta">
-                    <span>
-                      0{i + 1} / {r.department}
-                    </span>
-                    <span>{r.severity}</span>
-                  </div>
-                  <h3>{r.title}</h3>
-                  <p>{r.impact}</p>
-                  <button
-                    className="exec-text-button"
-                    onClick={() =>
-                      open(
-                        r.title,
-                        ...r.evidence,
-                        `Suggested next action: ${r.action}.`,
-                      )
-                    }
-                  >
-                    {r.action} <ArrowRight size={13} />
-                  </button>
-                  {decisions[r.title] && (
-                    <small>Decision recorded · open to review</small>
-                  )}
-                  {reviewed.includes(r.title) && (
-                    <small>Reviewed locally · issue remains visible</small>
-                  )}
-                </article>
-              ))}
-            </div>
-          ) : (
-            <p>
-              No critical issues flagged in available example records. Missing
-              data is still excluded.
-            </p>
-          )
-        ) : (
-          <div className="exec-setup">
-            <div>
-              <h3>Connect a source, then confirm your mapping.</h3>
-              <p>
-                Revenue, risks and delivery signals will appear once records are
-                validated.
-              </p>
-            </div>
-            {editable && (
-              <Link className="button secondary" to={setup("integrations")}>
-                Connect data ↗
-              </Link>
-            )}
-          </div>
-        )}
-      </section>
-      <details className="exec-worth">
-        <summary>
-          Worth knowing{" "}
-          <span>{c.data.priorities.length} business priorities</span>
-        </summary>
-        <p>
-          {c.data.priorities.join(" · ") || "No priorities selected yet."}{" "}
-          {sample
-            ? "Example records demonstrate interactions; they are not an assessment of your company."
-            : "Existing mappings describe configuration, not a successful data import."}
-        </p>
-      </details>
-      <section
-        id="dashboard-performance"
-        className="exec-panel exec-performance"
-      >
-        <div className="exec-section-head">
-          <div>
-            <h2>
-              {financial
-                ? profile === "saas"
-                  ? "Recurring revenue"
-                  : "Revenue & operating costs"
-                : "Delivery performance"}
-            </h2>
-            <p>
-              {periods[prefs.period]}
-              {sample
-                ? ` · ${sample.points[0].date} – ${sample.points.at(-1)?.date}`
-                : ""}
-            </p>
-          </div>
-          {sample && (
-            <div className="exec-segments">
-              <button
-                aria-pressed={chart === "line"}
-                onClick={() => setChart("line")}
-              >
-                Trend
-              </button>
-              <button
-                aria-pressed={chart === "bars"}
-                onClick={() => setChart("bars")}
-              >
-                Compare
-              </button>
-            </div>
-          )}
-        </div>
-        {sample && values ? (
-          <>
-            <div className="exec-number">
-              {financial
-                ? money(values.revenue)
-                : sample.points.reduce((n, p) => n + p.delivered, 0)}
-              <small>
-                {financial
-                  ? `${values.growth >= 0 ? "+" : ""}${values.growth.toFixed(1)}% vs previous comparable period`
-                  : "completed milestones · illustrative"}
-              </small>
-            </div>
-            <PerformanceChart
-              sample={sample}
-              financial={financial}
-              mode={chart}
-              selected={selected}
-              select={setSelected}
-              open={(p) =>
-                open(
-                  p.label,
-                  financial
-                    ? `Revenue: ${money(p.revenue)}. Operating costs: ${money(p.costs)}.`
-                    : `Delivered: ${p.delivered}. Planned: ${p.planned}.`,
-                  financial
-                    ? `Expenses: people ${money(Math.round(p.costs * 0.65))}; delivery ${money(Math.round(p.costs * 0.2))}; overhead ${money(p.costs - Math.round(p.costs * 0.65) - Math.round(p.costs * 0.2))}.`
-                    : "Delivery counts recorded milestones, not quality.",
-                  "Illustrative workbook records.",
-                )
-              }
-            />
-            <details className="exec-table">
-              <summary>View chart data</summary>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Period</th>
-                    <th>{financial ? "Revenue" : "Delivered"}</th>
-                    <th>{financial ? "Costs" : "Planned"}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sample.points.map((p) => (
-                    <tr key={p.date}>
-                      <td>{p.label}</td>
-                      <td>{financial ? money(p.revenue) : p.delivered}</td>
-                      <td>{financial ? money(p.costs) : p.planned}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </details>
-          </>
-        ) : (
-          <div className="exec-no-chart">
-            <span>—</span>
-            <p>
-              No validated {financial ? "revenue or expense" : "delivery"}{" "}
-              records yet.
-            </p>
-            <small>
-              Connect a source to see the trend. Explore clearly labeled
-              examples above.
-            </small>
-          </div>
-        )}
-      </section>
       <div className="exec-metrics">
         {prefs.metrics
           .filter((m) => availableMetrics(profile, c).includes(m))
@@ -753,6 +632,174 @@ export function ExecutiveDashboard({
               </button>
             );
           })}
+      </div>
+      <div className="exec-primary-grid">
+        <section
+          id="dashboard-performance"
+          className="exec-panel exec-performance"
+        >
+          <div className="exec-section-head">
+            <div>
+              <h2>
+                {financial
+                  ? profile === "saas"
+                    ? "Recurring revenue"
+                    : "Revenue & operating costs"
+                  : "Delivery performance"}
+              </h2>
+              <p>
+                {periods[prefs.period]}
+                {sample
+                  ? ` · ${sample.points[0].date} – ${sample.points.at(-1)?.date}`
+                  : ""}
+              </p>
+            </div>
+            {sample && (
+              <div className="exec-segments">
+                <button
+                  aria-pressed={chart === "line"}
+                  onClick={() => setChart("line")}
+                >
+                  Trend
+                </button>
+                <button
+                  aria-pressed={chart === "bars"}
+                  onClick={() => setChart("bars")}
+                >
+                  Compare
+                </button>
+              </div>
+            )}
+          </div>
+          {sample && values ? (
+            <>
+              <div className="exec-number">
+                {financial
+                  ? money(values.revenue)
+                  : sample.points.reduce((n, p) => n + p.delivered, 0)}
+                <small>
+                  {financial
+                    ? `${values.growth >= 0 ? "+" : ""}${values.growth.toFixed(1)}% vs prior period`
+                    : "completed milestones · illustrative"}
+                </small>
+              </div>
+              <PerformanceChart
+                sample={sample}
+                financial={financial}
+                mode={chart}
+                selected={selected}
+                select={setSelected}
+                open={(p) =>
+                  open(
+                    p.label,
+                    financial
+                      ? `Revenue: ${money(p.revenue)}. Operating costs: ${money(p.costs)}.`
+                      : `Delivered: ${p.delivered}. Planned: ${p.planned}.`,
+                    financial
+                      ? `Expenses: people ${money(Math.round(p.costs * 0.65))}; delivery ${money(Math.round(p.costs * 0.2))}; overhead ${money(p.costs - Math.round(p.costs * 0.65) - Math.round(p.costs * 0.2))}.`
+                      : "Delivery counts recorded milestones, not quality.",
+                    "Illustrative workbook records.",
+                  )
+                }
+              />
+              <details className="exec-table">
+                <summary>View chart data</summary>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Period</th>
+                      <th>{financial ? "Revenue" : "Delivered"}</th>
+                      <th>{financial ? "Costs" : "Planned"}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sample.points.map((p) => (
+                      <tr key={p.date}>
+                        <td>{p.label}</td>
+                        <td>{financial ? money(p.revenue) : p.delivered}</td>
+                        <td>{financial ? money(p.costs) : p.planned}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </details>
+            </>
+          ) : (
+            <div className="exec-no-chart">
+              <span>—</span>
+              <p>
+                No validated {financial ? "revenue or expense" : "delivery"}{" "}
+                records yet.
+              </p>
+              <small>
+                Connect a source to see the trend. Explore clearly labeled
+                examples above.
+              </small>
+            </div>
+          )}
+        </section>
+        <section id="dashboard-risks" className="exec-action">
+          <div className="exec-section-head">
+            <h2>Needs action</h2>
+            <small>
+              {sample ? `${sample.risks.length} priorities` : "Start here"}
+            </small>
+          </div>
+          {sample ? (
+            sample.risks.length ? (
+              <div className="exec-risks">
+                {sample.risks.slice(0, 3).map((r, i) => (
+                  <article key={r.id}>
+                    <div className="exec-risk-meta">
+                      <span>
+                        0{i + 1} / {r.department}
+                      </span>
+                      <span>{r.severity}</span>
+                    </div>
+                    <h3>{r.title}</h3>
+
+                    <button
+                      className="exec-text-button"
+                      onClick={() =>
+                        open(
+                          r.title,
+                          r.impact,
+                          ...r.evidence,
+                          `Suggested next action: ${r.action}.`,
+                        )
+                      }
+                    >
+                      {r.action} <ArrowRight size={13} />
+                    </button>
+                    {decisions[r.title] && (
+                      <small>Decision recorded · open to review</small>
+                    )}
+                    {reviewed.includes(r.title) && (
+                      <small>Reviewed locally · issue remains visible</small>
+                    )}
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p>No critical issues.</p>
+            )
+          ) : (
+            <div className="exec-setup">
+              <div>
+                <h3>Connect a source, then confirm your mapping.</h3>
+                <p>
+                  Revenue, risks and delivery signals will appear once records
+                  are validated.
+                </p>
+              </div>
+              {editable && (
+                <Link className="button secondary" to={setup("integrations")}>
+                  Connect data ↗
+                </Link>
+              )}
+            </div>
+          )}
+        </section>
       </div>
       <div className="exec-secondary">
         {prefs.order.filter((s) => prefs.sections.includes(s)).map(secondary)}
@@ -1110,7 +1157,10 @@ function PerformanceChart({
     index = Math.min(selected, points.length - 1),
     active = points[index];
   return (
-    <div className="exec-chart">
+    <div
+      className="exec-chart"
+      key={`${sample.points.length}-${mode}-${sample.asOf.toISOString().slice(0, 10)}`}
+    >
       <div className="exec-chart-reading" aria-live="polite">
         {active.label}: {financial ? "Revenue" : "Delivered"}{" "}
         {value(index).toLocaleString()} · {financial ? "Costs" : "Planned"}{" "}
@@ -1118,6 +1168,21 @@ function PerformanceChart({
       </div>
       <svg
         preserveAspectRatio="none"
+        onPointerMove={(e) => {
+          const box = e.currentTarget.getBoundingClientRect();
+          select(
+            Math.max(
+              0,
+              Math.min(
+                points.length - 1,
+                Math.round(
+                  ((((e.clientX - box.left) / box.width) * 800 - 30) / 740) *
+                    (points.length - 1),
+                ),
+              ),
+            ),
+          );
+        }}
         viewBox="0 0 800 200"
         role="img"
         aria-label={
@@ -1129,6 +1194,14 @@ function PerformanceChart({
         {[35, 80, 125, 170].map((y) => (
           <line key={y} x1="20" x2="790" y1={y} y2={y} stroke="#edf0f6" />
         ))}
+        <line
+          x1={x(index)}
+          x2={x(index)}
+          y1="20"
+          y2="170"
+          stroke="#b4b1f0"
+          strokeDasharray="3 5"
+        />
         {mode === "line" ? (
           <>
             <polygon points={`30,170 ${line} 770,170`} fill="#4945f50b" />
@@ -1184,6 +1257,8 @@ function PerformanceChart({
           <button
             key={p.date}
             aria-label={`Inspect ${p.label} ${p.date}`}
+            aria-pressed={selected === i}
+            title="Select for breakdown"
             onMouseEnter={() => select(i)}
             onFocus={() => select(i)}
             onClick={() => open(p)}
@@ -1194,8 +1269,7 @@ function PerformanceChart({
       </div>
       <small>
         ● {financial ? "Revenue" : "Delivered"}{" "}
-        {mode === "bars" && ` / ○ ${financial ? "Costs" : "Planned"}`} · Hover
-        or focus a period; select for records.
+        {mode === "bars" && ` / ○ ${financial ? "Costs" : "Planned"}`}
       </small>
     </div>
   );

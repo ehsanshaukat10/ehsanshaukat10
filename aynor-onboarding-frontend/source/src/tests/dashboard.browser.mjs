@@ -95,10 +95,34 @@ try {
     assert.equal(value, "—");
   console.log("PASS honest workspace baseline");
   await preview("connected");
-  assert.equal(await page.locator(".exec-risks article").count(), 3);
-  await expect(page.locator(".exec-context")).toContainText(
-    "not company performance",
+  const departmentPanel = page.locator("#dashboard-departments");
+  await departmentPanel
+    .getByRole("button", { name: "Needs attention", exact: true })
+    .click();
+  assert.ok((await departmentPanel.locator(".exec-row").count()) > 0);
+  for (const text of await departmentPanel
+    .locator(".exec-row small")
+    .allTextContents())
+    assert.equal(text, "Needs attention");
+  await departmentPanel
+    .getByRole("button", { name: "No data", exact: true })
+    .click();
+  assert.equal(await departmentPanel.locator(".exec-row").count(), 0);
+  await departmentPanel
+    .getByRole("button", { name: "All", exact: true })
+    .click();
+  const plot = page.locator(".exec-chart svg");
+  const bounds = await plot.boundingBox();
+  await page.mouse.move(
+    bounds.x + bounds.width * 0.95,
+    bounds.y + bounds.height * 0.5,
   );
+  await expect(
+    page.locator(".exec-chart-points button").last(),
+  ).toHaveAttribute("aria-pressed", "true");
+  console.log("PASS department filters and pointer-follow chart selection");
+  assert.equal(await page.locator(".exec-risks article").count(), 3);
+  await expect(page.locator(".exec-context")).toContainText("Example data");
   assert.equal(await page.locator(".exec-chart-points button").count(), 3);
   await page.locator(".exec-chart-points button").nth(1).focus();
   await expect(page.locator(".exec-chart-reading")).toContainText(
