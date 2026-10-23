@@ -75,6 +75,7 @@ export function Field({
       <div className="input-wrap">
         <input
           {...p}
+          data-filled={String(p.value ?? p.defaultValue ?? "").length > 0}
           id={id}
           aria-describedby={error || hint ? id + "-help" : undefined}
           aria-label={label}
@@ -126,6 +127,7 @@ export function Select({
         {required && <span className="required"> *</span>}
       </span>
       <select
+        data-filled={Boolean(value)}
         disabled={disabled}
         value={value}
         required={required}
