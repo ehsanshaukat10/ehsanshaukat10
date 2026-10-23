@@ -30,3 +30,13 @@ Export: node src/export-html.mjs; copy generated aynor.html to ../index.html.
 
 Font: Helvetica Neue, with Helvetica/Arial system fallbacks.
 Backend services, databases and API/authentication configuration are unchanged.
+
+Executive dashboard:
+Open a workspace overview after onboarding, or use /prototype and select
+Workspace overview. The default shows honest missing-data states. Choose a
+clearly labeled Data preview scenario to explore interactive charts, risks,
+departments, goals, dependencies, deadlines and local Ask Aynor explanations.
+Customize saves layout preferences per user/company in this browser.
+Dashboard browser checks: node src/tests/dashboard.browser.mjs (Vite running).
+Calculation checks: node src/tests/dashboard-model.mjs.
+Implementation notes: source/src/features/dashboard/README.md.

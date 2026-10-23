@@ -187,7 +187,7 @@ try {
       await page
         .getByRole("link", { name: "Open dashboard", exact: true })
         .click();
-      await heading(page, "A clearer picture.");
+      await heading(page, "Overview.");
       for (const mode of ["login", "signup"]) {
         await page.goto(base + "/auth/" + mode);
         await page
