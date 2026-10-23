@@ -1,3 +1,4 @@
+import "./shell.css";
 import { OnboardingFrame } from "../onboarding/OnboardingFrame";
 import {
   CircleAlert,
@@ -5,7 +6,6 @@ import {
   Building2,
   Target,
   Network,
-  ArrowLeft,
   ArrowUpRight,
   Check,
   ChevronDown,
@@ -15,10 +15,13 @@ import {
   LayoutDashboard,
   LockKeyhole,
   Plus,
-  ShieldCheck,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Sparkles,
   Users,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { useEffect, useState, type FocusEvent, type MouseEvent } from "react";
 import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { Button, Empty, ErrorBox, Logo, Modal } from "../../components/ui";
 import {
@@ -44,7 +47,52 @@ export function Workspace({
   members?: boolean;
 }) {
   const location = useLocation();
+  const overviewSelected = ![
+    "departments",
+    "dependencies",
+    "goals",
+    "risks",
+    "ask",
+  ].includes(location.hash.slice(1));
   const [profileOpen, setProfileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("aynor.sidebar.collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [tooltip, setTooltip] = useState<{
+    label: string;
+    left: number;
+    top: number;
+  } | null>(null);
+  const [planOpen, setPlanOpen] = useState(false),
+    [plan, setPlan] = useState("Basic");
+  function hint(label: string) {
+    const show = (e: MouseEvent<HTMLElement> | FocusEvent<HTMLElement>) => {
+      if (!collapsed || innerWidth <= 760) return;
+      const r = e.currentTarget.getBoundingClientRect();
+      setTooltip({ label, left: r.right + 12, top: r.top + r.height / 2 });
+    };
+    return {
+      onMouseEnter: show,
+      onFocus: show,
+      onMouseLeave: () => setTooltip(null),
+      onBlur: () => setTooltip(null),
+    };
+  }
+  function toggleSidebar() {
+    setCollapsed((v) => {
+      try {
+        if (innerWidth > 760)
+          localStorage.setItem("aynor.sidebar.collapsed", String(!v));
+      } catch {}
+      return !v;
+    });
+    setTooltip(null);
+    setSwitcher(false);
+  }
   const { id, step = "departments" } = useParams(),
     nav = useNavigate();
   const [company, setCompany] = useState<Company | null>(null),
@@ -55,6 +103,58 @@ export function Workspace({
     [loading, setLoading] = useState(true),
     [help, setHelp] = useState(false);
   const { toast, user } = useApp();
+  useEffect(() => {
+    const media = matchMedia("(max-width:760px)");
+    const resize = () => {
+      if (media.matches) setCollapsed(true);
+      else {
+        try {
+          setCollapsed(
+            localStorage.getItem("aynor.sidebar.collapsed") === "true",
+          );
+        } catch {
+          setCollapsed(false);
+        }
+      }
+      setTooltip(null);
+      setSwitcher(false);
+    };
+    if (media.matches) resize();
+    media.addEventListener("change", resize);
+    return () => media.removeEventListener("change", resize);
+  }, []);
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setTooltip(null);
+        if (switcher) {
+          setSwitcher(false);
+          (
+            document.querySelector(".company-switcher") as HTMLButtonElement
+          )?.focus();
+        }
+      }
+    };
+    const outside = (e: globalThis.MouseEvent) => {
+      if (!(e.target as Element).closest(".switcher-wrap")) setSwitcher(false);
+    };
+    window.addEventListener("keydown", key);
+    document.addEventListener("pointerdown", outside);
+    return () => {
+      window.removeEventListener("keydown", key);
+      document.removeEventListener("pointerdown", outside);
+    };
+  }, [switcher]);
+  useEffect(() => {
+    try {
+      const saved =
+        localStorage.getItem("aynor.plan.preview." + user?.id + "." + id) ||
+        "Basic";
+      setPlan(["Basic", "Pro", "Premium"].includes(saved) ? saved : "Basic");
+    } catch {
+      setPlan("Basic");
+    }
+  }, [id, user?.id]);
   async function load() {
     setLoading(true);
     setCompany(null);
@@ -151,23 +251,50 @@ export function Workspace({
       </OnboardingFrame>
     );
   return (
-    <div className="workspace-shell">
+    <div
+      className={`workspace-shell refined-shell ${collapsed ? "sidebar-collapsed" : ""}`}
+    >
       <aside className="workspace-sidebar">
-        <Link className="sidebar-logo" to="/companies">
-          <Logo />
-        </Link>
+        <div className="sidebar-brand-row">
+          <Link
+            className="sidebar-logo"
+            to="/companies"
+            aria-label="Aynor companies"
+          >
+            <Logo />
+          </Link>
+          <button
+            className="sidebar-collapse"
+            onClick={toggleSidebar}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!collapsed}
+          >
+            {collapsed ? (
+              <PanelLeftOpen size={18} />
+            ) : (
+              <PanelLeftClose size={18} />
+            )}
+          </button>
+        </div>
         <div className="switcher-wrap">
           <button
             className="company-switcher"
+            aria-label={`Switch company: ${company?.name || "Workspace"}`}
+            {...hint(company?.name || "Switch company")}
             aria-expanded={switcher}
-            onClick={() => setSwitcher(!switcher)}
+            onClick={() => {
+              setTooltip(null);
+              setSwitcher(!switcher);
+            }}
           >
             <span className="company-initial small">
               {company?.name.slice(0, 2).toUpperCase() || "…"}
             </span>
             <span>
-              <strong>{company?.name || "Workspace"}</strong>
-              <small>{company?.role || "Loading…"}</small>
+              <strong title={company?.name}>
+                {company?.name || "Workspace"}
+              </strong>
+              <small>Company workspace</small>
             </span>
             <ChevronDown size={15} />
           </button>
@@ -195,12 +322,17 @@ export function Workspace({
             </div>
           )}
         </div>
-        <nav className="primary-nav">
+        <nav className="primary-nav" aria-label="Main navigation">
           <Link
-            className={overview && !location.hash ? "active" : ""}
+            className={overview && overviewSelected ? "active" : ""}
             to={`/companies/${id}/overview`}
+            aria-label="Overview"
+            data-tooltip="Overview"
+            {...hint("Overview")}
+            aria-current={overview && overviewSelected ? "page" : undefined}
           >
-            <LayoutDashboard size={17} /> Overview
+            <LayoutDashboard size={18} />
+            <span className="nav-label">Overview</span>
           </Link>
           {[
             ["departments", "Departments", Building2],
@@ -213,6 +345,13 @@ export function Workspace({
             return (
               <Link
                 key={String(section)}
+                aria-label={String(label)}
+                {...hint(String(label))}
+                aria-current={
+                  overview && location.hash === "#" + section
+                    ? "page"
+                    : undefined
+                }
                 className={
                   overview && location.hash === "#" + section ? "active" : ""
                 }
@@ -222,8 +361,8 @@ export function Workspace({
                 }}
                 to={`/companies/${id}/overview#${section}`}
               >
-                <I size={17} />
-                {String(label)}
+                <I size={18} />
+                <span className="nav-label">{String(label)}</span>
               </Link>
             );
           })}
@@ -232,10 +371,13 @@ export function Workspace({
           <span className="workspace-nav-label">COMPANY</span>
           {editable && (
             <Link
+              {...hint("Workspace setup")}
+              aria-label="Workspace setup"
               className={!overview && !members ? "active" : ""}
               to={`/companies/${id}/onboarding/${company?.data.step || "departments"}`}
             >
-              <Compass size={17} /> Workspace setup{" "}
+              <Compass size={18} />
+              <span className="nav-label">Workspace setup</span>
               <span className="nav-count">
                 {completed}/{steps.length - 1}
               </span>
@@ -243,10 +385,14 @@ export function Workspace({
           )}
           {editable && (
             <Link
+              {...hint("Team & permissions")}
+              aria-label="Team & permissions"
+              aria-current={members ? "page" : undefined}
               className={members ? "active" : ""}
               to={`/companies/${id}/settings/members`}
             >
-              <Users size={17} /> Team & permissions
+              <Users size={18} />
+              <span className="nav-label">Team & permissions</span>
             </Link>
           )}
         </nav>
@@ -279,23 +425,42 @@ export function Workspace({
             ))}
           </div>
         )}
-        <div className="sidebar-bottom">
-          <div className="privacy-card">
-            <ShieldCheck size={17} />
-            <strong>Your business stays yours.</strong>
-            <p>
-              Separate workspaces.
-              <br />
-              Thoughtful permissions.
-            </p>
-          </div>
-          <button onClick={() => setHelp(true)}>
-            <CircleHelp size={16} /> Help & getting started{" "}
-            <ArrowUpRight size={13} />
+        <div className="sidebar-account">
+          <button
+            className="sidebar-account-profile"
+            aria-label="Account and subscription"
+            {...hint(
+              `${user?.name || "Account"} · ${company?.role || "Member"} · ${plan}`,
+            )}
+            onClick={() => setProfileOpen(true)}
+          >
+            <span className="avatar">
+              {user?.name
+                .split(" ")
+                .map((n) => n[0])
+                .slice(0, 2)
+                .join("") || "A"}
+            </span>
+            <span className="sidebar-account-copy">
+              <strong title={user?.name}>{user?.name || "Your account"}</strong>
+              <small>{company?.role || "Member"}</small>
+            </span>
+            <ChevronDown size={14} />
           </button>
-          <Link to="/companies">
-            <ArrowLeft size={15} /> All companies
-          </Link>
+          <div className="sidebar-plan-row">
+            <span className="sidebar-plan-badge">{plan}</span>
+            <span className="sidebar-plan-label">Current plan</span>
+            <button
+              aria-label={plan === "Premium" ? "Manage plan" : "Upgrade plan"}
+              {...hint(plan === "Premium" ? "Manage plan" : "Upgrade plan")}
+              onClick={() => setPlanOpen(true)}
+            >
+              <span className="plan-action-label">
+                {plan === "Premium" ? "Manage" : "Upgrade"}
+              </span>
+              <ArrowUpRight size={12} />
+            </button>
+          </div>
         </div>
       </aside>
       <div className="workspace-main">
@@ -323,10 +488,12 @@ export function Workspace({
               onClick={() => setProfileOpen(true)}
               aria-label="Open profile"
             >
-              <span className="avatar">{user?.name.charAt(0) || "A"}</span>
-              <span>
-                {user?.name || "Your account"}
-                <small>{company?.role || "Member"}</small>
+              <span className="avatar">
+                {user?.name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .slice(0, 2)
+                  .join("") || "A"}
               </span>
               <ChevronDown size={13} />
             </button>
@@ -386,6 +553,60 @@ export function Workspace({
           </span>
         </footer>
       </div>
+      {tooltip &&
+        createPortal(
+          <div
+            role="tooltip"
+            className="shell-tooltip"
+            style={{ left: tooltip.left, top: tooltip.top }}
+          >
+            {tooltip.label}
+          </div>,
+          document.body,
+        )}
+      {planOpen && (
+        <Modal title="Your subscription" onClose={() => setPlanOpen(false)}>
+          <div className="shell-plans">
+            <p>
+              Explore plans in this frontend preview. No payment or subscription
+              will be created.
+            </p>
+            {["Basic", "Pro", "Premium"].map((p) => (
+              <button
+                key={p}
+                className={p === plan ? "selected" : ""}
+                onClick={() => {
+                  setPlan(p);
+                  try {
+                    localStorage.setItem(
+                      "aynor.plan.preview." + user?.id + "." + id,
+                      p,
+                    );
+                  } catch {}
+                  toast(`${p} selected for this preview. No billing changes.`);
+                }}
+                aria-pressed={p === plan}
+              >
+                <span>
+                  <Sparkles size={16} />
+                  {p}
+                </span>
+                <small>
+                  {p === plan
+                    ? "Selected"
+                    : p === "Basic"
+                      ? "Essential workspace"
+                      : p === "Pro"
+                        ? "Team insights"
+                        : "Advanced intelligence"}
+                </small>
+                {p === plan && <Check size={16} />}
+              </button>
+            ))}
+            <Button onClick={() => setPlanOpen(false)}>Done</Button>
+          </div>
+        </Modal>
+      )}
       {profileOpen && (
         <Modal title="Your profile" onClose={() => setProfileOpen(false)}>
           <div className="workspace-profile-details">
@@ -394,6 +615,25 @@ export function Workspace({
             <p>
               {company?.name} · {company?.role}
             </p>
+            <p className="profile-plan">{plan} plan</p>
+            <button
+              className="button secondary"
+              onClick={() => {
+                setProfileOpen(false);
+                setPlanOpen(true);
+              }}
+            >
+              Manage subscription
+            </button>
+            <button
+              className="button secondary"
+              onClick={() => {
+                setProfileOpen(false);
+                setHelp(true);
+              }}
+            >
+              <CircleHelp size={15} /> Help & getting started
+            </button>
             <Link
               className="button secondary"
               to="/companies"

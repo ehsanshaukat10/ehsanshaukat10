@@ -41,3 +41,10 @@ Goals, Actions and Ask Aynor; company settings remain separate.
 Dashboard checks: node src/tests/dashboard.browser.mjs (Vite running).
 Calculation checks: node src/tests/dashboard-model.mjs.
 Implementation notes: source/src/features/dashboard/README.md.
+
+Sidebar/header refinement:
+Use the sidebar toggle for a compact icon rail; hover or focus an icon for its
+label. Mobile starts with a compact menu. Account details and the current plan
+live in the sidebar footer; header account access uses the same avatar.
+Plan selection is a local preview only, with no payment or billing changes.
+Shell checks: node src/tests/shell.browser.mjs (Vite running).

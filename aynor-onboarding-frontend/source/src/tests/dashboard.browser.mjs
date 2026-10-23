@@ -238,7 +238,7 @@ try {
     "Client concentration",
     "Activity patterns",
   ])
-    await page.getByLabel(s, { exact: true }).uncheck();
+    await page.getByRole("checkbox", { name: s, exact: true }).uncheck();
   await page.getByRole("button", { name: "Save preferences" }).click();
   await preview("sync-error");
   await expect(page.locator(".exec-quality")).toBeVisible();
