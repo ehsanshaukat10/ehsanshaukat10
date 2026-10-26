@@ -5,6 +5,7 @@ import {
   Building2,
   Check,
   CheckCircle2,
+  ChevronDown,
   FileSpreadsheet,
   Globe2,
   Link2,
@@ -65,7 +66,7 @@ const titles: Record<string, [string, string]> = {
   ],
   review: [
     "Everything in its place.",
-    "One final look. Review your workspace and refine any detail before you begin.",
+    "Your workspace, at a glance. Fine-tune anything before you begin.",
   ],
   complete: ["Your workspace is ready.", "A clearer perspective starts here."],
 };
@@ -875,24 +876,41 @@ export function SevenStepOnboarding({
         </>
       )}
       {step === "review" && (
-        <div className="seven-review">
+        <div className="seven-review seven-review--refined">
           <div className="seven-review-company">
             <span>{company.name.slice(0, 2).toUpperCase()}</span>
             <div>
-              <small>YOUR COMPANY WORKSPACE</small>
+              <small>YOUR WORKSPACE BRIEF</small>
               <h2>{company.name}</h2>
               <p>
                 {company.industry} · {company.country}
               </p>
             </div>
-            <CheckCircle2 size={27} />
+            <span className="review-ready">
+              <Check size={12} /> Ready to begin
+            </span>
+            <div className="review-facts">
+              {[
+                [data.departments.length, "Departments"],
+                [data.sources.length, "Sources"],
+                [data.goals.length, "Goals"],
+              ].map(([n, l]) => (
+                <div key={String(l)}>
+                  <strong>{n}</strong>
+                  <small>{l}</small>
+                </div>
+              ))}
+            </div>
           </div>
           {[
             {
               s: "company",
               icon: Building2,
               title: "Company details",
-              subtitle: "The foundations of your workspace",
+              subtitle:
+                [company.size, company.businessModel]
+                  .filter(Boolean)
+                  .join(" · ") || "Your company essentials",
               body: (
                 <dl className="seven-review-details">
                   {[
@@ -915,7 +933,11 @@ export function SevenStepOnboarding({
               s: "departments",
               icon: Users,
               title: "Departments",
-              subtitle: `${data.departments.length} teams in your workspace`,
+              subtitle:
+                data.departments.slice(0, 2).join(" · ") +
+                  (data.departments.length > 2
+                    ? ` +${data.departments.length - 2}`
+                    : "") || "Add teams whenever you’re ready",
               body: (
                 <div className="seven-review-tags">
                   {data.departments.length ? (
@@ -931,7 +953,10 @@ export function SevenStepOnboarding({
               icon: FileSpreadsheet,
               title: "Data sheets",
               subtitle: data.sources.length
-                ? "Your connected starting point"
+                ? data.sources[0] +
+                  (data.sources.length > 1
+                    ? ` +${data.sources.length - 1}`
+                    : "")
                 : "Connect a source whenever you’re ready",
               body: <p>{data.sources.join(", ") || "No source added yet."}</p>,
             },
@@ -959,7 +984,8 @@ export function SevenStepOnboarding({
               subtitle:
                 data.steps.priorities === "skipped"
                   ? "Optional · skipped for now"
-                  : "The areas you want to keep in focus",
+                  : data.priorities.slice(0, 2).join(" · ") ||
+                    "Choose your focus later",
               body: (
                 <div className="seven-review-tags">
                   {data.priorities.length ? (
@@ -974,7 +1000,7 @@ export function SevenStepOnboarding({
               s: "goals",
               icon: CheckCircle2,
               title: "Business goals",
-              subtitle: `${data.goals.length} goals with a clear direction`,
+              subtitle: data.goals[0]?.name || "Room for your next ambition",
               body: data.goals.length ? (
                 <ul className="seven-review-goals">
                   {data.goals.map((g) => (
@@ -992,30 +1018,36 @@ export function SevenStepOnboarding({
                 <p>No goals added. You can set them later.</p>
               ),
             },
-          ].map(({ s, icon: Icon, title, subtitle, body }, i) => (
+          ].map(({ s, icon: Icon, title, subtitle, body }) => (
             <section className="seven-review-section" key={s}>
-              <div className="seven-review-section-head">
-                <span className="seven-review-icon">
-                  <Icon size={21} />
-                </span>
-                <div>
-                  <small>0{i + 1}</small>
-                  <h3>{title}</h3>
-                  <p>{subtitle}</p>
-                </div>
-                <Link
-                  className="seven-edit"
-                  to={editLink(s)}
-                  aria-label={`Edit ${title.toLowerCase()}`}
-                >
-                  <Pencil size={14} />
-                  Edit
-                </Link>
-              </div>
-              <details className="seven-review-expand">
-                <summary>View details</summary>
+              <details
+                className="seven-review-expand"
+                name="aynor-workspace-review"
+              >
+                <summary className="seven-review-section-head">
+                  <span className="seven-review-icon">
+                    <Icon size={18} strokeWidth={1.6} />
+                  </span>
+                  <div>
+                    <h3>{title}</h3>
+                    <p>{subtitle}</p>
+                  </div>
+                  {data.steps[s] === "skipped" && (
+                    <span className="review-skipped">Skipped</span>
+                  )}
+                  <ChevronDown className="review-chevron" size={15} />
+                </summary>
                 <div className="seven-review-body">{body}</div>
               </details>
+              <Link
+                className="seven-edit"
+                to={editLink(s)}
+                aria-label={`Edit ${title.toLowerCase()}`}
+                title={`Edit ${title.toLowerCase()}`}
+              >
+                <Pencil size={13} />
+                <span>Edit</span>
+              </Link>
             </section>
           ))}
         </div>

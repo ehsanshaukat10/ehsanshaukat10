@@ -1361,3 +1361,320 @@
   .field:last-child {
   grid-column: auto;
 }
+/* Step seven: an editorial workspace brief with progressive disclosure. */
+.onboarding-canvas .onboarding-form-content .seven-review--refined {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-width: 100%;
+}
+.onboarding-canvas
+  .onboarding-form-content
+  .seven-review--refined
+  .seven-review-company {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  padding: 20px 21px 0;
+  margin: 0 0 16px;
+  border: 1px solid #e9e7f4;
+  border-radius: 13px;
+  background: linear-gradient(110deg, #fff 30%, #f6f4ff);
+  position: relative;
+  overflow: hidden;
+}
+.onboarding-canvas
+  .onboarding-form-content
+  .seven-review--refined
+  .seven-review-company
+  > span:first-child {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: #ede8fe;
+  color: #8172c5;
+  font-size: 13px;
+  border: 1px solid #e4ddf8;
+}
+.onboarding-canvas .seven-review--refined .seven-review-company small {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: #9292aa;
+}
+.onboarding-canvas
+  .onboarding-form-content
+  .seven-review--refined
+  .seven-review-company
+  h2 {
+  font-size: 23px !important;
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: -0.7px;
+  margin: 5px 0;
+  overflow-wrap: anywhere;
+}
+.onboarding-canvas
+  .onboarding-form-content
+  .seven-review--refined
+  .seven-review-company
+  p {
+  font-size: 11px !important;
+  margin: 0;
+  color: #8a91a5;
+}
+.onboarding-canvas
+  .onboarding-form-content
+  .seven-review--refined
+  .seven-review-company
+  > .review-ready {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-size: 10px;
+  color: #8b7bbb;
+  background: #eeeaf8;
+  border: 0;
+  width: auto;
+  height: auto;
+  padding: 5px 7px;
+  border-radius: 5px;
+}
+.review-facts {
+  grid-column: 1/-1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 5px;
+  border-top: 1px solid #eae7f4;
+  padding: 14px 0;
+}
+.review-facts > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  border-right: 1px solid #e7e3f1;
+  padding-left: 17px;
+}
+.review-facts > div:first-child {
+  padding-left: 0;
+}
+.review-facts > div:last-child {
+  border: 0;
+}
+.onboarding-canvas .seven-review--refined .review-facts strong {
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: -0.5px;
+  color: #615a83;
+}
+.onboarding-canvas .seven-review--refined .review-facts small {
+  font-size: 11px;
+  letter-spacing: 0;
+  color: #9290a4;
+}
+.onboarding-canvas
+  .onboarding-form-content
+  .seven-review--refined
+  .seven-review-section {
+  display: block;
+  position: relative;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid #e9ecf3;
+  background: none;
+  min-height: 0;
+}
+.onboarding-canvas .seven-review--refined .seven-review-expand {
+  margin: 0;
+  padding: 0;
+}
+.onboarding-canvas .seven-review--refined .seven-review-expand > summary {
+  list-style: none;
+  padding: 13px 76px 13px 2px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  border-radius: 7px;
+  min-height: 61px;
+  transition: background 150ms;
+}
+.onboarding-canvas
+  .seven-review--refined
+  .seven-review-expand
+  > summary::-webkit-details-marker {
+  display: none;
+}
+.onboarding-canvas .seven-review--refined .seven-review-expand > summary:before,
+.onboarding-canvas .seven-review--refined .seven-review-expand > summary:after {
+  display: none;
+}
+.onboarding-canvas .seven-review--refined .seven-review-expand > summary:hover {
+  background: #f6f5fc;
+}
+.onboarding-canvas
+  .onboarding-form-content
+  .seven-review--refined
+  .seven-review-icon {
+  width: 32px;
+  height: 32px;
+  background: #f0eff8;
+  display: grid;
+  place-items: center;
+  color: #9389b3;
+  flex-shrink: 0;
+  border-radius: 9px;
+}
+.onboarding-canvas .seven-review--refined .seven-review-section-head > div {
+  min-width: 0;
+  flex: 1;
+}
+.onboarding-canvas
+  .onboarding-form-content
+  .seven-review--refined
+  .seven-review-section-head
+  h3 {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  line-height: 1.4;
+  letter-spacing: 0;
+  margin: 0;
+  color: #586176;
+}
+.onboarding-canvas .seven-review--refined .seven-review-section-head p {
+  font-size: 11px;
+  line-height: 1.4;
+  margin: 4px 0 0;
+  color: #9299aa;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.review-chevron {
+  flex-shrink: 0;
+  color: #a9a6bb;
+  transition: transform 160ms;
+}
+.seven-review-expand[open] .review-chevron {
+  transform: rotate(180deg);
+}
+.review-skipped {
+  font-size: 10px;
+  white-space: nowrap;
+  color: #a29bac;
+}
+.onboarding-canvas .seven-review--refined .seven-edit {
+  position: absolute;
+  right: 4px;
+  top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: none;
+  padding: 4px;
+  color: #9386ba;
+  font-size: 11px;
+}
+.onboarding-canvas .seven-review--refined .seven-edit:hover {
+  color: #6254ce;
+}
+.onboarding-canvas
+  .onboarding-form-content
+  .seven-review--refined
+  .seven-review-body {
+  padding: 0 18px 17px 46px;
+  font-size: 12px;
+  line-height: 1.6;
+  animation: review-reveal 180ms ease;
+}
+.onboarding-canvas .seven-review--refined .seven-review-details {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.onboarding-canvas .seven-review--refined .seven-review-details dt {
+  font-size: 11px;
+  color: #9a9fb0;
+}
+.onboarding-canvas .seven-review--refined .seven-review-details dd {
+  font-size: 12px;
+  color: #697389;
+  overflow-wrap: anywhere;
+}
+.onboarding-canvas .seven-review--refined summary:focus-visible,
+.onboarding-canvas .seven-review--refined .seven-edit:focus-visible {
+  outline: 2px solid #a091e4;
+  outline-offset: 2px;
+}
+@keyframes review-reveal {
+  from {
+    opacity: 0.3;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (max-width: 640px) {
+  .onboarding-canvas
+    .onboarding-form-content
+    .seven-review--refined
+    .seven-review-company {
+    padding: 17px 16px 0;
+    grid-template-columns: 35px minmax(0, 1fr);
+    gap: 10px;
+  }
+  .onboarding-canvas
+    .onboarding-form-content
+    .seven-review--refined
+    .seven-review-company
+    > .review-ready {
+    display: none;
+  }
+  .onboarding-canvas
+    .onboarding-form-content
+    .seven-review--refined
+    .seven-review-company
+    h2 {
+    font-size: 21px !important;
+  }
+  .review-facts > div {
+    gap: 6px;
+    padding-left: 10px;
+  }
+  .onboarding-canvas .seven-review--refined .review-facts strong {
+    font-size: 18px;
+  }
+  .onboarding-canvas .seven-review--refined .review-facts small {
+    font-size: 10px;
+  }
+  .onboarding-canvas .seven-review--refined .seven-review-expand > summary {
+    padding-right: 65px;
+  }
+  .onboarding-canvas .seven-review--refined .seven-review-section-head p {
+    max-width: 220px;
+  }
+  .onboarding-canvas .seven-review--refined .seven-edit {
+    right: 0;
+  }
+  .onboarding-canvas
+    .onboarding-form-content
+    .seven-review--refined
+    .seven-review-body {
+    padding-left: 8px;
+  }
+  .review-skipped {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .seven-review--refined * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+.onboarding-canvas .onboarding-form-content .seven-review--refined{width:100%;align-items:stretch}.onboarding-canvas .onboarding-form-content .seven-review--refined .seven-review-section,.onboarding-canvas .onboarding-form-content .seven-review--refined .seven-review-company{width:100%;box-sizing:border-box}.onboarding-canvas .onboarding-form-content .seven-review--refined .seven-review-company small{display:block}.onboarding-canvas .seven-review--refined .seven-review-company>div>small{font-size:10px;letter-spacing:1.2px}
