@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ArrowRight, ArrowUpRight, Minus, Plus } from "lucide-react";
+import { DependencyMap } from "./DependencyMap";
 import { Button } from "../../components/ui";
 import {
   AskLink,
@@ -238,7 +239,7 @@ export function Dependencies({ company }: ModuleProps) {
       description="Follow the relationships behind a business risk."
       exec={e}
     >
-      <div className="intel-toolbar">
+      <div className="intel-toolbar dep-toolbar">
         <input
           aria-label="Search entities"
           placeholder="Client, project or person"
@@ -267,7 +268,7 @@ export function Dependencies({ company }: ModuleProps) {
         </div>
       </div>
       <Panel
-        title="Connected commitments"
+        title="Dependency map"
         action={
           view === "Graph" &&
           visible.length > 0 && (
@@ -282,7 +283,13 @@ export function Dependencies({ company }: ModuleProps) {
               >
                 <Minus size={13} />
               </Button>
-              <span>{Math.round(zoom * 100)}%</span>
+              <button
+                className="dep-reset-zoom"
+                aria-label="Reset zoom"
+                onClick={() => change("zoom", "1")}
+              >
+                {Math.round(zoom * 100)}%
+              </button>
               <Button
                 aria-label="Zoom in"
                 disabled={zoom >= 1.5}
@@ -312,38 +319,14 @@ export function Dependencies({ company }: ModuleProps) {
                   } catch {}
                 }}
               >
-                <div className="intel-graph" style={{ zoom }}>
-                  {visible.slice(0, 6).map((p) => (
-                    <div className="intel-relationship-row" key={p.id}>
-                      <Link to={node("client-" + slug(p.client))}>
-                        <small>Client</small>
-                        {p.client || "Missing client ID"}
-                      </Link>
-                      <Link
-                        className="intel-edge"
-                        to={e.link(base + "/relationship/" + p.id, e.origin)}
-                        aria-label={`Explain ${p.name} relationship`}
-                      >
-                        <ArrowRight size={17} />
-                      </Link>
-                      <Link to={node("project-" + p.id)}>
-                        <small>Project · {p.status}</small>
-                        {p.name}
-                      </Link>
-                      <Link
-                        className="intel-edge"
-                        to={e.link(base + "/relationship/" + p.id, e.origin)}
-                        aria-label={`Explain ${p.name} capacity`}
-                      >
-                        <ArrowRight size={17} />
-                      </Link>
-                      <Link to={node("person-" + slug(p.owner))}>
-                        <small>Person</small>
-                        {p.owner || "Missing person ID"}
-                      </Link>
-                    </div>
-                  ))}
-                </div>
+                <DependencyMap
+                  projects={visible.slice(0, 6)}
+                  risks={e.sample?.risks || []}
+                  exec={e}
+                  zoom={zoom}
+                  focus={e.query.get("focus") || ""}
+                  onFocus={(id) => change("focus", id)}
+                />
               </div>
               {visible.length > 6 && (
                 <Button variant="text" onClick={() => change("view", "List")}>
