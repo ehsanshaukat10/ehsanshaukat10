@@ -1234,10 +1234,9 @@
 .exec-matrix-head,
 .exec-dashboard .exec-matrix-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(
-      0,
-      0.8fr
-    ) minmax(0, 0.8fr);
+  grid-template-columns:
+    minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 0.8fr)
+    minmax(0, 0.8fr);
   gap: 10px;
   align-items: center;
 }
@@ -1335,10 +1334,9 @@
 @media (max-width: 1150px) {
   .exec-matrix-head,
   .exec-dashboard .exec-matrix-row {
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(
-        0,
-        0.7fr
-      ) minmax(0, 0.8fr);
+    grid-template-columns:
+      minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.7fr)
+      minmax(0, 0.8fr);
     gap: 7px;
   }
   .exec-dashboard .exec-matrix-row small {
@@ -1379,5 +1377,303 @@
   }
   .exec-dashboard .exec-goal > small {
     font-size: 11px;
+  }
+}
+/* Comparison-first analytics: compact, scaled and explainable. */
+.exec-performance-totals {
+  display: flex;
+  align-items: flex-start;
+  gap: 38px;
+  margin: 16px 0 18px;
+}
+.exec-dashboard .exec-performance-totals .exec-number {
+  font-size: 29px;
+  margin: 0;
+  line-height: 1.2;
+}
+.exec-dashboard .exec-total-label {
+  display: block;
+  color: #8a92a4;
+  font-size: 11px;
+  letter-spacing: 0;
+  margin: 0 0 8px;
+  font-weight: 400;
+}
+.exec-cost-total strong {
+  display: block;
+  font-size: 24px;
+  font-weight: 400;
+  color: #7d879e;
+  letter-spacing: -0.5px;
+  line-height: 1.4;
+}
+.exec-cost-total small {
+  display: block;
+  font-size: 11px;
+  margin-top: 5px;
+  color: #9299aa;
+}
+.exec-primary-grid {
+  align-items: start;
+}
+.exec-primary-grid .exec-action {
+  align-self: stretch;
+}
+.exec-primary-grid .exec-performance {
+  padding: 21px 22px 17px;
+}
+.exec-dashboard .exec-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 11px;
+  color: #9198a9;
+  margin: 0 0 10px;
+}
+.exec-chart-legend > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.exec-chart-legend i {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: #8981ed;
+}
+.exec-chart-legend > span:nth-child(2) i {
+  background: #b9c2d9;
+}
+.exec-chart-legend small {
+  margin-left: auto;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.exec-dashboard .exec-chart-comparison .exec-chart-reading {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  margin: 0 0 8px;
+  background: #f8f8fc;
+  padding: 7px 9px;
+  line-height: 1.5;
+  border-radius: 6px;
+  min-height: 28px;
+}
+.exec-chart-reading > span:first-child {
+  color: #73659b;
+  margin-right: 5px;
+}
+.exec-chart-reading strong {
+  font-size: 11px;
+  font-weight: 500;
+  color: #737e97;
+}
+.exec-chart-reading > span {
+  font-size: 10px;
+  color: #9ba1af;
+}
+.exec-chart-reading strong:nth-of-type(2) {
+  margin-left: 8px;
+}
+.exec-chart-plot {
+  position: relative;
+  padding-left: 48px;
+  min-width: 0;
+}
+.exec-chart-scale {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  color: #9ea5b6;
+  font-size: 10px;
+}
+.exec-chart-scale > span {
+  position: absolute;
+  right: 3px;
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+.exec-dashboard .exec-chart-comparison svg {
+  height: 195px;
+  width: 100%;
+  display: block;
+  overflow: visible;
+  cursor: crosshair;
+}
+.exec-dashboard .exec-chart-comparison .exec-chart-points {
+  display: grid;
+  margin: 0 0 0 48px;
+  gap: 0;
+  justify-content: stretch;
+}
+.exec-dashboard .exec-chart-comparison .exec-chart-points button {
+  font-size: 11px;
+  padding: 5px 1px;
+  min-width: 0;
+}
+.exec-dashboard
+  .exec-chart-comparison
+  .exec-chart-points
+  button[aria-pressed="true"] {
+  background: #f3f0fc;
+  color: #8d7dba;
+}
+.exec-dashboard .exec-metric {
+  padding: 14px 18px;
+}
+.exec-dashboard .exec-metric strong {
+  font-size: 28px;
+  margin: 9px 0 6px;
+}
+.exec-primary-grid .exec-risks .exec-risk-meta {
+  font-size: 11px;
+}
+.exec-risk-severity {
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+.exec-risk-severity.high {
+  color: #a47f66 !important;
+  background: #f7ece5;
+}
+.exec-risk-severity.medium {
+  color: #9d91ad !important;
+  background: #efebf4;
+}
+.exec-primary-grid .exec-risks .exec-risk-impact {
+  font-size: 12px;
+  line-height: 1.65;
+  color: #8993a6;
+  margin: 6px 0 7px;
+}
+.exec-primary-grid .exec-risks .exec-text-button {
+  font-size: 12px;
+}
+.exec-delivery-distribution {
+  display: flex;
+  height: 21px;
+  gap: 3px;
+  overflow: hidden;
+  border-radius: 5px;
+  margin: 18px 0 9px;
+}
+.exec-delivery-distribution > button {
+  border: 0;
+  min-width: 18px;
+  padding: 0;
+  font: inherit;
+  font-size: 10px;
+  color: white;
+  cursor: pointer;
+  transition: filter 150ms;
+}
+.exec-delivery-distribution > button:hover {
+  filter: brightness(0.92);
+}
+.delivery-on-track {
+  background: #a2bcb0;
+}
+.delivery-at-risk {
+  background: #c8b599;
+}
+.delivery-delayed {
+  background: #b4a1bd;
+}
+.exec-delivery-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 10px;
+  color: #929aac;
+  font-size: 10px;
+}
+.exec-delivery-legend > span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.exec-delivery-legend i {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+}
+@media (min-width: 1550px) {
+  .exec-dashboard .exec-chart-comparison svg {
+    height: 205px;
+  }
+}
+@media (max-width: 1100px) {
+  .exec-performance-totals {
+    gap: 24px;
+  }
+  .exec-dashboard .exec-performance-totals .exec-number {
+    font-size: 26px;
+  }
+  .exec-cost-total strong {
+    font-size: 22px;
+  }
+}
+@media (max-width: 600px) {
+  .exec-performance-totals {
+    gap: 22px;
+  }
+  .exec-dashboard .exec-performance-totals .exec-number {
+    font-size: 24px;
+  }
+  .exec-cost-total strong {
+    font-size: 21px;
+  }
+  .exec-dashboard .exec-chart-comparison svg {
+    height: 170px;
+  }
+  .exec-dashboard .exec-chart-legend {
+    gap: 13px;
+    font-size: 10px;
+  }
+  .exec-chart-legend small {
+    font-size: 9px;
+  }
+  .exec-chart-plot {
+    padding-left: 37px;
+  }
+  .exec-chart-scale {
+    width: 30px;
+    font-size: 10px;
+  }
+  .exec-dashboard .exec-chart-comparison .exec-chart-points {
+    margin-left: 37px;
+  }
+  .exec-dashboard .exec-chart-comparison .exec-chart-points button {
+    font-size: 10px;
+  }
+  .exec-dashboard .exec-chart-comparison .exec-chart-reading {
+    gap: 5px;
+  }
+  .exec-chart-reading > span {
+    font-size: 10px;
+  }
+  .exec-chart-reading strong {
+    font-size: 10px;
+  }
+  .exec-primary-grid .exec-performance {
+    padding: 18px 15px;
+  }
+  .exec-dashboard .exec-total-label {
+    font-size: 10px;
+  }
+  .exec-cost-total small {
+    font-size: 10px;
+  }
+  .exec-chart-legend small {
+    max-width: 90px;
+    text-overflow: ellipsis;
+    overflow: hidden;
   }
 }

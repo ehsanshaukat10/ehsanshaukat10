@@ -48,6 +48,61 @@ try {
     .click();
   await heading();
   const path = new URL(page.url()).pathname;
+  await page
+    .getByRole("button", { name: "Search or Ask Aynor", exact: true })
+    .click();
+  await page
+    .getByRole("textbox", { name: "Search", exact: true })
+    .fill("Why did costs increase?");
+  await page
+    .getByRole("button", {
+      name: "Ask Aynor: Why did costs increase?",
+      exact: true,
+    })
+    .click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "Local simulated analysis",
+  );
+  await expect(page.getByLabel("Your question")).toHaveValue(
+    "Why did costs increase?",
+  );
+  await page.keyboard.press("Control+k");
+  assert.equal(await page.getByRole("dialog").count(), 1);
+  await close();
+  await page
+    .locator(".primary-nav")
+    .getByRole("link", { name: "Overview", exact: true })
+    .click();
+  await page.keyboard.press("Control+k");
+  await expect(page.getByRole("dialog")).toContainText("Search your workspace");
+  await page
+    .getByRole("textbox", { name: "Search", exact: true })
+    .fill("Departments");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Departments Go to", exact: true })
+    .click();
+  await expect(page.locator(".primary-nav .active")).toHaveText("Departments");
+  await page
+    .locator(".primary-nav")
+    .getByRole("link", { name: "Overview", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Workspace notifications", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "Field mappings need review",
+  );
+  await close();
+  const statusSegments = page.locator(".exec-delivery-distribution button");
+  assert.equal(await statusSegments.count(), 3);
+  await statusSegments.first().click();
+  await expect(page.getByRole("dialog")).toContainText("Platform handover");
+  await close();
+  console.log(
+    "PASS global search, contextual question handoff, notifications and delivery status drilldowns",
+  );
+
   assert.equal(
     await page.getByLabel("Data preview", { exact: true }).count(),
     0,
@@ -134,6 +189,21 @@ try {
   await departmentPanel.locator(".exec-matrix-row").first().click();
   await expect(page.getByRole("dialog")).toContainText("Operating costs");
   await close();
+  assert.equal(
+    await page.locator(".exec-chart-scale span").last().textContent(),
+    "0",
+  );
+  assert.equal(
+    await page.locator(".exec-chart-scale span").first().textContent(),
+    "50K",
+  );
+  for (const tooltip of await page
+    .locator(".exec-chart svg g title")
+    .allTextContents()) {
+    assert.ok(
+      tooltip.includes("Revenue") && tooltip.includes("Operating costs"),
+    );
+  }
   const plot = page.locator(".exec-chart svg");
   const bounds = await plot.boundingBox();
   await page.mouse.move(
@@ -162,8 +232,10 @@ try {
   await page.getByRole("button", { name: "Ask about this overview" }).click();
   await expect(page.locator(".exec-answer")).toContainText("Regarding");
   await close();
+  await page.getByRole("button", { name: "Trend", exact: true }).click();
+  assert.equal(await page.locator(".exec-chart svg polyline").count(), 2);
   await page.getByRole("button", { name: "Compare", exact: true }).click();
-  assert.equal(await page.locator(".exec-chart svg rect").count(), 6);
+  assert.equal(await page.locator(".exec-chart svg g rect").count(), 6);
   await page
     .getByLabel("Reporting period", { exact: true })
     .selectOption("year");

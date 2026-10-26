@@ -641,3 +641,317 @@ body .refined-shell .sidebar-account-copy strong {
     stroke-width: 1.65;
   }
 }
+/* Compact command header and a single intentional account row. */
+body .refined-shell .company-switcher {
+  min-height: 55px;
+  padding: 9px 10px;
+  background: #f8f6fc;
+  border-color: #eeebf5;
+}
+body .refined-shell .company-switcher .company-initial {
+  width: 30px;
+  height: 30px;
+  font-size: 11px;
+}
+body .refined-shell .company-switcher small {
+  font-size: 11px;
+}
+body .refined-shell .workspace-header {
+  gap: 24px;
+  background: #fefeff;
+}
+body .refined-shell .workspace-header > .workspace-identity {
+  flex: 1;
+  gap: 12px;
+}
+body .refined-shell .workspace-identity > span {
+  font-size: 13px;
+  font-weight: 500;
+  color: #555e74;
+}
+body .refined-shell .workspace-identity > small {
+  font-size: 11px;
+  color: #9599ab;
+  border-left: 1px solid #e5e3ef;
+  padding-left: 12px;
+  white-space: nowrap;
+}
+.header-command {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 290px;
+  max-width: 32%;
+  border: 1px solid #ece9f3;
+  border-radius: 8px;
+  background: #faf9fd;
+  padding: 10px 12px;
+  color: #9294a8;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    border-color 150ms,
+    background 150ms;
+}
+.header-command:hover {
+  background: #f5f2fc;
+  border-color: #dfd7f4;
+}
+.header-command svg {
+  color: #8b81ac;
+  flex-shrink: 0;
+  stroke-width: 1.6;
+}
+.header-command kbd {
+  margin-left: auto;
+  font: inherit;
+  font-size: 10px;
+  padding: 2px 4px;
+  border: 1px solid #e7e3ef;
+  border-radius: 4px;
+  color: #9b95ac;
+  white-space: nowrap;
+}
+.header-updates {
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  padding: 7px;
+  color: #8a829e;
+  cursor: pointer;
+}
+.header-updates svg {
+  stroke-width: 1.65;
+}
+.header-updates > i {
+  position: absolute;
+  right: 6px;
+  top: 5px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #a38bd9;
+  border: 1px solid white;
+}
+.header-updates:hover {
+  background: #f4f0fa;
+}
+.header-command:focus-visible,
+.header-updates:focus-visible,
+.sidebar-plan-upgrade:focus-visible {
+  outline: 2px solid #a899e6;
+  outline-offset: 3px;
+}
+body .refined-shell .sidebar-account {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding-top: 16px;
+}
+body .refined-shell .sidebar-account-profile {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 2px;
+  gap: 9px;
+}
+body .refined-shell .sidebar-account-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+body .refined-shell .sidebar-account-copy strong {
+  font-size: 12px;
+  width: 100%;
+  min-width: 0;
+}
+body .refined-shell .sidebar-account-copy small {
+  font-size: 11px;
+  background: none;
+  border-radius: 0;
+  padding: 0;
+  color: #8b869b;
+  line-height: 1.5;
+}
+body .refined-shell .sidebar-account-copy .sidebar-plan-badge {
+  background: none;
+  padding: 0;
+  font-size: 11px;
+  color: #8975b3;
+}
+body .refined-shell .sidebar-account-profile > svg {
+  display: none;
+}
+.sidebar-plan-upgrade {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: #f3effb;
+  color: #9380b8;
+  cursor: pointer;
+}
+.sidebar-plan-upgrade:hover {
+  background: #eae3f8;
+  color: #7c65ac;
+}
+.sidebar-plan-upgrade svg {
+  stroke-width: 1.6;
+}
+.shell-command-panel {
+  display: grid;
+  gap: 16px;
+}
+.shell-command-results {
+  display: grid;
+  gap: 4px;
+}
+.shell-command-results > button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: 0;
+  border-radius: 7px;
+  padding: 12px 10px;
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+  color: #647087;
+  cursor: pointer;
+  min-width: 0;
+}
+.shell-command-results > button:hover,
+.shell-command-results > button:focus-visible {
+  background: #f3f0fb;
+}
+.shell-command-results > button > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shell-command-results > button > small {
+  font-size: 11px;
+  color: #9995ab;
+  white-space: nowrap;
+}
+.shell-command-results span > small {
+  display: block;
+  font-size: 12px;
+  color: #949aab;
+  white-space: normal;
+  margin-top: 5px;
+}
+.shell-command-results svg {
+  color: #a298b7;
+  flex-shrink: 0;
+}
+.shell-command-results > p {
+  font-size: 13px;
+  color: #8c91a5;
+  line-height: 1.7;
+}
+.shell-command-ask {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px;
+  border: 1px solid #e9e3f8;
+  background: #f6f2fc;
+  border-radius: 9px;
+  color: #8b76b4;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+.shell-command-ask > span {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.shell-command-ask svg {
+  flex-shrink: 0;
+}
+@media (min-width: 761px) {
+  body .refined-shell.sidebar-collapsed .sidebar-account {
+    flex-direction: column;
+    gap: 9px;
+  }
+  body .refined-shell.sidebar-collapsed .sidebar-account-profile {
+    width: 100%;
+  }
+  body .refined-shell.sidebar-collapsed .sidebar-plan-upgrade {
+    width: 28px;
+    height: 27px;
+  }
+}
+@media (max-width: 1100px) {
+  body .refined-shell .workspace-header {
+    gap: 18px;
+  }
+  .header-command {
+    width: 240px;
+    max-width: 35%;
+  }
+  .header-command kbd {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  body .refined-shell .workspace-header {
+    gap: 10px;
+  }
+  .header-command {
+    padding: 8px;
+    width: 32px;
+    height: 32px;
+    max-width: none;
+    border: 0;
+    background: none;
+    flex-shrink: 0;
+    justify-content: center;
+  }
+  .header-command > span,
+  .header-command kbd {
+    display: none;
+  }
+  body .refined-shell .workspace-identity > small {
+    display: none;
+  }
+  body .refined-shell .workspace-header > div:last-child {
+    gap: 6px;
+  }
+  body .refined-shell .sidebar-account {
+    width: 100%;
+  }
+  body .refined-shell .sidebar-account-profile {
+    flex: 1;
+    width: auto;
+  }
+  .shell-command-results > button {
+    font-size: 12px;
+  }
+}
+body .refined-shell.workspace-shell .workspace-header {
+  height: 64px;
+  min-height: 64px;
+}
+body .refined-shell.workspace-shell .company-switcher {
+  min-height: 48px;
+}
+body .refined-shell .company-switcher > span:nth-child(2) {
+  gap: 0;
+}

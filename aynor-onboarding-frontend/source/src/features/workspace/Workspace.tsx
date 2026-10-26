@@ -9,7 +9,8 @@ import {
   ArrowUpRight,
   Check,
   ChevronDown,
-  ChevronRight,
+  Search,
+  Bell,
   CircleHelp,
   Compass,
   LayoutDashboard,
@@ -23,7 +24,14 @@ import {
 import { createPortal } from "react-dom";
 import { useEffect, useState, type FocusEvent, type MouseEvent } from "react";
 import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
-import { Button, Empty, ErrorBox, Logo, Modal } from "../../components/ui";
+import {
+  Button,
+  Empty,
+  ErrorBox,
+  Field,
+  Logo,
+  Modal,
+} from "../../components/ui";
 import {
   api,
   stepLabels,
@@ -55,6 +63,9 @@ export function Workspace({
     "ask",
   ].includes(location.hash.slice(1));
   const [profileOpen, setProfileOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false),
+    [commandQuery, setCommandQuery] = useState(""),
+    [updatesOpen, setUpdatesOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem("aynor.sidebar.collapsed") === "true";
@@ -155,6 +166,91 @@ export function Workspace({
       setPlan("Basic");
     }
   }, [id, user?.id]);
+  useEffect(() => {
+    if (!overview && !members) return;
+    const shortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        if (document.querySelector('[role="dialog"]')) return;
+        setCommandQuery("");
+        setCommandOpen(true);
+      }
+    };
+    window.addEventListener("keydown", shortcut);
+    return () => window.removeEventListener("keydown", shortcut);
+  }, [overview, members]);
+  const workspaceUpdates = [
+    ...(!company?.data.completed &&
+    company &&
+    ["Owner", "Admin"].includes(company.role)
+      ? [
+          {
+            title: "Workspace setup is unfinished",
+            detail: "Pick up where you left off.",
+            path: `/companies/${id}/onboarding/${company.data.step || "review"}`,
+          },
+        ]
+      : []),
+    ...(company?.data.mappings.some((m) => !m.confirmed && !m.ignored) &&
+    ["Owner", "Admin"].includes(company.role)
+      ? [
+          {
+            title: "Field mappings need review",
+            detail: `${company.data.mappings.filter((m) => !m.confirmed && !m.ignored).length} fields awaiting confirmation.`,
+            path: `/companies/${id}/onboarding/mapping`,
+          },
+        ]
+      : []),
+  ];
+  const searchItems = [
+    ...(
+      [
+        ["Overview", ""],
+        ["Departments", "#departments"],
+        ["Dependencies", "#dependencies"],
+        ["Goals", "#goals"],
+        ["Actions", "#risks"],
+      ] as const
+    ).map(([label, hash]) => ({
+      label,
+      group: "Go to",
+      path: `/companies/${id}/overview${hash}`,
+    })),
+    ...companies.map((c) => ({
+      label: c.name,
+      group: "Company",
+      path: `/companies/${c.id}/overview`,
+    })),
+    ...(company?.data.departments || []).map((label) => ({
+      label,
+      group: "Department",
+      path: `/companies/${id}/overview#departments`,
+    })),
+    ...(company?.data.goals || []).map((g) => ({
+      label: g.name,
+      group: "Goal",
+      path: `/companies/${id}/overview#goals`,
+    })),
+  ]
+    .filter((item) =>
+      (item.label + " " + item.group)
+        .toLowerCase()
+        .includes(commandQuery.trim().toLowerCase()),
+    )
+    .slice(0, 8);
+  function askFromHeader() {
+    try {
+      sessionStorage.setItem("aynor.ask.pending", commandQuery.trim());
+    } catch {}
+    setCommandOpen(false);
+    if (overview && location.hash === "#ask")
+      window.dispatchEvent(
+        new CustomEvent("aynor:ask", {
+          detail: { question: commandQuery.trim() },
+        }),
+      );
+    else nav(`/companies/${id}/overview#ask`);
+  }
   async function load() {
     setLoading(true);
     setCompany(null);
@@ -294,7 +390,6 @@ export function Workspace({
               <strong title={company?.name}>
                 {company?.name || "Workspace"}
               </strong>
-              <small>Company workspace</small>
             </span>
             <ChevronDown size={15} />
           </button>
@@ -443,39 +538,43 @@ export function Workspace({
             </span>
             <span className="sidebar-account-copy">
               <strong title={user?.name}>{user?.name || "Your account"}</strong>
-              <small>{company?.role || "Member"}</small>
+              <small>
+                {company?.role || "Member"}
+                <span className="account-inline-dot"> · </span>
+                <span className="sidebar-plan-badge">{plan}</span> plan
+              </small>
             </span>
             <ChevronDown size={14} />
           </button>
-          <div className="sidebar-plan-row">
-            <span className="sidebar-plan-badge">{plan}</span>
-            <span className="sidebar-plan-label">Current plan</span>
-            <button
-              aria-label={plan === "Premium" ? "Manage plan" : "Upgrade plan"}
-              {...hint(plan === "Premium" ? "Manage plan" : "Upgrade plan")}
-              onClick={() => setPlanOpen(true)}
-            >
-              <span className="plan-action-label">
-                {plan === "Premium" ? "Manage" : "Upgrade"}
-              </span>
-              <ArrowUpRight size={12} />
-            </button>
-          </div>
+          <button
+            className="sidebar-plan-upgrade"
+            aria-label={plan === "Premium" ? "Manage plan" : "Upgrade plan"}
+            {...hint(plan === "Premium" ? "Manage plan" : "Upgrade plan")}
+            onClick={() => setPlanOpen(true)}
+          >
+            <Sparkles size={16} />
+          </button>
         </div>
       </aside>
       <div className="workspace-main">
         <header className="workspace-header">
-          <div>
-            <span>{company?.name || "Workspace"}</span>
-            <ChevronRight size={13} />
-            <strong>
-              {overview
-                ? "Overview"
-                : members
-                  ? "Team & permissions"
-                  : "Workspace setup"}
-            </strong>
+          <div className="workspace-identity">
+            <span title={company?.name}>{company?.name || "Workspace"}</span>
+            <small>Workspace</small>
           </div>
+          <button
+            className="header-command"
+            aria-label="Search or Ask Aynor"
+            aria-keyshortcuts="Control+k Meta+k"
+            onClick={() => {
+              setCommandQuery("");
+              setCommandOpen(true);
+            }}
+          >
+            <Search size={16} />
+            <span>Search or ask Aynor</span>
+            <kbd>{/Mac/.test(navigator.platform) ? "⌘ K" : "Ctrl K"}</kbd>
+          </button>
           <div>
             <span
               className="workspace-example-label"
@@ -483,6 +582,14 @@ export function Workspace({
             >
               {overview ? "Demo" : "Workspace"}
             </span>
+            <button
+              className="header-updates"
+              aria-label="Workspace notifications"
+              onClick={() => setUpdatesOpen(true)}
+            >
+              <Bell size={17} />
+              {workspaceUpdates.length > 0 && <i />}
+            </button>
             <button
               className="workspace-profile"
               onClick={() => setProfileOpen(true)}
@@ -553,6 +660,94 @@ export function Workspace({
           </span>
         </footer>
       </div>
+      {commandOpen && (
+        <Modal
+          title="Search your workspace"
+          onClose={() => setCommandOpen(false)}
+        >
+          <div className="shell-command-panel">
+            <Field
+              label="Search"
+              placeholder="Companies, departments, goals…"
+              value={commandQuery}
+              onChange={(e) => setCommandQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  document
+                    .querySelector<HTMLButtonElement>(
+                      ".shell-command-results button",
+                    )
+                    ?.focus();
+                }
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (e.shiftKey || !searchItems.length) askFromHeader();
+                  else {
+                    setCommandOpen(false);
+                    nav(searchItems[0].path);
+                  }
+                }
+              }}
+            />
+            <div className="shell-command-results">
+              {searchItems.map((item, i) => (
+                <button
+                  key={item.group + item.path + i}
+                  onClick={() => {
+                    setCommandOpen(false);
+                    nav(item.path);
+                  }}
+                >
+                  <Search size={14} />
+                  <span>{item.label}</span>
+                  <small>{item.group}</small>
+                  <ArrowUpRight size={13} />
+                </button>
+              ))}
+              {!searchItems.length && <p>No matching records.</p>}
+            </div>
+            <button className="shell-command-ask" onClick={askFromHeader}>
+              <Sparkles size={16} />
+              <span>
+                {commandQuery.trim()
+                  ? `Ask Aynor: ${commandQuery.trim()}`
+                  : "Ask Aynor about this workspace"}
+              </span>
+              <ArrowUpRight size={14} />
+            </button>
+          </div>
+        </Modal>
+      )}
+      {updatesOpen && (
+        <Modal title="Workspace updates" onClose={() => setUpdatesOpen(false)}>
+          <div className="shell-command-results">
+            {workspaceUpdates.length ? (
+              workspaceUpdates.map((update) => (
+                <button
+                  key={update.path}
+                  onClick={() => {
+                    setUpdatesOpen(false);
+                    nav(update.path);
+                  }}
+                >
+                  <CircleAlert size={16} />
+                  <span>
+                    {update.title}
+                    <small>{update.detail}</small>
+                  </span>
+                  <ArrowUpRight size={14} />
+                </button>
+              ))
+            ) : (
+              <p>
+                No new updates. Workspace notices will appear here when
+                something needs your attention.
+              </p>
+            )}
+          </div>
+        </Modal>
+      )}
       {tooltip &&
         createPortal(
           <div

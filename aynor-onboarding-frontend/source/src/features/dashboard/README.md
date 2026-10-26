@@ -36,3 +36,11 @@ PROTOTYPE_URL=http://127.0.0.1:5174 node src/tests/dashboard.browser.mjs
 Browser checks cover the six main destinations, separate settings, absent debug/scenario controls, a single Demo indicator, optional widgets off by default, matrix drilldowns, chart pointer/keyboard interaction, contextual questions, local decisions, preference persistence, partial/stale/sync-failure/retry states, protected alerts, three/ten departments, no active goals, company isolation and restricted scopes. Responsive checks assert no horizontal overflow. Tests assert zero backend requests.
 
 Future backend work remains separate: validated records and provenance, server-enforced scopes, stable reporting calendars, source sync timestamps, goal-unit/period reconciliation, contextual analysis and durable per-user preferences. None is implemented here.
+
+## Comparison and navigation refinement
+
+The default performance view compares revenue and operating costs in grouped bars. Trend displays both series on the same zero-based axis; no truncated scales are used to amplify small changes. Five labeled intervals select a sensible upper bound from actual plotted values. Currency units, exact selected-period values, per-mark tooltips and the data table remain available. Click or keyboard-select a period for expense categories and contextual questions. Revenue/cost totals and margin distinguish the full reporting period from the selected interval. No historical sparkline is invented for cutoff-only KPIs.
+
+Delivery status uses a compact stacked bar calculated from the displayed project records; each segment opens its matching projects, deadlines and evidence. Risk severity, impact and recommended action receive separate visual treatments. Existing optional concentration/activity modules remain optional.
+
+The compact header offers workspace search and Ask Aynor (Ctrl/Cmd+K). Search uses configured companies, destinations, departments and goals, and can pass a question into the existing local assistant. Notifications derive only from incomplete setup and unconfirmed mappings; no external messages or invented performance alerts are supplied. Account identity stays in the sidebar, with role and local plan combined into one compact secondary line. Plan changes remain explicitly simulated, without billing or external services.

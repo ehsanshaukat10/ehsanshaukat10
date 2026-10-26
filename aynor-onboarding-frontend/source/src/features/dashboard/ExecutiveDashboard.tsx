@@ -32,6 +32,7 @@ import {
   type Period,
   type Section,
   type Profile,
+  type Point,
 } from "./model";
 import "./dashboard.css";
 type Detail = { title: string; lines: string[] };
@@ -80,7 +81,7 @@ export function ExecutiveDashboard({
     [askContext, setAskContext] = useState<Detail | null>(null),
     [busy, setBusy] = useState(false),
     [storageError, setStorageError] = useState(""),
-    [chart, setChart] = useState("line"),
+    [chart, setChart] = useState("bars"),
     [selected, setSelected] = useState(0),
     [reviewed, setReviewed] = useState<string[]>([]),
     [note, setNote] = useState(""),
@@ -96,14 +97,22 @@ export function ExecutiveDashboard({
         return {};
       }
     });
+  function beginAsk(question = "") {
+    let pending = question;
+    try {
+      pending = pending || sessionStorage.getItem("aynor.ask.pending") || "";
+      sessionStorage.removeItem("aynor.ask.pending");
+    } catch {}
+    setAsk(true);
+    setAskContext(null);
+    setQuestion(pending);
+    setAnswer("");
+  }
   useEffect(() => {
     const section = location.hash.replace("#", "");
     if (!section) return;
     if (section === "ask") {
-      setAsk(true);
-      setAskContext(null);
-      setQuestion("");
-      setAnswer("");
+      beginAsk();
       return;
     }
     if (Object.hasOwn(sectionLabels, section))
@@ -125,12 +134,10 @@ export function ExecutiveDashboard({
     return () => clearTimeout(timer);
   }, [location.hash]);
   useEffect(() => {
-    const openAsk = () => {
-      setAsk(true);
-      setAskContext(null);
-      setQuestion("");
-      setAnswer("");
-    };
+    const openAsk = (event: Event) =>
+      beginAsk(
+        (event as CustomEvent<{ question?: string }>).detail?.question || "",
+      );
     window.addEventListener("aynor:ask", openAsk);
     return () => window.removeEventListener("aynor:ask", openAsk);
   }, []);
@@ -430,6 +437,52 @@ export function ExecutiveDashboard({
           >
             <h2>Delivery & deadlines</h2>
 
+            <div
+              className="exec-delivery-distribution"
+              aria-label="Project delivery status"
+            >
+              {(["On track", "At risk", "Delayed"] as const).map((status) => {
+                const projects = sample.projects.filter(
+                  (p) => p.status === status,
+                );
+                return (
+                  projects.length > 0 && (
+                    <button
+                      key={status}
+                      className={
+                        "delivery-" + status.toLowerCase().replace(" ", "-")
+                      }
+                      style={{ flex: projects.length }}
+                      title={`${status}: ${projects.length} of ${sample.projects.length} projects`}
+                      aria-label={`${status}: ${projects.length} projects`}
+                      onClick={() =>
+                        open(
+                          `${status} projects`,
+                          ...projects.map(
+                            (p) =>
+                              `${p.name} · ${p.client} · due ${p.due}. ${p.evidence}`,
+                          ),
+                        )
+                      }
+                    >
+                      <span>{projects.length}</span>
+                    </button>
+                  )
+                );
+              })}
+            </div>
+            <div className="exec-delivery-legend">
+              {(["On track", "At risk", "Delayed"] as const).map((status) => (
+                <span key={status}>
+                  <i
+                    className={
+                      "delivery-" + status.toLowerCase().replace(" ", "-")
+                    }
+                  />
+                  {status}
+                </span>
+              ))}
+            </div>
             {sample.projects.map((p) => (
               <button
                 className="exec-row exec-deadline"
@@ -735,19 +788,40 @@ export function ExecutiveDashboard({
           </div>
           {sample && values ? (
             <>
-              <div className="exec-number">
-                {financial
-                  ? money(values.revenue)
-                  : sample.points.reduce((n, p) => n + p.delivered, 0)}
-                <small>
+              <div className="exec-performance-totals">
+                <div className="exec-number">
+                  <span className="exec-total-label">
+                    {financial ? "Revenue" : "Delivered milestones"}
+                  </span>
                   {financial
-                    ? `${values.growth >= 0 ? "+" : ""}${values.growth.toFixed(1)}% vs prior period`
-                    : "completed milestones · illustrative"}
-                </small>
+                    ? money(values.revenue)
+                    : sample.points.reduce((n, p) => n + p.delivered, 0)}
+                  <small>
+                    {financial
+                      ? `${values.growth >= 0 ? "+" : ""}${values.growth.toFixed(1)}% vs prior period`
+                      : "completed milestones · illustrative"}
+                  </small>
+                </div>
+                <div className="exec-cost-total">
+                  <span className="exec-total-label">
+                    {financial ? "Operating costs" : "Planned milestones"}
+                  </span>
+                  <strong>
+                    {financial
+                      ? money(values.costs)
+                      : sample.points.reduce((n, p) => n + p.planned, 0)}
+                  </strong>
+                  <small>
+                    {financial
+                      ? `${values.margin.toFixed(1)}% operating margin`
+                      : "Delivery commitments in period"}
+                  </small>
+                </div>
               </div>
               <PerformanceChart
                 sample={sample}
                 financial={financial}
+                currency={prefs.currency}
                 mode={chart}
                 selected={selected}
                 select={setSelected}
@@ -793,10 +867,7 @@ export function ExecutiveDashboard({
                 No validated {financial ? "revenue or expense" : "delivery"}{" "}
                 records yet.
               </p>
-              <small>
-                Connect a source to see the trend. Explore clearly labeled
-                examples above.
-              </small>
+              <small>Connect and validate a source to see performance.</small>
             </div>
           )}
         </section>
@@ -816,7 +887,11 @@ export function ExecutiveDashboard({
                       <span>
                         0{i + 1} / {r.department}
                       </span>
-                      <span>{r.severity}</span>
+                      <span
+                        className={`exec-risk-severity ${r.severity.toLowerCase()}`}
+                      >
+                        {r.severity}
+                      </span>
                     </div>
                     <h3>{r.title}</h3>
                     <p className="exec-risk-impact">{r.impact.split(";")[0]}</p>
@@ -1193,6 +1268,7 @@ export function ExecutiveDashboard({
 function PerformanceChart({
   sample,
   financial,
+  currency,
   mode,
   selected,
   select,
@@ -1200,128 +1276,207 @@ function PerformanceChart({
 }: {
   sample: ReturnType<typeof buildSample>;
   financial: boolean;
+  currency: string;
   mode: string;
   selected: number;
   select: (i: number) => void;
-  open: (p: ReturnType<typeof buildSample>["points"][number]) => void;
+  open: (p: Point) => void;
 }) {
-  const points = sample.points,
-    max =
-      Math.max(
-        ...points.map((p) =>
-          financial ? Math.max(p.revenue, p.costs) : p.planned,
-        ),
-      ) * 1.15,
-    x = (i: number) => 30 + (i * 740) / (points.length - 1),
-    y = (n: number) => 170 - (n / max) * 145,
-    value = (i: number) =>
-      financial ? points[i].revenue : points[i].delivered,
-    line = points.map((_, i) => `${x(i)},${y(value(i))}`).join(" "),
+  const points = sample.points;
+  if (!points.length) return <p>No records available for this period.</p>;
+  const first = (p: Point) => (financial ? p.revenue : p.delivered),
+    second = (p: Point) => (financial ? p.costs : p.planned);
+  const peak = Math.max(1, ...points.map((p) => Math.max(first(p), second(p)))),
+    rough = peak / 5,
+    power = 10 ** Math.floor(Math.log10(rough)),
+    step =
+      ([1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((n) => n >= rough / power) ||
+        10) * power,
+    max = step * 5;
+  const slot = 800 / points.length,
+    x = (i: number) => slot * (i + 0.5),
+    y = (n: number) => 178 - (n / max) * 154,
     index = Math.min(selected, points.length - 1),
-    active = points[index];
+    active = points[index],
+    bar = Math.min(46, slot * 0.24);
+  const exact = (n: number) =>
+    financial
+      ? new Intl.NumberFormat("en", {
+          style: "currency",
+          currency,
+          maximumFractionDigits: 0,
+        }).format(n)
+      : n.toLocaleString();
+  const concise = (n: number) =>
+    new Intl.NumberFormat("en", {
+      notation: "compact",
+      maximumFractionDigits: 1,
+    }).format(n);
+  const path = (get: (p: Point) => number) =>
+    points.map((p, i) => `${x(i)},${y(get(p))}`).join(" ");
+  const locate = (clientX: number, rect: DOMRect) =>
+    Math.max(
+      0,
+      Math.min(
+        points.length - 1,
+        Math.floor(((clientX - rect.left) / rect.width) * points.length),
+      ),
+    );
+  const pointTitle = (p: Point) =>
+    `${p.label}: ${financial ? "Revenue" : "Delivered"} ${exact(first(p))}; ${financial ? "Operating costs" : "Planned"} ${exact(second(p))}`;
   return (
     <div
-      className="exec-chart"
-      key={`${sample.points.length}-${mode}-${sample.asOf.toISOString().slice(0, 10)}`}
+      className="exec-chart exec-chart-comparison"
+      key={`${points.length}-${mode}-${sample.asOf.toISOString().slice(0, 10)}`}
     >
-      <div className="exec-chart-reading" aria-live="polite">
-        {active.label}: {financial ? "Revenue" : "Delivered"}{" "}
-        {value(index).toLocaleString()} · {financial ? "Costs" : "Planned"}{" "}
-        {(financial ? active.costs : active.planned).toLocaleString()}
+      <div className="exec-chart-legend">
+        <span>
+          <i />
+          {financial ? "Revenue" : "Delivered"}
+        </span>
+        <span>
+          <i />
+          {financial ? "Operating costs" : "Planned"}
+        </span>
+        <small>{financial ? currency : "Milestones"}</small>
       </div>
-      <svg
-        preserveAspectRatio="none"
-        onPointerMove={(e) => {
-          const box = e.currentTarget.getBoundingClientRect();
-          select(
-            Math.max(
-              0,
-              Math.min(
-                points.length - 1,
-                Math.round(
-                  ((((e.clientX - box.left) / box.width) * 800 - 30) / 740) *
-                    (points.length - 1),
-                ),
-              ),
-            ),
-          );
-        }}
-        viewBox="0 0 800 200"
-        role="img"
-        aria-label={
-          financial
-            ? "Revenue and expense comparison"
-            : "Delivered and planned milestones"
-        }
-      >
-        {[35, 80, 125, 170].map((y) => (
-          <line key={y} x1="20" x2="790" y1={y} y2={y} stroke="#edf0f6" />
-        ))}
-        <line
-          x1={x(index)}
-          x2={x(index)}
-          y1="20"
-          y2="170"
-          stroke="#b4b1f0"
-          strokeDasharray="3 5"
-        />
-        {mode === "line" ? (
-          <>
-            <polygon points={`30,170 ${line} 770,170`} fill="#4945f50b" />
-            <polyline
-              points={line}
-              fill="none"
-              stroke="#4945f5"
-              strokeWidth="2.5"
+      <div className="exec-chart-reading" aria-live="polite">
+        <span>{active.label}</span>
+        <strong>{exact(first(active))}</strong>
+        <span>{financial ? "revenue" : "delivered"}</span>
+        <strong>{exact(second(active))}</strong>
+        <span>{financial ? "costs" : "planned"}</span>
+      </div>
+      <div className="exec-chart-plot">
+        <div className="exec-chart-scale" aria-hidden="true">
+          {[5, 4, 3, 2, 1, 0].map((n) => (
+            <span key={n} style={{ top: `${y(step * n) / 2}%` }}>
+              {concise(step * n)}
+            </span>
+          ))}
+        </div>
+        <svg
+          preserveAspectRatio="none"
+          viewBox="0 0 800 200"
+          role="img"
+          aria-label={
+            financial
+              ? "Revenue and expense comparison"
+              : "Delivered and planned milestones"
+          }
+          onPointerMove={(e) =>
+            select(locate(e.clientX, e.currentTarget.getBoundingClientRect()))
+          }
+          onClick={(e) =>
+            open(
+              points[
+                locate(e.clientX, e.currentTarget.getBoundingClientRect())
+              ],
+            )
+          }
+        >
+          {[0, 1, 2, 3, 4, 5].map((n) => (
+            <line
+              key={n}
+              x1="0"
+              x2="800"
+              y1={y(step * n)}
+              y2={y(step * n)}
+              stroke={n === 0 ? "#dde2ee" : "#edf0f6"}
             />
-            {points.map((p, i) => (
-              <circle
-                key={p.date}
-                cx={x(i)}
-                cy={y(value(i))}
-                r={selected === i ? 5 : 3}
-                onMouseEnter={() => select(i)}
-                onClick={() => open(p)}
-                style={{ cursor: "pointer" }}
-                fill="#4945f5"
+          ))}
+          <rect
+            x={slot * index + slot * 0.12}
+            y="20"
+            width={slot * 0.76}
+            height="158"
+            rx="5"
+            fill="#7770ed05"
+          />
+          {mode === "bars" ? (
+            points.map((p, i) => (
+              <g key={p.date}>
+                <title>{pointTitle(p)}</title>
+                <rect
+                  x={x(i) - bar - 3}
+                  y={y(first(p))}
+                  width={bar}
+                  height={178 - y(first(p))}
+                  rx="3"
+                  fill={index === i ? "#6258e8" : "#8981ed"}
+                />
+                <rect
+                  x={x(i) + 3}
+                  y={y(second(p))}
+                  width={bar}
+                  height={178 - y(second(p))}
+                  rx="3"
+                  fill={index === i ? "#a9b3d1" : "#c9d0e2"}
+                />
+              </g>
+            ))
+          ) : (
+            <>
+              <polygon
+                points={`${x(0)},178 ${path(first)} ${x(points.length - 1)},178`}
+                fill="#766aeb09"
               />
-            ))}
-          </>
-        ) : (
-          points.map((p, i) => (
-            <g
-              key={p.date}
-              onMouseEnter={() => select(i)}
-              onClick={() => open(p)}
-              style={{ cursor: "pointer" }}
-            >
-              <rect
-                x={x(i) - 12}
-                y={y(value(i))}
-                width="10"
-                height={170 - y(value(i))}
-                rx="2"
-                fill="#4945f5"
+              <polyline
+                points={path(first)}
+                fill="none"
+                stroke="#7467ed"
+                strokeWidth="2.4"
+                vectorEffect="non-scaling-stroke"
               />
-              <rect
-                x={x(i) + 2}
-                y={y(financial ? p.costs : p.planned)}
-                width="10"
-                height={170 - y(financial ? p.costs : p.planned)}
-                rx="2"
-                fill="#b9c3dc"
+              <polyline
+                points={path(second)}
+                fill="none"
+                stroke="#a6b1cf"
+                strokeWidth="2"
+                strokeDasharray="5 4"
+                vectorEffect="non-scaling-stroke"
               />
-            </g>
-          ))
-        )}
-      </svg>
-      <div className="exec-chart-points">
+              <line
+                x1={x(index)}
+                x2={x(index)}
+                y1="20"
+                y2="178"
+                stroke="#c5bff1"
+                strokeDasharray="3 5"
+              />
+              {points.map((p, i) => (
+                <g key={p.date}>
+                  <title>{pointTitle(p)}</title>
+                  <circle
+                    cx={x(i)}
+                    cy={y(first(p))}
+                    r={index === i ? 4 : 2.5}
+                    fill="#7467ed"
+                  />
+                  <circle
+                    cx={x(i)}
+                    cy={y(second(p))}
+                    r={index === i ? 3.5 : 2}
+                    fill="#a6b1cf"
+                  />
+                </g>
+              ))}
+            </>
+          )}
+        </svg>
+      </div>
+      <div
+        className="exec-chart-points"
+        style={{
+          gridTemplateColumns: `repeat(${points.length},minmax(0,1fr))`,
+        }}
+      >
         {points.map((p, i) => (
           <button
             key={p.date}
             aria-label={`Inspect ${p.label} ${p.date}`}
             aria-pressed={selected === i}
-            title="Select for breakdown"
+            title={pointTitle(p)}
             onMouseEnter={() => select(i)}
             onFocus={() => select(i)}
             onClick={() => open(p)}
@@ -1330,10 +1485,6 @@ function PerformanceChart({
           </button>
         ))}
       </div>
-      <small>
-        ● {financial ? "Revenue" : "Delivered"}{" "}
-        {mode === "bars" && ` / ○ ${financial ? "Costs" : "Planned"}`}
-      </small>
     </div>
   );
 }
