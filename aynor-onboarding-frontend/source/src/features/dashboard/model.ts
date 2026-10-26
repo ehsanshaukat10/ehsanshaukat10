@@ -586,13 +586,18 @@ export function goalActual(g: Goal, s: Sample): number | null {
   if (/retention/.test(text)) return metricValue("retention", s).value;
   return null;
 }
-export function goalTarget(target: string): number | null {
+export function goalTarget(target: string, allowZero = false): number | null {
   const match = target.toLowerCase().match(/([\d,.]+)\s*([kmb])\b/);
   const number = match
     ? Number(match[1].replaceAll(",", "")) *
       ({ k: 1000, m: 1000000, b: 1000000000 }[match[2]] || 1)
     : Number(target.replace(/[^\d.-]/g, ""));
-  return target.trim() && Number.isFinite(number) && number > 0 ? number : null;
+  return target.trim() &&
+    /\d/.test(target) &&
+    Number.isFinite(number) &&
+    (allowZero ? number >= 0 : number > 0)
+    ? number
+    : null;
 }
 
 /** Illustrative measures use the existing configuration; no departments or goals are invented. */

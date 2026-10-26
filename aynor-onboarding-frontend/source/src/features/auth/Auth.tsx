@@ -144,7 +144,14 @@ export function Auth({ mode: initial }: { mode?: string }) {
     [cooldown, setCooldown] = useState(0),
     [legal, setLegal] = useState("");
   const next = new URLSearchParams(loc.search).get("next");
-  const safeNext = next?.startsWith("/invite/") ? next : "/entry";
+  const safeNext =
+    next &&
+    (next.startsWith("/invite/") ||
+      next.startsWith("/companies/") ||
+      next === "/companies") &&
+    !next.includes("\\")
+      ? next
+      : "/entry";
   const link = (m: string) =>
     "/auth/" + m + (next ? "?next=" + encodeURIComponent(next) : "");
   useEffect(() => {

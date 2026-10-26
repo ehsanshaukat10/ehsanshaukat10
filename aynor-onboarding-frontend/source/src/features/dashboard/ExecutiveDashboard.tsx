@@ -1,5 +1,11 @@
+import {
+  departmentMetrics,
+  metricRecord,
+  type MetricKey,
+} from "../intelligence/records";
+import { useLocalState } from "../intelligence/shared";
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowUpRight,
   SlidersHorizontal,
@@ -50,10 +56,12 @@ export function ExecutiveDashboard({
 }: {
   company: Company;
 }) {
+  const moduleLocal = useLocalState(workspaceCompany);
   const location = useLocation();
+  const navigate = useNavigate();
   const stateFromUrl = () => {
     const value = new URLSearchParams(location.search).get("state");
-    return [
+    const selectedScenario: Scenario = [
       "workspace",
       "connected",
       "partial",
@@ -65,12 +73,18 @@ export function ExecutiveDashboard({
       : usesExampleData(workspaceCompany)
         ? "connected"
         : "workspace";
+    return ["sync-error", "stale"].includes(selectedScenario) &&
+      moduleLocal.state.sync[workspaceCompany.data.sources[0]] === "Synced"
+      ? usesExampleData(workspaceCompany)
+        ? "connected"
+        : "workspace"
+      : selectedScenario;
   };
   const [scenario, setScenario] = useState<Scenario>(stateFromUrl);
   useEffect(() => {
     setScenario(stateFromUrl());
     setSelected(0);
-  }, [location.search]);
+  }, [location.search, moduleLocal.state.sync]);
   const c =
     scenario === "workspace"
       ? workspaceCompany
@@ -79,6 +93,11 @@ export function ExecutiveDashboard({
     key = preferenceKey(user?.id || "guest", c);
   const [prefs, setPrefs] = useState(() => {
       const p = readPreferences(key, c);
+      const requestedPeriod = new URLSearchParams(location.search).get(
+        "period",
+      );
+      if (Object.hasOwn(periods, requestedPeriod || ""))
+        p.period = requestedPeriod as Period;
       return {
         ...p,
         metrics: p.metrics.length ? p.metrics : defaults(c).metrics,
@@ -254,7 +273,11 @@ export function ExecutiveDashboard({
   }
   const activeGoals = c.data.goals
     .filter(
-      (g) => !g.deadline || g.deadline >= new Date().toISOString().slice(0, 10),
+      (g) =>
+        !["Paused", "Archived"].includes(
+          moduleLocal.state.goals[g.id]?.status || "Active",
+        ) &&
+        (!g.deadline || g.deadline >= new Date().toISOString().slice(0, 10)),
     )
     .sort((a, b) => (a.deadline || "9999").localeCompare(b.deadline || "9999"))
     .slice(0, 2);
@@ -313,6 +336,19 @@ export function ExecutiveDashboard({
         ]
       : []),
   ];
+  const overviewOrigin = () => {
+    const query = new URLSearchParams(location.search);
+    if (sample?.points[selected])
+      query.set("point", sample.points[selected].date);
+    return location.pathname + (query.size ? "?" + query.toString() : "");
+  };
+  useEffect(() => {
+    const point = new URLSearchParams(location.search).get("point");
+    if (point && sample) {
+      const index = sample.points.findIndex((p) => p.date === point);
+      if (index >= 0) setSelected(index);
+    }
+  }, [location.search, prefs.period, scenario]);
   function secondary(section: Section) {
     if (
       !sample &&
@@ -427,15 +463,47 @@ export function ExecutiveDashboard({
           </div>
           {activeGoals.length ? (
             activeGoals.map((g) => {
-              const actual =
-                  sample && scenario !== "partial"
-                    ? goalActual(g, sample)
-                    : null,
-                target = goalTarget(g.target),
-                percent =
-                  actual !== null && target
-                    ? Math.min(100, Math.max(0, (actual / target) * 100))
+              const meta = moduleLocal.state.goals[g.id];
+              const dept =
+                meta?.department === "Company-wide"
+                  ? c.data.departments.find((d) =>
+                      departmentMetrics(d, { company: c, profile }).includes(
+                        meta.metric as MetricKey,
+                      ),
+                    )
+                  : meta?.department;
+              const actual = !moduleLocal.loaded
+                ? null
+                : meta?.tracking === "Manual"
+                  ? (meta.history.at(-1)?.value ?? null)
+                  : meta?.tracking === "Connected" &&
+                      meta.period === prefs.period &&
+                      dept &&
+                      sample &&
+                      scenario !== "partial"
+                    ? metricRecord(meta.metric as MetricKey, dept, {
+                        company: c,
+                        profile,
+                        sample,
+                        scenario,
+                      }).value
                     : null;
+              const target = goalTarget(
+                  g.target,
+                  meta?.direction === "Decrease",
+                ),
+                baseline = meta?.baseline || 0;
+              const ratio =
+                actual !== null && target
+                  ? meta?.direction === "Decrease" &&
+                    meta.baseline !== undefined
+                    ? (baseline - actual) / (baseline - target)
+                    : (actual - baseline) / (target - baseline)
+                  : null;
+              const percent =
+                ratio !== null && Number.isFinite(ratio)
+                  ? Math.min(100, Math.max(0, ratio * 100))
+                  : null;
               return (
                 <button
                   className="exec-row exec-goal"
@@ -730,6 +798,11 @@ export function ExecutiveDashboard({
               onChange={(e) => {
                 save({ ...prefs, period: e.target.value as Period });
                 setSelected(0);
+                const query = new URLSearchParams(location.search);
+                query.set("period", e.target.value);
+                navigate(location.pathname + "?" + query.toString(), {
+                  replace: true,
+                });
               }}
             >
               {Object.entries(periods).map(([v, l]) => (
@@ -1090,6 +1163,12 @@ export function ExecutiveDashboard({
                     >
                       {r.action} <ArrowRight size={13} />
                     </button>
+                    {moduleLocal.state.actions[r.id] && (
+                      <small>
+                        {moduleLocal.state.actions[r.id].status} · source flag
+                        retained
+                      </small>
+                    )}
                     {decisions[r.title] && (
                       <small>Decision recorded · open to review</small>
                     )}
@@ -1382,6 +1461,77 @@ export function ExecutiveDashboard({
               </small>
             )}
             <div className="modal-actions">
+              {(() => {
+                const risk = sample?.risks.find(
+                  (r) => r.title === detail.title,
+                );
+                const goal = c.data.goals.find((g) => g.name === detail.title);
+                const metricKey = Object.entries(metricLabels).find(
+                  ([, label]) => label === detail.title,
+                )?.[0] as MetricKey | undefined;
+                const metricDept = metricKey
+                  ? c.data.departments.find((d) =>
+                      departmentMetrics(d, { company: c, profile }).includes(
+                        metricKey,
+                      ),
+                    )
+                  : undefined;
+                const project = sample?.projects.find(
+                    (p) => p.name === detail.title,
+                  ),
+                  client = sample?.projects.find(
+                    (p) => p.client === detail.title,
+                  ),
+                  person = sample?.projects.find(
+                    (p) => p.owner === detail.title,
+                  );
+                const slug = (name: string) =>
+                  name
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, "-")
+                    .replace(/^-|-$/g, "");
+                const path = risk
+                  ? `actions/${risk.id}`
+                  : goal
+                    ? `goals/${goal.id}`
+                    : metricDept && metricKey
+                      ? `departments/${encodeURIComponent(metricDept)}/metrics/${metricKey}`
+                      : c.data.departments.includes(detail.title)
+                        ? `departments/${encodeURIComponent(detail.title)}`
+                        : project
+                          ? `dependencies/project-${project.id}`
+                          : client
+                            ? `dependencies/client-${slug(client.client)}`
+                            : person
+                              ? `dependencies/person-${slug(person.owner)}`
+                              : detail.title === "Shared delivery dependency"
+                                ? "dependencies"
+                                : detail.title === "Data details"
+                                  ? "settings/connections"
+                                  : null;
+                return (
+                  path && (
+                    <Link
+                      className="button secondary"
+                      to={`/companies/${c.id}/${path}?period=${prefs.period}&from=${encodeURIComponent(overviewOrigin())}${new URLSearchParams(location.search).has("state") ? "&state=" + encodeURIComponent(new URLSearchParams(location.search).get("state")!) : ""}`}
+                    >
+                      Open{" "}
+                      {risk
+                        ? "action"
+                        : goal
+                          ? "goal"
+                          : detail.title === "Data details"
+                            ? "data connections"
+                            : path.startsWith("dependencies")
+                              ? "dependency"
+                              : metricKey
+                                ? "metric"
+                                : "department"}{" "}
+                      <ArrowUpRight size={13} />
+                    </Link>
+                  )
+                );
+              })()}
               {!sample && editable && (
                 <Link
                   className="button secondary"
@@ -1400,17 +1550,12 @@ export function ExecutiveDashboard({
               >
                 Mark reviewed locally
               </Button>
-              <Button
-                onClick={() => {
-                  setQuestion(`Why does ${detail.title.toLowerCase()} matter?`);
-                  setAskContext(detail);
-                  setAnswer(detail.lines.join(" "));
-                  setDetail(null);
-                  setAsk(true);
-                }}
+              <Link
+                className="button"
+                to={`/companies/${c.id}/ask?context=${encodeURIComponent(detail.title + " · " + (detail.lines[0] || ""))}&question=${encodeURIComponent(`Explain ${detail.title.toLowerCase()} and its supporting evidence.`)}&period=${prefs.period}&from=${encodeURIComponent(overviewOrigin())}${new URLSearchParams(location.search).has("state") ? "&state=" + encodeURIComponent(new URLSearchParams(location.search).get("state")!) : ""}`}
               >
                 Ask Aynor why
-              </Button>
+              </Link>
             </div>
           </div>
         </Modal>
@@ -1459,7 +1604,7 @@ export function ExecutiveDashboard({
     </div>
   );
 }
-function PerformanceChart({
+export function PerformanceChart({
   sample,
   financial,
   currency,

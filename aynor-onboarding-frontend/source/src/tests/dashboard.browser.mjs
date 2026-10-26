@@ -60,8 +60,11 @@ try {
       exact: true,
     })
     .click();
-  await expect(page.getByRole("dialog")).toContainText(
-    "Local simulated analysis",
+  await page
+    .getByRole("heading", { name: "Ask Aynor.", exact: true })
+    .waitFor();
+  await expect(page.locator(".intel-conversation")).toContainText(
+    "Local assistant preview",
   );
   await expect(page.getByLabel("Your question")).toHaveValue(
     "Why did costs increase?",
@@ -148,7 +151,7 @@ try {
     const target = await page.evaluate(() =>
       document.querySelector(".primary-nav .active")?.getAttribute("href"),
     );
-    assert.ok(target.includes("#"));
+    assert.ok(target.startsWith("/companies/") && !target.includes("#"));
     assert.equal(await page.locator(".primary-nav .active").count(), 1);
   }
   for (let i = 0; i < 2; i++) {
@@ -156,10 +159,14 @@ try {
       .locator(".primary-nav")
       .getByRole("link", { name: "Ask Aynor", exact: true })
       .click();
-    await expect(page.getByRole("dialog")).toContainText(
-      "Local simulated analysis",
-    );
-    await close();
+    await page
+      .getByRole("heading", { name: "Ask Aynor.", exact: true })
+      .waitFor();
+    await expect(page.locator(".intel-question-list")).toBeVisible();
+    await page
+      .locator(".primary-nav")
+      .getByRole("link", { name: "Overview", exact: true })
+      .click();
   }
   await page
     .locator(".primary-nav")
@@ -225,13 +232,14 @@ try {
   );
   await page.keyboard.press("Enter");
   await expect(page.getByRole("dialog")).toContainText("Expenses: people");
-  await page
-    .getByRole("button", { name: "Ask Aynor why", exact: true })
-    .click();
+  await page.getByRole("link", { name: "Ask Aynor why", exact: true }).click();
   await expect(page.getByLabel("Your question")).not.toHaveValue("");
-  await page.getByRole("button", { name: "Ask about this overview" }).click();
-  await expect(page.locator(".exec-answer")).toContainText("Regarding");
-  await close();
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(page.locator(".intel-answer")).toContainText(
+    "operating expenses",
+  );
+  await page.locator(".intel-back").click();
+  await heading();
   await page.getByRole("button", { name: "Trend", exact: true }).click();
   assert.equal(await page.locator(".exec-chart svg polyline").count(), 2);
   await page.getByRole("button", { name: "Compare", exact: true }).click();

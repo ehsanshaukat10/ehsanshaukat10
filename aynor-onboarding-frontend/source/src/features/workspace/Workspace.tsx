@@ -1,4 +1,9 @@
-import { usesExampleData } from "../dashboard/model";
+import { Intelligence } from "../intelligence/Intelligence";
+import {
+  readPreferences,
+  preferenceKey,
+  usesExampleData,
+} from "../dashboard/model";
 import "./shell.css";
 import { OnboardingFrame } from "../onboarding/OnboardingFrame";
 import {
@@ -21,6 +26,7 @@ import {
   PanelLeftOpen,
   Sparkles,
   Users,
+  Settings2,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useEffect, useState, type FocusEvent, type MouseEvent } from "react";
@@ -51,11 +57,21 @@ const message = (e: unknown) =>
 export function Workspace({
   overview = false,
   members = false,
+  intelligence = false,
 }: {
   overview?: boolean;
   members?: boolean;
+  intelligence?: boolean;
 }) {
   const location = useLocation();
+  const moduleName = location.pathname.split("/")[3];
+  const shellPath = (path: string) => {
+    const params = new URLSearchParams();
+    const current = new URLSearchParams(location.search);
+    for (const key of ["state", "period"])
+      if (current.has(key)) params.set(key, current.get(key)!);
+    return path + (params.size ? "?" + params.toString() : "");
+  };
   const overviewSelected = ![
     "departments",
     "dependencies",
@@ -168,7 +184,7 @@ export function Workspace({
     }
   }, [id, user?.id]);
   useEffect(() => {
-    if (!overview && !members) return;
+    if (!overview && !members && !intelligence) return;
     const shortcut = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -179,7 +195,7 @@ export function Workspace({
     };
     window.addEventListener("keydown", shortcut);
     return () => window.removeEventListener("keydown", shortcut);
-  }, [overview, members]);
+  }, [overview, members, intelligence]);
   const workspaceUpdates = [
     ...(!company?.data.completed &&
     company &&
@@ -198,7 +214,7 @@ export function Workspace({
           {
             title: "Field mappings need review",
             detail: `${company.data.mappings.filter((m) => !m.confirmed && !m.ignored).length} fields awaiting confirmation.`,
-            path: `/companies/${id}/onboarding/mapping`,
+            path: `/companies/${id}/settings/connections`,
           },
         ]
       : []),
@@ -215,7 +231,9 @@ export function Workspace({
     ).map(([label, hash]) => ({
       label,
       group: "Go to",
-      path: `/companies/${id}/overview${hash}`,
+      path: shellPath(
+        `/companies/${id}/${hash === "#departments" ? "departments" : hash === "#dependencies" ? "dependencies" : hash === "#goals" ? "goals" : hash === "#risks" ? "actions" : "overview"}`,
+      ),
     })),
     ...companies.map((c) => ({
       label: c.name,
@@ -225,12 +243,14 @@ export function Workspace({
     ...(company?.data.departments || []).map((label) => ({
       label,
       group: "Department",
-      path: `/companies/${id}/overview#departments`,
+      path: shellPath(
+        `/companies/${id}/departments/${encodeURIComponent(label)}`,
+      ),
     })),
     ...(company?.data.goals || []).map((g) => ({
       label: g.name,
       group: "Goal",
-      path: `/companies/${id}/overview#goals`,
+      path: shellPath(`/companies/${id}/goals/${g.id}`),
     })),
   ]
     .filter((item) =>
@@ -244,13 +264,9 @@ export function Workspace({
       sessionStorage.setItem("aynor.ask.pending", commandQuery.trim());
     } catch {}
     setCommandOpen(false);
-    if (overview && location.hash === "#ask")
-      window.dispatchEvent(
-        new CustomEvent("aynor:ask", {
-          detail: { question: commandQuery.trim() },
-        }),
-      );
-    else nav(`/companies/${id}/overview#ask`);
+    nav(
+      `/companies/${id}/ask?question=${encodeURIComponent(commandQuery.trim())}&period=${encodeURIComponent(new URLSearchParams(location.search).get("period") || (company ? readPreferences(preferenceKey(user?.id || "guest", company), company).period : "quarter"))}&from=${encodeURIComponent(location.pathname + location.search)}${new URLSearchParams(location.search).has("state") ? "&state=" + encodeURIComponent(new URLSearchParams(location.search).get("state")!) : ""}`,
+    );
   }
   async function load() {
     setLoading(true);
@@ -296,7 +312,7 @@ export function Workspace({
   const completed = steps.filter(
     (s) => company?.data.steps[s] === "completed",
   ).length;
-  if (!overview && !members)
+  if (!overview && !members && !intelligence)
     return (
       <OnboardingFrame
         step={currentStep}
@@ -444,18 +460,24 @@ export function Workspace({
                 aria-label={String(label)}
                 {...hint(String(label))}
                 aria-current={
-                  overview && location.hash === "#" + section
+                  (intelligence &&
+                    moduleName ===
+                      (section === "risks" ? "actions" : String(section))) ||
+                  (overview && location.hash === "#" + section)
                     ? "page"
                     : undefined
                 }
                 className={
-                  overview && location.hash === "#" + section ? "active" : ""
+                  (intelligence &&
+                    moduleName ===
+                      (section === "risks" ? "actions" : String(section))) ||
+                  (overview && location.hash === "#" + section)
+                    ? "active"
+                    : ""
                 }
-                onClick={() => {
-                  if (section === "ask" && overview)
-                    window.dispatchEvent(new Event("aynor:ask"));
-                }}
-                to={`/companies/${id}/overview#${section}`}
+                to={shellPath(
+                  `/companies/${id}/${section === "risks" ? "actions" : String(section)}`,
+                )}
               >
                 <I size={18} />
                 <span className="nav-label">{String(label)}</span>
@@ -467,9 +489,22 @@ export function Workspace({
           <span className="workspace-nav-label">COMPANY</span>
           {editable && (
             <Link
+              className={
+                intelligence && moduleName === "settings" ? "active" : ""
+              }
+              to={shellPath(`/companies/${id}/settings/profile`)}
+              aria-label="Company settings"
+              {...hint("Company settings")}
+            >
+              <Settings2 size={18} />
+              <span className="nav-label">Company settings</span>
+            </Link>
+          )}
+          {editable && (
+            <Link
               {...hint("Workspace setup")}
               aria-label="Workspace setup"
-              className={!overview && !members ? "active" : ""}
+              className={!overview && !members && !intelligence ? "active" : ""}
               to={`/companies/${id}/onboarding/${company?.data.step || "departments"}`}
             >
               <Compass size={18} />
@@ -492,7 +527,7 @@ export function Workspace({
             </Link>
           )}
         </nav>
-        {!overview && !members && editable && (
+        {!overview && !members && !intelligence && editable && (
           <div className="setup-nav">
             <div className="sidebar-section-label">
               MAKE IT YOURS <span>{Math.min(index + 1, 12)} / 12</span>
@@ -577,7 +612,7 @@ export function Workspace({
             <kbd>{/Mac/.test(navigator.platform) ? "⌘ K" : "Ctrl K"}</kbd>
           </button>
           <div>
-            {overview &&
+            {(overview || intelligence) &&
               (new URLSearchParams(location.search).get("state")
                 ? new URLSearchParams(location.search).get("state") !==
                   "workspace"
@@ -615,8 +650,12 @@ export function Workspace({
         </header>
         {loading || (company?.id !== id && !error) ? (
           <div className="workspace-loading">
-            <span className="loading-line" />
-            Loading workspace…
+            <div className="workspace-loading-skeleton" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
+            <span role="status">Loading workspace…</span>
           </div>
         ) : !company ? (
           <div className="workspace-content">
@@ -634,7 +673,13 @@ export function Workspace({
                 </Button>
               </>
             )}
-            {overview ? (
+            {intelligence ? (
+              <Intelligence
+                company={company}
+                save={save}
+                updateCompany={setCompany}
+              />
+            ) : overview ? (
               <Overview company={company} save={save} />
             ) : members ? (
               <Members company={company} />

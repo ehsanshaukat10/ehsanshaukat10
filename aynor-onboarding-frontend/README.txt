@@ -48,3 +48,13 @@ label. Mobile starts with a compact menu. Account details and the current plan
 live in the sidebar footer; header account access uses the same avatar.
 Plan selection is a local preview only, with no payment or billing changes.
 Shell checks: node src/tests/shell.browser.mjs (Vite running).
+
+Complete MVP navigation:
+Departments, metric evidence, dependencies, manual/connected goals, action
+lifecycle, contextual Ask Aynor conversations and company settings now have
+dedicated screens. Source recovery and skipped-onboarding empty states retain
+clear next actions. Assistant answers and connection operations are simulated;
+local decisions and conversations persist per user/company in this browser.
+UX audit and integration notes: source/src/features/intelligence/README.md.
+MVP journeys: node src/tests/mvp.browser.mjs (Vite on port 5175).
+State coverage: node src/tests/mvp-states.browser.mjs.

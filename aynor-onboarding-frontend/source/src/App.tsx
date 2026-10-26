@@ -123,6 +123,24 @@ export default function App() {
             </Guard>
           }
         />
+        {[
+          "departments",
+          "dependencies",
+          "goals",
+          "actions",
+          "ask",
+          "settings",
+        ].map((module) => (
+          <Route
+            key={module}
+            path={`/companies/:id/${module}/*`}
+            element={
+              <Guard>
+                <Workspace intelligence />
+              </Guard>
+            }
+          />
+        ))}
         <Route
           path="/invite/:token"
           element={
@@ -166,14 +184,20 @@ function Guard({ children }: { children: ReactNode }) {
   if (!user)
     return (
       <Navigate
-        to={"/auth/signup?next=" + encodeURIComponent(loc.pathname)}
+        to={
+          "/auth/signup?next=" +
+          encodeURIComponent(loc.pathname + loc.search + loc.hash)
+        }
         replace
       />
     );
   if (!user.verified)
     return (
       <Navigate
-        to={"/auth/verify?next=" + encodeURIComponent(loc.pathname)}
+        to={
+          "/auth/verify?next=" +
+          encodeURIComponent(loc.pathname + loc.search + loc.hash)
+        }
         replace
       />
     );

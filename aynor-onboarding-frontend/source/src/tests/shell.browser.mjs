@@ -34,7 +34,7 @@ await expect(
   p.getByRole("link", { name: "Departments", exact: true }),
 ).toHaveAttribute("aria-current", "page");
 await p.reload();
-await p.getByRole("heading", { name: "Overview.", exact: true }).waitFor();
+await p.getByRole("heading", { name: "Departments.", exact: true }).waitFor();
 await expect(p.locator(".workspace-sidebar")).toHaveCSS("width", "80px");
 await p.getByRole("button", { name: "Expand sidebar", exact: true }).click();
 await p.getByRole("link", { name: "Overview", exact: true }).click();

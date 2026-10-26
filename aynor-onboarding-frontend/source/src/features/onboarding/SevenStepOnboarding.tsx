@@ -137,8 +137,30 @@ export function SevenStepOnboarding({
     [editing, setEditing] = useState<number | null>(null);
   const [mappingPage, setMappingPage] = useState(0);
   const dirty = JSON.stringify(data) !== JSON.stringify(company.data);
-  const overviewEdit =
-    new URLSearchParams(location.search).get("return") === "overview";
+  const returnKind = new URLSearchParams(location.search).get("return");
+  const returnBase =
+    returnKind === "overview"
+      ? `/companies/${company.id}/overview`
+      : returnKind === "settings-connections"
+        ? `/companies/${company.id}/settings/connections`
+        : returnKind === "settings-departments"
+          ? `/companies/${company.id}/settings/departments`
+          : returnKind === "settings-profile"
+            ? `/companies/${company.id}/settings/profile`
+            : null;
+  const contextQuery = new URLSearchParams(location.search),
+    origin = contextQuery.get("origin");
+  const preserved = new URLSearchParams();
+  if (origin?.startsWith(`/companies/${company.id}/`))
+    preserved.set("from", origin);
+  for (const key of ["period", "state", "sync"])
+    if (contextQuery.has(key)) preserved.set(key, contextQuery.get(key)!);
+  const returnRoute = returnBase
+    ? returnKind?.startsWith("settings-") && preserved.size
+      ? returnBase + "?" + preserved.toString()
+      : returnBase
+    : null;
+  const overviewEdit = !!returnRoute;
   const reviewEdit =
     new URLSearchParams(location.search).get("return") === "review";
   useEffect(() => {
@@ -248,7 +270,7 @@ export function SevenStepOnboarding({
       sessionStorage.removeItem(draftKey);
       nav(
         overviewEdit
-          ? `/companies/${company.id}/overview`
+          ? returnRoute!
           : `/companies/${company.id}/onboarding/${target}`,
       );
     }
@@ -1091,7 +1113,7 @@ export function SevenStepOnboarding({
               disabled={busy || working}
               onClick={async () => {
                 if (overviewEdit) {
-                  nav(`/companies/${company.id}/overview`);
+                  nav(returnRoute!);
                   return;
                 }
                 const target = reviewEdit
@@ -1126,7 +1148,9 @@ export function SevenStepOnboarding({
                 {step === "review"
                   ? "Enter Aynor"
                   : overviewEdit
-                    ? "Save & return to overview"
+                    ? returnKind === "overview"
+                      ? "Save & return to overview"
+                      : "Save & return to settings"
                     : reviewEdit
                       ? "Save & return to review"
                       : "Continue"}
