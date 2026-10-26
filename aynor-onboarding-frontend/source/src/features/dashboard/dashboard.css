@@ -1677,3 +1677,133 @@
     overflow: hidden;
   }
 }
+/* Honest onboarding recovery states; configured content remains in place. */
+.exec-onboarding-tasks {
+  margin: 0 0 24px;
+  padding: 20px 22px;
+  border: 1px solid #e8e4f3;
+  border-radius: 12px;
+  background: #fcfbff;
+}
+.exec-onboarding-tasks .exec-section-head {
+  margin-bottom: 15px;
+}
+.exec-onboarding-tasks h2 {
+  font-size: 20px;
+}
+.exec-onboarding-tasks p {
+  font-size: 12px;
+  margin: 7px 0 0;
+}
+.exec-setup-task-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(205px, 1fr));
+  gap: 9px;
+}
+.exec-setup-task {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: white;
+  border: 1px solid #eeebf5;
+  border-radius: 8px;
+  transition:
+    border-color 150ms,
+    background 150ms;
+}
+.exec-setup-task:hover {
+  background: #f7f4fe;
+  border-color: #dcd4f2;
+}
+.exec-setup-task > svg {
+  color: #9a8bba;
+  flex-shrink: 0;
+}
+.exec-setup-task > svg:last-child {
+  margin-left: auto;
+  width: 13px;
+}
+.exec-setup-task > span {
+  min-width: 0;
+}
+.exec-setup-task strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: #6d618f;
+}
+.exec-setup-task small {
+  display: block;
+  font-size: 11px;
+  margin-top: 4px;
+  color: #9298aa;
+}
+.exec-empty-state {
+  padding: 22px 0;
+  color: #a59abd;
+}
+.exec-empty-state > svg,
+.exec-no-chart > svg {
+  color: #aba1c7;
+  stroke-width: 1.5;
+}
+.exec-empty-state h3,
+.exec-no-chart h3 {
+  font-size: 14px;
+  font-weight: 400;
+  color: #68738b;
+  margin: 12px 0 5px;
+}
+.exec-empty-state p {
+  font-size: 12px;
+  margin: 7px 0 13px;
+}
+.exec-empty-state .button,
+.exec-no-chart .button {
+  font-size: 12px !important;
+  margin: 4px 0 10px;
+  display: inline-flex;
+}
+.exec-empty-state > small,
+.exec-no-chart > small {
+  display: block;
+}
+.exec-metric-empty-hint {
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px !important;
+  margin-top: 13px;
+  color: #a39ab4 !important;
+}
+.exec-no-chart {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.exec-primary-grid .exec-setup > svg {
+  color: #a99bbf;
+  stroke-width: 1.5;
+}
+.exec-setup-task:focus-visible {
+  outline: 2px solid #b0a1df;
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .exec-onboarding-tasks {
+    padding: 17px;
+  }
+  .exec-setup-task-grid {
+    grid-template-columns: 1fr;
+  }
+  .exec-onboarding-tasks h2 {
+    font-size: 19px;
+  }
+  .exec-empty-state {
+    padding: 18px 0;
+  }
+}

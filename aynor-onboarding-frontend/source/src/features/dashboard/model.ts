@@ -599,3 +599,17 @@ export function goalTarget(target: string): number | null {
 export function overviewExampleCompany(company: Company): Company {
   return company;
 }
+
+export function usesExampleData(company: Company) {
+  const d = company.data;
+  if (
+    !d.demo ||
+    ["integrations", "mapping"].some((s) => d.steps[s] === "skipped")
+  )
+    return false;
+  if (["Viewer", "Department Manager"].includes(company.role))
+    return !!d.connected;
+  return (
+    d.sources.length > 0 && d.mappings.some((m) => m.confirmed && !m.ignored)
+  );
+}

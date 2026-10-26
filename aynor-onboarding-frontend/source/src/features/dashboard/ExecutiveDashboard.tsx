@@ -5,11 +5,20 @@ import {
   SlidersHorizontal,
   AlertTriangle,
   ArrowRight,
+  Network,
+  CalendarDays,
+  Building2,
+  FileSpreadsheet,
+  Link2,
+  Target,
+  Compass,
+  BarChart3,
 } from "lucide-react";
 import { Button, Modal, Select, Field } from "../../components/ui";
 import type { Company } from "../../lib/api";
 import { useApp } from "../../lib/context";
 import {
+  usesExampleData,
   overviewExampleCompany,
   defaults,
   readPreferences,
@@ -53,7 +62,9 @@ export function ExecutiveDashboard({
       "clear",
     ].includes(value || "")
       ? (value as Scenario)
-      : "connected";
+      : usesExampleData(workspaceCompany)
+        ? "connected"
+        : "workspace";
   };
   const [scenario, setScenario] = useState<Scenario>(stateFromUrl);
   useEffect(() => {
@@ -171,7 +182,8 @@ export function ExecutiveDashboard({
       setNote(decisions[title] || "");
       setDetail({ title, lines });
     },
-    setup = (step: string) => `/companies/${c.id}/onboarding/${step}`;
+    setup = (step: string) =>
+      `/companies/${c.id}/onboarding/${step}?return=overview`;
   const depts = c.data.departments.filter(
     (d) => prefs.departments === null || prefs.departments.includes(d),
   );
@@ -246,53 +258,161 @@ export function ExecutiveDashboard({
     )
     .sort((a, b) => (a.deadline || "9999").localeCompare(b.deadline || "9999"))
     .slice(0, 2);
+  const setupTasks = [
+    ...(!c.data.departments.length
+      ? [
+          {
+            step: "departments",
+            label: "Add departments",
+            text: "Organize your teams.",
+            Icon: Building2,
+          },
+        ]
+      : []),
+    ...(!c.data.sources.length
+      ? [
+          {
+            step: "integrations",
+            label: "Connect a source",
+            text: "Start with a sheet, file or URL.",
+            Icon: FileSpreadsheet,
+          },
+        ]
+      : []),
+    ...(c.data.sources.length &&
+    (c.data.steps.mapping === "skipped" ||
+      !c.data.mappings.some((m) => m.confirmed && !m.ignored) ||
+      c.data.mappings.some((m) => !m.confirmed && !m.ignored))
+      ? [
+          {
+            step: "mapping",
+            label: "Review mapping",
+            text: "Match source fields to your business.",
+            Icon: Link2,
+          },
+        ]
+      : []),
+    ...(!c.data.priorities.length
+      ? [
+          {
+            step: "priorities",
+            label: "Set priorities",
+            text: "Choose what deserves attention.",
+            Icon: Compass,
+          },
+        ]
+      : []),
+    ...(!c.data.goals.length
+      ? [
+          {
+            step: "goals",
+            label: "Add a goal",
+            text: "Give your team a clear direction.",
+            Icon: Target,
+          },
+        ]
+      : []),
+  ];
   function secondary(section: Section) {
+    if (
+      !sample &&
+      ["dependencies", "deadlines"].includes(section) &&
+      (location.hash === "#" + section ||
+        c.data.departments.some((d) =>
+          /project|operations|delivery|engineering/i.test(d),
+        ))
+    ) {
+      const Icon = section === "dependencies" ? Network : CalendarDays;
+      return (
+        <section
+          className="exec-panel"
+          id={`dashboard-${section}`}
+          key={section}
+        >
+          <h2>{sectionLabels[section]}</h2>
+          <div className="exec-empty-state">
+            <Icon size={22} />
+            <h3>
+              {section === "dependencies"
+                ? "No connected relationships yet"
+                : "No delivery records yet"}
+            </h3>
+            <p>
+              {section === "dependencies"
+                ? "Connect project and team data to reveal shared dependencies."
+                : "Add project data to bring upcoming milestones into view."}
+            </p>
+            {editable && (
+              <Link
+                className="button secondary"
+                to={setup(c.data.sources.length ? "mapping" : "integrations")}
+              >
+                {c.data.sources.length ? "Review mapping" : "Add project data"}
+                <ArrowUpRight size={13} />
+              </Link>
+            )}
+          </div>
+        </section>
+      );
+    }
+
     if (section === "departments")
       return (
-        c.data.departments.length > 0 && (
-          <section
-            id={`dashboard-${section}`}
-            className="exec-panel"
-            key={section}
-          >
-            <h2>Department intelligence</h2>
+        <section
+          id={`dashboard-${section}`}
+          className="exec-panel"
+          key={section}
+        >
+          <h2>Department intelligence</h2>
+          {depts.length > 0 && (
             <div className="exec-matrix-head">
               <span>Department</span>
               <span>Key measure</span>
               <span>Trend</span>
               <span>Status</span>
             </div>
-            {depts.length ? (
-              depts.map((d) => {
-                const signal = departmentSignal(d);
-                return (
-                  <button
-                    className="exec-row exec-matrix-row"
-                    key={d}
-                    onClick={() =>
-                      open(
-                        d,
-                        signal.detail,
-                        ...(sample?.risks
-                          .filter((r) => r.department === d)
-                          .map((r) => `${r.title}. ${r.impact}`) || []),
-                      )
-                    }
-                  >
-                    <span>{d}</span>
-                    <span>{signal.metric}</span>
-                    <span className="exec-matrix-trend" title={signal.detail}>
-                      {signal.trend}
-                    </span>
-                    <small data-status={signal.status}>{signal.status}</small>
-                  </button>
-                );
-              })
-            ) : (
-              <p>No departments selected.</p>
-            )}
-          </section>
-        )
+          )}
+          {depts.length ? (
+            depts.map((d) => {
+              const signal = departmentSignal(d);
+              return (
+                <button
+                  className="exec-row exec-matrix-row"
+                  key={d}
+                  onClick={() =>
+                    open(
+                      d,
+                      signal.detail,
+                      ...(sample?.risks
+                        .filter((r) => r.department === d)
+                        .map((r) => `${r.title}. ${r.impact}`) || []),
+                    )
+                  }
+                >
+                  <span>{d}</span>
+                  <span>{signal.metric}</span>
+                  <span className="exec-matrix-trend" title={signal.detail}>
+                    {signal.trend}
+                  </span>
+                  <small data-status={signal.status}>{signal.status}</small>
+                </button>
+              );
+            })
+          ) : (
+            <div className="exec-empty-state">
+              <Building2 size={22} />
+              <h3>No departments yet</h3>
+              <p>Add your teams to see department-level insights.</p>
+              {editable ? (
+                <Link className="button secondary" to={setup("departments")}>
+                  Add departments <ArrowUpRight size={13} />
+                </Link>
+              ) : (
+                <small>Ask your workspace admin to add departments.</small>
+              )}
+            </div>
+          )}
+        </section>
       );
     if (section === "goals")
       return (
@@ -359,14 +479,18 @@ export function ExecutiveDashboard({
               );
             })
           ) : (
-            <p>
-              No active goals.{" "}
+            <div className="exec-empty-state">
+              <Target size={22} />
+              <h3>No active goals.</h3>
+              <p>Turn your business priorities into a measurable goal.</p>
               {editable ? (
-                <Link to={setup("goals")}>Set your first goal →</Link>
+                <Link className="button secondary" to={setup("goals")}>
+                  Set your first goal <ArrowUpRight size={13} />
+                </Link>
               ) : (
-                "An administrator can add goals."
+                <small>An administrator can add goals.</small>
               )}
-            </p>
+            </div>
           )}
         </section>
       );
@@ -671,7 +795,41 @@ export function ExecutiveDashboard({
           )}
         </div>
       )}
-      <div className="exec-metrics">
+      {(!sample || Object.values(c.data.steps).includes("skipped")) &&
+        editable &&
+        setupTasks.length > 0 && (
+          <section
+            className="exec-onboarding-tasks"
+            aria-label="Complete your workspace"
+          >
+            <div className="exec-section-head">
+              <div>
+                <h2>A little setup. A clearer picture.</h2>
+                <p>
+                  Pick up the essentials you skipped. Optional steps can wait.
+                </p>
+              </div>
+            </div>
+            <div className="exec-setup-task-grid">
+              {setupTasks.map(({ step, label, text, Icon }) => (
+                <Link key={step} to={setup(step)} className="exec-setup-task">
+                  <Icon size={19} />
+                  <span>
+                    <strong>{label}</strong>
+                    <small>{text}</small>
+                  </span>
+                  <ArrowUpRight size={15} />
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+      <div
+        className="exec-metrics"
+        style={{
+          gridTemplateColumns: `repeat(${Math.max(1, prefs.metrics.filter((m) => availableMetrics(profile, c).includes(m)).length)},minmax(0,1fr))`,
+        }}
+      >
         {prefs.metrics
           .filter((m) => availableMetrics(profile, c).includes(m))
           .map((m) => {
@@ -723,8 +881,13 @@ export function ExecutiveDashboard({
                           .replace("of", "/")
                           .replace("planned milestones", "milestones"),
                       }[m]
-                    : "No data"}
+                    : "Awaiting data"}
                 </small>
+                {!metric && (
+                  <span className="exec-metric-empty-hint">
+                    Source required <ArrowUpRight size={12} />
+                  </span>
+                )}
                 {m === "utilization" && metric && (
                   <span className="exec-utilization">
                     <span style={{ width: `${metric.value}%` }} />
@@ -749,7 +912,11 @@ export function ExecutiveDashboard({
                   ? profile === "saas"
                     ? "Recurring revenue"
                     : "Revenue & operating costs"
-                  : "Delivery performance"}
+                  : c.data.departments.some((d) =>
+                        /project|delivery|operations|engineering/i.test(d),
+                      )
+                    ? "Delivery performance"
+                    : "Business performance"}
               </h2>
               <p>
                 {sample
@@ -862,12 +1029,26 @@ export function ExecutiveDashboard({
             </>
           ) : (
             <div className="exec-no-chart">
-              <span>—</span>
+              <BarChart3 size={27} />
+              <h3>Your performance story starts with data.</h3>
               <p>
                 No validated {financial ? "revenue or expense" : "delivery"}{" "}
                 records yet.
               </p>
-              <small>Connect and validate a source to see performance.</small>
+              {editable && (
+                <Link
+                  className="button secondary"
+                  to={setup(c.data.sources.length ? "mapping" : "integrations")}
+                >
+                  {c.data.sources.length
+                    ? "Review data mapping"
+                    : "Connect data"}
+                  <ArrowUpRight size={13} />
+                </Link>
+              )}
+              <small>
+                Values stay empty until source records are validated.
+              </small>
             </div>
           )}
         </section>
@@ -923,16 +1104,20 @@ export function ExecutiveDashboard({
             )
           ) : (
             <div className="exec-setup">
+              <Compass size={22} />
               <div>
-                <h3>Connect a source, then confirm your mapping.</h3>
+                <h3>No business signals yet.</h3>
                 <p>
                   Revenue, risks and delivery signals will appear once records
                   are validated.
                 </p>
               </div>
               {editable && (
-                <Link className="button secondary" to={setup("integrations")}>
-                  Connect data ↗
+                <Link
+                  className="button secondary"
+                  to={setup(c.data.sources.length ? "mapping" : "integrations")}
+                >
+                  {c.data.sources.length ? "Review mapping" : "Connect data"} ↗
                 </Link>
               )}
             </div>
@@ -1197,6 +1382,15 @@ export function ExecutiveDashboard({
               </small>
             )}
             <div className="modal-actions">
+              {!sample && editable && (
+                <Link
+                  className="button secondary"
+                  to={setup(c.data.sources.length ? "mapping" : "integrations")}
+                  onClick={() => setDetail(null)}
+                >
+                  Add data <ArrowUpRight size={13} />
+                </Link>
+              )}
               <Button
                 variant="secondary"
                 onClick={() => {

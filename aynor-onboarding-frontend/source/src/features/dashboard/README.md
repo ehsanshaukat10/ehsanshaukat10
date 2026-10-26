@@ -44,3 +44,11 @@ The default performance view compares revenue and operating costs in grouped bar
 Delivery status uses a compact stacked bar calculated from the displayed project records; each segment opens its matching projects, deadlines and evidence. Risk severity, impact and recommended action receive separate visual treatments. Existing optional concentration/activity modules remain optional.
 
 The compact header offers workspace search and Ask Aynor (Ctrl/Cmd+K). Search uses configured companies, destinations, departments and goals, and can pass a question into the existing local assistant. Notifications derive only from incomplete setup and unconfirmed mappings; no external messages or invented performance alerts are supplied. Account identity stays in the sidebar, with role and local plan combined into one compact secondary line. Plan changes remain explicitly simulated, without billing or external services.
+
+## Skipped onboarding recovery
+
+New workspaces without validated records show unavailable performance values, not the illustrative dataset. The populated demo remains available for explicitly configured example workspaces; skipping goals/priorities does not discard their configured example data. Skipping data connection or mapping produces an honest data-empty state. The header's Demo badge follows the same eligibility rule.
+
+Overview offers only outstanding setup actions for departments, source connection, field mapping, priorities and goals. Each action opens the existing onboarding step with `return=overview`; saving returns directly to the dashboard and removes the completed prompt. The original seven-step and review-edit journeys retain their navigation. Empty chart, department, goal and relevant operational sections use restrained icons and specific setup links. Unknown metrics stay as dashes and link to source setup; existing configuration remains visible. Read-only roles receive administrator guidance rather than edit actions.
+
+Check the full real journey: `PROTOTYPE_URL=http://127.0.0.1:5175 node src/tests/onboarding-empty.browser.mjs` (use the running preview's port). It creates a workspace, skips optional setup, completes onboarding, verifies empty Overview and refresh behavior, adds a department through a recovery action, saves back to Overview, and checks responsive layout and zero backend requests.

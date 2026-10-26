@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   overviewExampleCompany,
+  usesExampleData,
   buildSample,
   totals,
   inferProfile,
@@ -137,4 +138,42 @@ legacy.layoutRevision = 2;
 assert.ok(readPreferences("current", c).sections.includes("activity"));
 console.log(
   "PASS layout migration removes legacy default noise and preserves explicit current preferences",
+);
+
+const demoReady = {
+  ...c,
+  data: {
+    ...c.data,
+    demo: true,
+    connected: true,
+    sources: ["Example workbook"],
+    mappings: [{ confirmed: true, ignored: false }],
+    steps: {
+      integrations: "completed",
+      mapping: "completed",
+      goals: "skipped",
+    },
+  },
+};
+assert.equal(usesExampleData(demoReady), true);
+assert.equal(
+  usesExampleData({ ...demoReady, data: { ...demoReady.data, sources: [] } }),
+  false,
+);
+assert.equal(
+  usesExampleData({
+    ...demoReady,
+    data: {
+      ...demoReady.data,
+      steps: { ...demoReady.data.steps, mapping: "skipped" },
+    },
+  }),
+  false,
+);
+assert.equal(
+  usesExampleData({ ...demoReady, data: { ...demoReady.data, demo: false } }),
+  false,
+);
+console.log(
+  "PASS missing data never becomes example metrics and optional skipped setup preserves configured example data",
 );

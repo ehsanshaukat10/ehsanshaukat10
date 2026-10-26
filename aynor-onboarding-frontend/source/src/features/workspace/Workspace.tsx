@@ -1,3 +1,4 @@
+import { usesExampleData } from "../dashboard/model";
 import "./shell.css";
 import { OnboardingFrame } from "../onboarding/OnboardingFrame";
 import {
@@ -576,12 +577,18 @@ export function Workspace({
             <kbd>{/Mac/.test(navigator.platform) ? "⌘ K" : "Ctrl K"}</kbd>
           </button>
           <div>
-            <span
-              className="workspace-example-label"
-              title="Illustrative business data; not live company performance."
-            >
-              {overview ? "Demo" : "Workspace"}
-            </span>
+            {overview &&
+              (new URLSearchParams(location.search).get("state")
+                ? new URLSearchParams(location.search).get("state") !==
+                  "workspace"
+                : company && usesExampleData(company)) && (
+                <span
+                  className="workspace-example-label"
+                  title="Illustrative business data; not live company performance."
+                >
+                  Demo
+                </span>
+              )}
             <button
               className="header-updates"
               aria-label="Workspace notifications"

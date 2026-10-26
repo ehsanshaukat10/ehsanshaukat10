@@ -137,6 +137,8 @@ export function SevenStepOnboarding({
     [editing, setEditing] = useState<number | null>(null);
   const [mappingPage, setMappingPage] = useState(0);
   const dirty = JSON.stringify(data) !== JSON.stringify(company.data);
+  const overviewEdit =
+    new URLSearchParams(location.search).get("return") === "overview";
   const reviewEdit =
     new URLSearchParams(location.search).get("return") === "review";
   useEffect(() => {
@@ -238,13 +240,17 @@ export function SevenStepOnboarding({
       target = reviewEdit ? "review" : steps[index + 1] || "complete";
     const next = {
       ...data,
-      step: target,
+      step: overviewEdit ? company.data.step : target,
       steps: { ...data.steps, [step]: skip ? "skipped" : "completed" },
       ...(step === "review" ? { completed: true } : {}),
     };
     if (await save(next)) {
       sessionStorage.removeItem(draftKey);
-      nav(`/companies/${company.id}/onboarding/${target}`);
+      nav(
+        overviewEdit
+          ? `/companies/${company.id}/overview`
+          : `/companies/${company.id}/onboarding/${target}`,
+      );
     }
   }
   function attachSource(name: string, fields: string[], demo: boolean) {
@@ -1084,6 +1090,10 @@ export function SevenStepOnboarding({
               variant="text"
               disabled={busy || working}
               onClick={async () => {
+                if (overviewEdit) {
+                  nav(`/companies/${company.id}/overview`);
+                  return;
+                }
                 const target = reviewEdit
                   ? "review"
                   : steps[Math.max(0, steps.indexOf(step) - 1)];
@@ -1102,7 +1112,8 @@ export function SevenStepOnboarding({
               {["mapping", "priorities", "goals", "integrations"].includes(
                 step,
               ) &&
-                !reviewEdit && (
+                !reviewEdit &&
+                !overviewEdit && (
                   <Button
                     variant="text"
                     disabled={busy || working}
@@ -1114,9 +1125,11 @@ export function SevenStepOnboarding({
               <Button busy={busy} disabled={working} onClick={() => advance()}>
                 {step === "review"
                   ? "Enter Aynor"
-                  : reviewEdit
-                    ? "Save & return to review"
-                    : "Continue"}
+                  : overviewEdit
+                    ? "Save & return to overview"
+                    : reviewEdit
+                      ? "Save & return to review"
+                      : "Continue"}
                 <ArrowRight size={17} />
               </Button>
             </div>
