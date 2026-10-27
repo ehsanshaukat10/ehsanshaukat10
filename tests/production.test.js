@@ -17,6 +17,8 @@ test("production mode serves the SPA and never exposes development delivery", as
       NODE_ENV: "production",
       FRONTEND_DIST: "aynor-onboarding-frontend/source/dist",
       ENABLE_DEV_SESSION: "true",
+      INITIAL_OWNER_EMAIL: "pilot-owner@example.test",
+      INITIAL_OWNER_PASSWORD: "production-test-password-only",
       PORT: "3197",
       DATA_DIR: dir,
     },
@@ -35,6 +37,24 @@ test("production mode serves the SPA and never exposes development delivery", as
     assert.ok(response?.ok);
     const config = await response.json();
     assert.equal(config.development, false);
+    const health = await fetch(base + "/healthz");
+    assert.equal(health.status, 200);
+    assert.deepEqual(await health.json(), { status: "ok" });
+    const login = await fetch(base + "/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: "pilot-owner@example.test",
+        password: "production-test-password-only",
+      }),
+    });
+    assert.equal(login.status, 200);
+    assert.match(login.headers.get("set-cookie"), /HttpOnly/);
+    assert.match(login.headers.get("set-cookie"), /Secure/);
+    const owner = await login.json();
+    assert.equal(owner.user.verified, true);
+    assert.equal(owner.user.password, undefined);
+
     assert.equal(config.developmentSession, false);
     assert.equal(
       (

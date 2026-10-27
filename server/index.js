@@ -1,3 +1,4 @@
+import { bootstrapOwner } from "./bootstrap.js";
 import { createSheetsService } from "./sheets/service.js";
 import http from "node:http";
 import { z } from "zod";
@@ -36,6 +37,7 @@ const validPassword = (p, s) => {
   const [salt, key] = s.split(":");
   return timingSafeEqual(Buffer.from(key, "hex"), scryptSync(p, salt, 64));
 };
+bootstrapOwner({ db, hashPassword: password });
 const fail = (status, message) => {
   throw Object.assign(new Error(message), { status });
 };
@@ -857,6 +859,20 @@ const server = http.createServer((req, res) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "same-origin");
   res.setHeader("X-Frame-Options", "DENY");
+  if (req.method === "GET" && req.url === "/healthz") {
+    try {
+      db.prepare("SELECT 1").get();
+      res.writeHead(200, {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store",
+      });
+      res.end('{"status":"ok"}');
+    } catch {
+      res.writeHead(503, { "Content-Type": "application/json" });
+      res.end('{"status":"unavailable"}');
+    }
+    return;
+  }
   if (req.url.startsWith("/api/")) return api(req, res);
   if (production) {
     let pathname;

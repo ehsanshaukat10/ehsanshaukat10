@@ -23,3 +23,8 @@ The offline prototype is still [aynor-onboarding-frontend/index.html](aynor-onbo
 Sync polls Google on an interval (60 seconds by default), publishes browser events immediately after server updates and retains the last valid snapshot on failure. It does not receive instant cell-change notifications. Actual live Google access requires configuration and a source link; automated checks use controlled upstream responses.
 
 This implementation is a **single-instance development MVP**, not a public production release. Development identity bypass is forbidden in production. Real production identity, external rollout and domain-specific live ingestion for the other intelligence modules remain subsequent work. The financial Overview uses live snapshots; other modules do not invent financial/project/people evidence from those records. See the architecture document for limits, storage, APIs, Google setup and deployment requirements.
+
+For a first hosted pilot, see [Render setup](docs/render-setup.md). The repository
+includes a paid-service blueprint with persistent storage and one-time owner
+provisioning. Deploy the app and API together on Render initially; Vercel stays
+unchanged until a separate proxy/domain configuration is tested.

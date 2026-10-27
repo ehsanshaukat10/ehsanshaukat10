@@ -1,0 +1,31 @@
+# First hosted pilot: app + API together. Vercel stays unchanged.
+# Starter + persistent disk is paid; review Render's displayed price before deployment.
+services:
+  - type: web
+    name: aynor
+    runtime: node
+    plan: starter
+    numInstances: 1
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeployTrigger: "off"
+    disk:
+      name: aynor-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /var/data/aynor
+      - key: ENABLE_DEV_SESSION
+        value: "false"
+      - key: SHEETS_SYNC_INTERVAL_MS
+        value: "60000"
+      - key: INITIAL_OWNER_EMAIL
+        sync: false
+      - key: INITIAL_OWNER_PASSWORD
+        generateValue: true
