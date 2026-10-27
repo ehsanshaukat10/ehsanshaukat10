@@ -71,9 +71,39 @@ export function createDatabase({ env = process.env, fetchImpl = fetch } = {}) {
           503,
           "Database setup is incomplete. Run both AYNOR Supabase setup scripts.",
         );
+      // Provider messages/details can contain record values or password hashes.
+      // Report only an allowlisted code and our fixed operation identifier.
+      const code = /^[A-Z0-9_]{1,20}$/.test(String(result?.code || ""))
+        ? String(result.code)
+        : `HTTP_${response.status}`;
+      const operation = /^[a-z_]+(?:\/[a-z_]+)?$/.test(path)
+        ? `${method} ${path}`
+        : method;
+      const reference = `${operation}; ${code}`;
+      console.error("Supabase request failed", {
+        method,
+        operation: path,
+        code,
+        status: response.status,
+      });
+      if (code === "42501")
+        fail(
+          503,
+          `Supabase denied database permissions (${reference}). The AYNOR server-role grants or row security need checking.`,
+        );
+      if (code === "PGRST204")
+        fail(
+          503,
+          `Supabase does not recognize a required database column (${reference}). The schema or API schema cache needs checking.`,
+        );
+      if (response.status === 401 || code === "PGRST301")
+        fail(
+          503,
+          `Supabase rejected the server credential (${reference}). Check the deployed SUPABASE_URL and SUPABASE_SECRET_KEY.`,
+        );
       fail(
         503,
-        "Database request failed. Check project configuration or retry shortly.",
+        `Database request failed (${reference}). No password or source data is included in this error.`,
       );
     }
     return result;
