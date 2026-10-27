@@ -1,0 +1,9 @@
+# Supabase migration — database foundation
+
+Run the entire `migrations/202610270001_aynor_foundation.sql` file in Supabase SQL Editor as the project administrator. A successful run ends with `AYNOR database setup complete`. The script runs in a transaction, can be rerun, and creates only prefixed AYNOR tables and indexes. It does not drop tables, insert accounts, include credentials, or transfer existing SQLite records.
+
+All twelve tables enable RLS. PUBLIC, anon and authenticated roles receive no table privileges. Only the backend service role receives data access; company authorization must still be enforced by the API. Do not expose `SUPABASE_SECRET_KEY` to the browser or prefix it with `VITE_`. This setup uses the app's existing server-managed identity model; it does not create Supabase Auth accounts or enable public signup.
+
+**This is the database foundation only.** The existing backend still uses SQLite and a long-lived server. Installing this schema and setting Vercel environment variables does not migrate or connect it. The remaining work includes the asynchronous HTTPS database adapter, atomic RPC operations for company/version writes and snapshot publication, serverless routing under the Vercel project root, and manual sync with bounded function execution. Vercel/Supabase integration must pass tests before enabling live API mode or redeploying the public app.
+
+The foundation was checked in an isolated PostgreSQL-compatible PGlite instance for SQL execution, reruns, preservation of rows, RLS enablement, denial of browser-role reads/writes and backend-role access. To repeat that optional developer check, install `@electric-sql/pglite` outside the repository and run `PGLITE_MODULE=/absolute/path/to/package/dist/index.js node supabase/check-schema.mjs`. This does not verify the hosted Supabase project's configuration or execute SQL there.
