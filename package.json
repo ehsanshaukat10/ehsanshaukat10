@@ -13,7 +13,8 @@
     "format:check": "prettier --check server scripts tests/*.test.js tests/*.mjs tests/fixtures",
     "dev:live": "node scripts/dev-live.mjs",
     "build:live": "cd aynor-onboarding-frontend/source && VITE_API_MODE=server npm run build",
-    "start:live": "NODE_ENV=production FRONTEND_DIST=aynor-onboarding-frontend/source/dist node server/index.js"
+    "start:live": "NODE_ENV=production FRONTEND_DIST=aynor-onboarding-frontend/source/dist node server/index.js",
+    "test:serverless": "node scripts/test-serverless.mjs"
   },
   "dependencies": {
     "@fontsource/geist": "^5.3.0",
@@ -27,6 +28,7 @@
     "zod": "^4.1.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.12",
     "@playwright/test": "^1.64.1",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",

@@ -27,6 +27,7 @@ export type SourceStatus = {
   hasSnapshot: boolean;
   revision: number;
   intervalMs: number;
+  syncMode?: "manual";
 };
 type Inspection = {
   spreadsheetId: string;
@@ -42,35 +43,42 @@ export function useSheetStatus(company: string, enabled = true) {
   useEffect(() => {
     if (!enabled) return;
     let active = true;
+    let events: EventSource | null = null;
     const reload = () =>
       serverRequest<SourceStatus>(`/companies/${company}/sheets`)
         .then((s) => {
           if (active) {
             setSource(s);
             setError("");
+            if (s.syncMode !== "manual" && !events) {
+              events = new EventSource(
+                `/api/companies/${company}/sheets/events`,
+              );
+              events.addEventListener("sync", (event) => {
+                if (active) {
+                  setSource(JSON.parse((event as MessageEvent).data));
+                  setError("");
+                }
+              });
+              events.onerror = () => {
+                if (active)
+                  setError(
+                    "Live updates interrupted. Status refreshes every 15 seconds.",
+                  );
+              };
+            }
           }
         })
         .catch((e) => {
           if (active) setError(e.message);
         });
     void reload();
-    const events = new EventSource(`/api/companies/${company}/sheets/events`);
-    events.addEventListener("sync", (event) => {
-      if (active) {
-        setSource(JSON.parse((event as MessageEvent).data));
-        setError("");
-      }
-    });
-    events.onerror = () => {
-      if (active)
-        setError(
-          "Live updates interrupted. Reconnecting; status refreshes every 15 seconds.",
-        );
-    };
     const timer = setInterval(reload, 15000);
+    window.addEventListener("aynor:sheet-change", reload);
     return () => {
       active = false;
-      events.close();
+      events?.close();
+      window.removeEventListener("aynor:sheet-change", reload);
       clearInterval(timer);
     };
   }, [company, enabled]);
@@ -84,7 +92,16 @@ export function SheetsConnection({ companyId }: { companyId: string }) {
     [mapping, setMapping] = useState({ date: "", revenue: "", expenses: "" }),
     [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
-    [message, setMessage] = useState(""),
+    [message, setMessage] = useState(() => {
+      const result = new URLSearchParams(window.location.search).get("google");
+      return result === "cancelled"
+        ? "Google connection cancelled. Your previous source is unchanged."
+        : result === "failed"
+          ? "Google connection could not be completed. Check its configuration and try again."
+          : result === "connected"
+            ? "Google account connected. Select a spreadsheet below."
+            : "";
+    }),
     [remove, setRemove] = useState(false);
   const root = `/companies/${companyId}/sheets`;
   async function perform(name: string, task: () => Promise<void>) {
@@ -97,6 +114,7 @@ export function SheetsConnection({ companyId }: { companyId: string }) {
       setError((e as Error).message);
     } finally {
       setBusy("");
+      window.dispatchEvent(new Event("aynor:sheet-change"));
     }
   }
   async function inspect(tabId?: number) {
@@ -223,7 +241,9 @@ export function SheetsConnection({ companyId }: { companyId: string }) {
                   mapping,
                 });
                 setMessage(
-                  "Mapping saved. Validation and first sync are running.",
+                  source?.syncMode === "manual"
+                    ? "Mapping saved and first sync completed."
+                    : "Mapping saved. Validation and first sync are running.",
                 );
                 setInspection(null);
               });
@@ -308,8 +328,9 @@ export function SheetsConnection({ companyId }: { companyId: string }) {
               : ""}
           </p>
           <p>
-            Checks for changes every {Math.round(source.intervalMs / 1000)}{" "}
-            seconds. Changes appear after the next successful read.
+            {source.syncMode === "manual"
+              ? "Manual sync: click Sync now after updating your sheet. No background sync is scheduled."
+              : `Checks for changes every ${Math.round(source.intervalMs / 1000)} seconds. Changes appear after the next successful read.`}
           </p>
           <div className="intel-inline-links">
             <Button
@@ -321,7 +342,11 @@ export function SheetsConnection({ companyId }: { companyId: string }) {
               onClick={() =>
                 perform("sync", async () => {
                   await serverRequest(root + "/sync", "POST");
-                  setMessage("Sync requested. Status updates automatically.");
+                  setMessage(
+                    source.syncMode === "manual"
+                      ? "Sync completed. Your report is up to date."
+                      : "Sync requested. Status updates automatically.",
+                  );
                 })
               }
             >

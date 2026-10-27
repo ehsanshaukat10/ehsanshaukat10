@@ -7,8 +7,27 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } }),
   errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
+page.on("request", (request) => {
+  if (
+    process.env.SERVERLESS_TEST === "true" &&
+    new URL(request.url()).pathname.endsWith("/sheets/events")
+  )
+    errors.push("Hosted manual mode opened an SSE stream");
+});
 try {
-  await page.goto("http://127.0.0.1:5176/entry");
+  if (process.env.SERVERLESS_TEST === "true") {
+    await page.goto("http://127.0.0.1:5176/auth/login");
+    await expect(
+      page.getByRole("heading", { name: "Welcome back.", exact: true }),
+    ).toBeVisible();
+    await page
+      .getByLabel("Email address", { exact: true })
+      .fill("owner@example.test");
+    await page
+      .getByLabel("Password", { exact: true })
+      .fill("a-long-test-password-only");
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  } else await page.goto("http://127.0.0.1:5176/entry");
   await expect(
     page.getByRole("heading", {
       name: "Let’s build your workspace.",
@@ -71,86 +90,97 @@ try {
   await expect(page.locator(".live-records tbody tr")).toHaveCount(2);
   await page.reload();
   await expect(page.locator(".live-records tbody tr")).toHaveCount(2);
+  if (process.env.SERVERLESS_TEST === "true") {
+    await page.goto(
+      `http://127.0.0.1:5176/companies/${company}/settings/connections`,
+    );
+    await expect(page.locator(".live-source")).toContainText("Manual sync");
+    await expect(page.locator(".live-source")).not.toContainText("every 0");
+    await page.goto(`http://127.0.0.1:5176/companies/${company}/overview`);
+    await expect(page.locator(".live-records tbody tr")).toHaveCount(2);
+  }
   await page.screenshot({
     path: "/tmp/aynor-live-overview.png",
     fullPage: true,
   });
-  const viewerContext = await browser.newContext();
-  try {
-    const response = await viewerContext.request.post(
-      "http://127.0.0.1:5176/api/auth/signup",
-      {
-        data: {
-          name: "Scoped Viewer",
-          email: "viewer-live@example.test",
-          password: "Strong-password-123",
+  if (process.env.SERVERLESS_TEST !== "true") {
+    const viewerContext = await browser.newContext();
+    try {
+      const response = await viewerContext.request.post(
+        "http://127.0.0.1:5176/api/auth/signup",
+        {
+          data: {
+            name: "Scoped Viewer",
+            email: "viewer-live@example.test",
+            password: "Strong-password-123",
+          },
         },
-      },
-    );
-    const account = await response.json();
-    assert.ok(response.ok());
-    assert.ok(
-      (
-        await viewerContext.request.post(
-          "http://127.0.0.1:5176/api/auth/verify",
-          { data: { token: account.developmentToken } },
-        )
-      ).ok(),
-    );
-    const invitation = await page.request.post(
-      `http://127.0.0.1:5176/api/companies/${company}/invitations`,
-      {
-        data: {
-          email: "viewer-live@example.test",
-          role: "Viewer",
-          scope: ["Finance"],
+      );
+      const account = await response.json();
+      assert.ok(response.ok());
+      assert.ok(
+        (
+          await viewerContext.request.post(
+            "http://127.0.0.1:5176/api/auth/verify",
+            { data: { token: account.developmentToken } },
+          )
+        ).ok(),
+      );
+      const invitation = await page.request.post(
+        `http://127.0.0.1:5176/api/companies/${company}/invitations`,
+        {
+          data: {
+            email: "viewer-live@example.test",
+            role: "Viewer",
+            scope: ["Finance"],
+          },
         },
-      },
-    );
-    const invited = await invitation.json();
-    assert.ok(invitation.ok());
-    const token = invited.developmentLink.split("/").pop();
-    assert.ok(
-      (
-        await viewerContext.request.post(
-          `http://127.0.0.1:5176/api/invitations/${token}/accept`,
-          { data: {} },
-        )
-      ).ok(),
-    );
-    const viewerPage = await viewerContext.newPage();
-    viewerPage.on("pageerror", (error) => errors.push(error.message));
-    await viewerPage.goto(
-      `http://127.0.0.1:5176/companies/${company}/overview`,
-    );
-    await expect(
-      viewerPage.getByRole("heading", {
-        name: "Scoped reporting",
-        exact: true,
-      }),
-    ).toBeVisible();
-    assert.equal(
-      (
-        await viewerContext.request.get(
-          `http://127.0.0.1:5176/api/companies/${company}/sheets/overview`,
-        )
-      ).status(),
-      403,
-    );
-    await viewerPage.goto(
-      `http://127.0.0.1:5176/companies/${company}/settings/connections`,
-    );
-    await expect(
-      viewerPage.getByRole("heading", {
-        name: "Administrator access required",
-        exact: true,
-      }),
-    ).toBeVisible();
-    console.log(
-      "PASS actual scoped member can open the shell but cannot read company-wide snapshots or manage connections",
-    );
-  } finally {
-    await viewerContext.close();
+      );
+      const invited = await invitation.json();
+      assert.ok(invitation.ok());
+      const token = invited.developmentLink.split("/").pop();
+      assert.ok(
+        (
+          await viewerContext.request.post(
+            `http://127.0.0.1:5176/api/invitations/${token}/accept`,
+            { data: {} },
+          )
+        ).ok(),
+      );
+      const viewerPage = await viewerContext.newPage();
+      viewerPage.on("pageerror", (error) => errors.push(error.message));
+      await viewerPage.goto(
+        `http://127.0.0.1:5176/companies/${company}/overview`,
+      );
+      await expect(
+        viewerPage.getByRole("heading", {
+          name: "Scoped reporting",
+          exact: true,
+        }),
+      ).toBeVisible();
+      assert.equal(
+        (
+          await viewerContext.request.get(
+            `http://127.0.0.1:5176/api/companies/${company}/sheets/overview`,
+          )
+        ).status(),
+        403,
+      );
+      await viewerPage.goto(
+        `http://127.0.0.1:5176/companies/${company}/settings/connections`,
+      );
+      await expect(
+        viewerPage.getByRole("heading", {
+          name: "Administrator access required",
+          exact: true,
+        }),
+      ).toBeVisible();
+      console.log(
+        "PASS actual scoped member can open the shell but cannot read company-wide snapshots or manage connections",
+      );
+    } finally {
+      await viewerContext.close();
+    }
   }
 
   for (const width of [390, 768, 1920]) {
@@ -179,7 +209,9 @@ try {
   ).toBeVisible();
   assert.deepEqual(errors, []);
   console.log(
-    "PASS live frontend → development session → real company creation → public connection → server mapping → sync events → calculated dashboard → reload → responsive layouts → disconnect clears data",
+    process.env.SERVERLESS_TEST === "true"
+      ? "PASS serverless frontend → owner sign-in → PostgreSQL company creation → public sheet → atomic mapping/manual sync → calculated report → reload → responsive layouts → disconnect; no SSE"
+      : "PASS live frontend → development session → real company creation → public connection → server mapping → sync events → calculated dashboard → reload → responsive layouts → disconnect clears data",
   );
 } catch (error) {
   console.log(await page.locator("body").innerText());

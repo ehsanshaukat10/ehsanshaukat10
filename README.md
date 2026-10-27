@@ -1,6 +1,6 @@
 # AYNOR
 
-The approved onboarding/dashboard frontend plus a Node 24 + SQLite backend for the first live Google Sheets reporting flow.
+The approved onboarding/dashboard frontend supports a Vercel + Supabase manual-sync backend and the existing Node 24 + SQLite local backend. For the hosted pilot, follow [Vercel/Supabase activation](docs/vercel-supabase.md). The commands below start the separate local development setup.
 
 ```sh
 npm ci
@@ -28,3 +28,5 @@ For a first hosted pilot, see [Render setup](docs/render-setup.md). The reposito
 includes a paid-service blueprint with persistent storage and one-time owner
 provisioning. Deploy the app and API together on Render initially; Vercel stays
 unchanged until a separate proxy/domain configuration is tested.
+
+For the Vercel + Supabase manual-sync path, see [activation and architecture](docs/vercel-supabase.md). Keep the existing Vercel project root. Run both Supabase scripts, configure a private owner account and explicitly enable `VITE_API_MODE=server` before redeploying. The standalone HTML remains offline. `npm run test:serverless` exercises this separate backend against PostgreSQL with controlled upstream responses.
