@@ -9,10 +9,23 @@ function start(args, env = {}) {
   return child;
 }
 try {
+  const build = start(
+    [
+      "node_modules/vite/bin/vite.js",
+      "build",
+      "aynor-onboarding-frontend/source",
+      "--config",
+      "aynor-onboarding-frontend/source/vite.config.ts",
+    ],
+    { VERCEL: "1", VITE_API_MODE: "" },
+  );
+  if ((await new Promise((resolve) => build.on("exit", resolve))) !== 0)
+    throw Error("Vercel-mode build failed.");
   const api = start(["tests/fixtures/serverless-server.mjs"]);
   const vite = start(
     [
       "node_modules/vite/bin/vite.js",
+      "preview",
       "aynor-onboarding-frontend/source",
       "--config",
       "aynor-onboarding-frontend/source/vite.config.ts",
@@ -22,7 +35,7 @@ try {
       "5176",
       "--strictPort",
     ],
-    { VITE_API_MODE: "server", AYNOR_API_URL: "http://127.0.0.1:3194" },
+    { VERCEL: "1", VITE_API_MODE: "", AYNOR_API_URL: "http://127.0.0.1:3194" },
   );
   for (let i = 0; i < 150; i++) {
     if (api.exitCode !== null || vite.exitCode !== null)

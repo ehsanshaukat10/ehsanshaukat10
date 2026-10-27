@@ -1,3 +1,4 @@
+import { serverMode } from "../../lib/runtime";
 import { SkipSignIn } from "../entry/SkipSignIn";
 import { prototype } from "../../lib/mockService";
 import {
@@ -123,8 +124,10 @@ export function BrandPanel() {
 
 export function Auth({ mode: initial }: { mode?: string }) {
   const params = useParams();
-  const mode = initial || params.mode || "signup";
   const { user, setUser, development, toast } = useApp();
+  const hosted = serverMode && !development;
+  const requestedMode = initial || params.mode || "signup";
+  const mode = hosted ? "login" : requestedMode;
   const nav = useNavigate(),
     loc = useLocation();
   const [oauth, setOauth] = useState(false);
@@ -259,7 +262,9 @@ export function Auth({ mode: initial }: { mode?: string }) {
               <Logo />
             </Link>
             <span>
-              {mode === "signup" ? (
+              {hosted ? (
+                "Private workspace"
+              ) : mode === "signup" ? (
                 <>
                   Already a member?{" "}
                   <Link to={link("login")}>
@@ -306,7 +311,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
                 "Choose a strong password for your account."
               )}
             </p>
-            {["signup", "login"].includes(mode) && (
+            {!serverMode && ["signup", "login"].includes(mode) && (
               <>
                 <button
                   className="google-button"
@@ -395,7 +400,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
                 {["signup", "login", "reset-password"].includes(mode) && (
                   <>
                     <div className="password-heading">
-                      {mode === "login" && (
+                      {mode === "login" && !hosted && (
                         <Link to={link("forgot-password")}>
                           Forgot password?
                         </Link>
@@ -584,11 +589,13 @@ export function Auth({ mode: initial }: { mode?: string }) {
       {legal && (
         <Modal title={legal} onClose={() => setLegal("")}>
           <p>
-            {legal === "Help & support"
-              ? "Explore a sample workspace or create a prototype account. Verification uses 123456. All sign-ins, connections, and email actions are simulated locally."
-              : legal === "Privacy Policy"
-                ? "Frontend prototype: sample company data and profile details stay in this browser. Passwords are discarded and never saved. No backend, Google account, or email service is contacted. Use fictional information only."
-                : "This is an interactive design prototype for evaluation. All integrations, email delivery, and authentication are simulated. No actual business intelligence or production access is provided."}
+            {serverMode
+              ? "Sign in with your workspace owner email and password. Public signup, Google sign-in and email password recovery are not enabled for this pilot. Contact your workspace administrator if you need access."
+              : legal === "Help & support"
+                ? "Explore a sample workspace or create a prototype account. Verification uses 123456. All sign-ins, connections, and email actions are simulated locally."
+                : legal === "Privacy Policy"
+                  ? "Frontend prototype: sample company data and profile details stay in this browser. Passwords are discarded and never saved. No backend, Google account, or email service is contacted. Use fictional information only."
+                  : "This is an interactive design prototype for evaluation. All integrations, email delivery, and authentication are simulated. No actual business intelligence or production access is provided."}
           </p>
           <Button onClick={() => setLegal("")}>Understood</Button>
         </Modal>

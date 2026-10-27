@@ -20,9 +20,28 @@ try {
     await expect(
       page.getByRole("heading", { name: "Welcome back.", exact: true }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Continue with Google", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: /Skip for now/ }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name: "Forgot password?", exact: true }),
+    ).toHaveCount(0);
     await page
       .getByLabel("Email address", { exact: true })
       .fill("owner@example.test");
+    await page
+      .getByLabel("Password", { exact: true })
+      .fill("incorrect-password-for-check");
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(
+      page.getByText("Email or password is incorrect.", { exact: true }),
+    ).toBeVisible();
+    await expect(page.locator("body")).not.toContainText(
+      "Try an account created in this prototype",
+    );
     await page
       .getByLabel("Password", { exact: true })
       .fill("a-long-test-password-only");

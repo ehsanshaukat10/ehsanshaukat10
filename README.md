@@ -18,7 +18,7 @@ npm test            # API, persistence, security, Sheets and production checks
 npm run test:e2e    # real browser/API flow; controlled Google responses, temporary DB
 ```
 
-The offline prototype is still [aynor-onboarding-frontend/index.html](aynor-onboarding-frontend/index.html). It does not contact the backend. Its editable source is in [aynor-onboarding-frontend/source](aynor-onboarding-frontend/source); running Vite there without `VITE_API_MODE=server` preserves prototype mode.
+The offline prototype is still [aynor-onboarding-frontend/index.html](aynor-onboarding-frontend/index.html). It does not contact the backend. Its editable source is in [aynor-onboarding-frontend/source](aynor-onboarding-frontend/source); running Vite there locally without `VITE_API_MODE=server` preserves prototype mode.
 
 Sync polls Google on an interval (60 seconds by default), publishes browser events immediately after server updates and retains the last valid snapshot on failure. It does not receive instant cell-change notifications. Actual live Google access requires configuration and a source link; automated checks use controlled upstream responses.
 
@@ -29,4 +29,4 @@ includes a paid-service blueprint with persistent storage and one-time owner
 provisioning. Deploy the app and API together on Render initially; Vercel stays
 unchanged until a separate proxy/domain configuration is tested.
 
-For the Vercel + Supabase manual-sync path, see [activation and architecture](docs/vercel-supabase.md). Keep the existing Vercel project root. Run both Supabase scripts, configure a private owner account and explicitly enable `VITE_API_MODE=server` before redeploying. The standalone HTML remains offline. `npm run test:serverless` exercises this separate backend against PostgreSQL with controlled upstream responses.
+For the Vercel + Supabase manual-sync path, see [activation and architecture](docs/vercel-supabase.md). Keep the existing Vercel project root. Run both Supabase scripts, configure a private owner account and keep `VITE_API_MODE=server` before redeploying. Vercel builds also select the real API automatically rather than silently using demo accounts. The standalone HTML remains offline. `npm run test:serverless` exercises this separate backend against PostgreSQL with controlled upstream responses.

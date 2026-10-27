@@ -1,3 +1,4 @@
+import { serverMode } from "../../lib/runtime";
 import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -12,9 +13,10 @@ export function SkipSignIn({
   className?: string;
   destination?: string;
 }) {
-  const { setUser, toast } = useApp();
+  const { setUser, toast, development } = useApp();
   const nav = useNavigate();
   const [busy, setBusy] = useState(false);
+  if (serverMode && !development) return null;
   return (
     <button
       type="button"

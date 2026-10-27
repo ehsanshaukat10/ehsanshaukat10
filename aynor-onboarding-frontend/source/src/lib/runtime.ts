@@ -1,5 +1,7 @@
 // Explicit opt-in; standalone exports always retain their offline prototype mode.
-export const serverMode = import.meta.env.VITE_API_MODE === "server";
+export const serverMode =
+  import.meta.env.VITE_HOSTED_APP === true ||
+  import.meta.env.VITE_API_MODE === "server";
 export async function serverRequest<T = any>(
   path: string,
   method = "GET",
