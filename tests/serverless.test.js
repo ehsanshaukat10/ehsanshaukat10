@@ -458,3 +458,84 @@ test("serverless private Sheets: bound OAuth, encrypted credentials, refresh and
     login.data.user.id,
   );
 });
+
+test("owner configuration errors identify the failing setting without exposing or changing credentials", async (t) => {
+  const f = await fixtureDatabase();
+  t.after(() => f.close());
+  const base = {
+    NODE_ENV: "production",
+    SUPABASE_URL: "https://test.supabase.co",
+    SUPABASE_SECRET_KEY: "sb_secret_test_fixture_only",
+    INITIAL_OWNER_EMAIL: "owner@example.test",
+    INITIAL_OWNER_PASSWORD: secret,
+  };
+  async function login(overrides = {}, supplied = secret) {
+    let status, data;
+    const app = createApplication({
+      env: { ...base, ...overrides },
+      fetchImpl: f.fetchImpl,
+    });
+    await app(
+      {
+        url: "/api/auth/login",
+        method: "POST",
+        headers: { host: "aynor.example" },
+        socket: { remoteAddress: "fixture" },
+        body: { email: "owner@example.test", password: supplied },
+      },
+      {
+        writeHead(s) {
+          status = s;
+        },
+        end(value) {
+          data = JSON.parse(value);
+        },
+      },
+    );
+    return { status, data };
+  }
+  for (const [overrides, expected] of [
+    [{ INITIAL_OWNER_EMAIL: "" }, /INITIAL_OWNER_EMAIL is missing/],
+    [
+      { INITIAL_OWNER_EMAIL: "INITIAL_OWNER_EMAIL" },
+      /INITIAL_OWNER_EMAIL is not a valid/,
+    ],
+    [{ INITIAL_OWNER_PASSWORD: "" }, /INITIAL_OWNER_PASSWORD is missing/],
+    [
+      { INITIAL_OWNER_PASSWORD: "too-short" },
+      /INITIAL_OWNER_PASSWORD is too short/,
+    ],
+    [
+      { INITIAL_OWNER_PASSWORD: "x".repeat(201) },
+      /INITIAL_OWNER_PASSWORD exceeds/,
+    ],
+  ]) {
+    const result = await login(overrides);
+    assert.equal(result.status, 503);
+    assert.match(result.data.error, expected);
+    assert.ok(!result.data.error.includes(secret));
+  }
+  assert.equal((await login()).status, 200);
+  const original = (
+    await f.pg.query(
+      "SELECT password FROM public.aynor_users WHERE email='owner@example.test'",
+    )
+  ).rows[0].password;
+  assert.equal(
+    (
+      await login(
+        { INITIAL_OWNER_PASSWORD: "different-strong-password" },
+        "different-strong-password",
+      )
+    ).status,
+    401,
+  );
+  assert.equal(
+    (
+      await f.pg.query(
+        "SELECT password FROM public.aynor_users WHERE email='owner@example.test'",
+      )
+    ).rows[0].password,
+    original,
+  );
+});

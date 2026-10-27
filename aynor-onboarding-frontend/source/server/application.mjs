@@ -135,7 +135,15 @@ export function createApplication({
     )
       fail(
         503,
-        "Configure INITIAL_OWNER_EMAIL and a password of 16–200 characters on the server.",
+        !email
+          ? "INITIAL_OWNER_EMAIL is missing from this deployment. Add your email as its Value in Vercel Production, then redeploy."
+          : !z.string().email().safeParse(email).success
+            ? "INITIAL_OWNER_EMAIL is not a valid email address. Its Value must contain only your email address in Vercel Production, then redeploy."
+            : !secret
+              ? "INITIAL_OWNER_PASSWORD is missing from this deployment. Save it as a Secret in Vercel Production, then redeploy."
+              : secret.trim().length < 16
+                ? "INITIAL_OWNER_PASSWORD is too short. Save a new password with at least 16 characters in Vercel Production, then redeploy."
+                : "INITIAL_OWNER_PASSWORD exceeds 200 characters. Save a shorter password in Vercel Production, then redeploy.",
       );
     const existing = await db.one("users", { email: "eq." + email });
     if (existing) {
