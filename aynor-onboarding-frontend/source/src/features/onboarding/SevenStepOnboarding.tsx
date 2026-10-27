@@ -1,3 +1,5 @@
+import { serverMode } from "../../lib/runtime";
+import { useSheetStatus, SheetsConnection } from "../live/SheetsConnection";
 import {
   ArrowLeft,
   ArrowRight,
@@ -135,6 +137,7 @@ export function SevenStepOnboarding({
     [pending, setPending] = useState("");
   const [goal, setGoal] = useState(freshGoal),
     [editing, setEditing] = useState<number | null>(null);
+  const { source: liveSource } = useSheetStatus(company.id, serverMode);
   const [mappingPage, setMappingPage] = useState(0);
   const dirty = JSON.stringify(data) !== JSON.stringify(company.data);
   const returnKind = new URLSearchParams(location.search).get("return");
@@ -474,7 +477,10 @@ export function SevenStepOnboarding({
           </form>
         </>
       )}
-      {step === "integrations" && (
+      {serverMode && ["integrations", "mapping"].includes(step) && (
+        <SheetsConnection companyId={company.id} />
+      )}
+      {step === "integrations" && !serverMode && (
         <>
           <div
             className="seven-source-tabs"
@@ -598,7 +604,7 @@ export function SevenStepOnboarding({
           )}
         </>
       )}
-      {step === "mapping" && (
+      {step === "mapping" && !serverMode && (
         <>
           {!data.mappings.length ? (
             <Empty
@@ -920,7 +926,12 @@ export function SevenStepOnboarding({
             <div className="review-facts">
               {[
                 [data.departments.length, "Departments"],
-                [data.sources.length, "Sources"],
+                [
+                  serverMode
+                    ? Number(!!liveSource?.connected)
+                    : data.sources.length,
+                  "Sources",
+                ],
                 [data.goals.length, "Goals"],
               ].map(([n, l]) => (
                 <div key={String(l)}>
@@ -980,28 +991,43 @@ export function SevenStepOnboarding({
               s: "integrations",
               icon: FileSpreadsheet,
               title: "Data sheets",
-              subtitle: data.sources.length
-                ? data.sources[0] +
-                  (data.sources.length > 1
-                    ? ` +${data.sources.length - 1}`
-                    : "")
-                : "Connect a source whenever you’re ready",
-              body: <p>{data.sources.join(", ") || "No source added yet."}</p>,
+              subtitle: serverMode
+                ? liveSource?.tabTitle || "No connected source"
+                : data.sources.length
+                  ? data.sources[0] +
+                    (data.sources.length > 1
+                      ? ` +${data.sources.length - 1}`
+                      : "")
+                  : "Connect a source whenever you’re ready",
+              body: (
+                <p>
+                  {serverMode
+                    ? liveSource?.status || "No source added yet."
+                    : data.sources.join(", ") || "No source added yet."}
+                </p>
+              ),
             },
             {
               s: "mapping",
               icon: Link2,
               title: "Field mapping",
-              subtitle:
-                data.steps.mapping === "skipped"
+              subtitle: serverMode
+                ? liveSource?.mapping
+                  ? "3 fields mapped"
+                  : "Mapping not configured"
+                : data.steps.mapping === "skipped"
                   ? "Skipped · you can return later"
                   : `${data.mappings.filter((m) => m.confirmed && !m.ignored).length} confirmed fields`,
               body: (
                 <p>
-                  {data.mappings
-                    .filter((m) => m.confirmed && !m.ignored)
-                    .map((m) => `${m.field} · ${m.department}`)
-                    .join(" · ") || "No fields confirmed yet."}
+                  {serverMode
+                    ? Object.entries(liveSource?.mapping || {})
+                        .map(([field, column]) => `${field}: ${column}`)
+                        .join(" · ") || "No fields confirmed yet."
+                    : data.mappings
+                        .filter((m) => m.confirmed && !m.ignored)
+                        .map((m) => `${m.field} · ${m.department}`)
+                        .join(" · ") || "No fields confirmed yet."}
                 </p>
               ),
             },

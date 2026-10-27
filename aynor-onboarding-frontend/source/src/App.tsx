@@ -1,3 +1,4 @@
+import { serverMode } from "./lib/runtime";
 import { Home } from "./features/home/Home";
 import { Entry } from "./features/entry/Entry";
 import { ScreenGallery } from "./features/preview/ScreenGallery";
@@ -21,6 +22,21 @@ import { api, type User } from "./lib/api";
 import { Context, useApp } from "./lib/context";
 const message = (e: unknown) =>
   e instanceof Error ? e.message : "Please try again.";
+let boot: Promise<any> | null = null;
+function initialize() {
+  if (!boot)
+    boot = Promise.all([api("/session"), api("/config")])
+      .then(async ([session, config]) => {
+        if (serverMode && !session.user && config.developmentSession)
+          session = await api("/dev/session", "POST");
+        return [session, config];
+      })
+      .catch((error) => {
+        boot = null;
+        throw error;
+      });
+  return boot;
+}
 export default function App() {
   const [user, setUser] = useState<User | null>(null),
     [ready, setReady] = useState(false),
@@ -29,7 +45,7 @@ export default function App() {
     [error, setError] = useState("");
   const nav = useNavigate();
   useEffect(() => {
-    Promise.all([api("/session"), api("/config")])
+    initialize()
       .then(([s, c]) => {
         setUser(s.user);
         setDevelopment(c.development);

@@ -1,3 +1,5 @@
+import { serverMode } from "../../lib/runtime";
+import { LiveOverview } from "../live/LiveOverview";
 import { Intelligence } from "../intelligence/Intelligence";
 import {
   readPreferences,
@@ -612,7 +614,8 @@ export function Workspace({
             <kbd>{/Mac/.test(navigator.platform) ? "⌘ K" : "Ctrl K"}</kbd>
           </button>
           <div>
-            {(overview || intelligence) &&
+            {!serverMode &&
+              (overview || intelligence) &&
               (new URLSearchParams(location.search).get("state")
                 ? new URLSearchParams(location.search).get("state") !==
                   "workspace"
@@ -680,7 +683,11 @@ export function Workspace({
                 updateCompany={setCompany}
               />
             ) : overview ? (
-              <Overview company={company} save={save} />
+              serverMode ? (
+                <LiveOverview company={company} />
+              ) : (
+                <Overview company={company} save={save} />
+              )
             ) : members ? (
               <Members company={company} />
             ) : !editable ? (
@@ -901,9 +908,9 @@ export function Workspace({
             enter a limited workspace, and return at any time.
           </p>
           <p>
-            In this frontend prototype, connections, email, and sign-in are
-            simulated. Sample sources are always labeled. Your progress stays in
-            this browser so you can resume after refresh.
+            {serverMode
+              ? "Google Sheets connections and reporting snapshots are stored on the server. Sync checks run on an interval; see Data connections for status and validation errors. Other intelligence modules are not yet connected to this financial source."
+              : "In this frontend prototype, connections, email, and sign-in are simulated. Sample sources are always labeled. Your progress stays in this browser so you can resume after refresh."}
           </p>
           <Button
             onClick={() => {

@@ -1,3 +1,4 @@
+import { serverMode, serverRequest } from "./runtime";
 import type { Company, User, WorkspaceData } from "./api";
 
 /** Frontend prototype only. No requests, credentials, tokens, or backend authorization. */
@@ -241,6 +242,7 @@ function companyView(c: Company, u: User): Company {
 }
 export const prototype = {
   async guest() {
+    if (serverMode) return serverRequest("/dev/session", "POST");
     await wait(300);
     state = load();
     let user = state.users.find((u) => u.id === "onboarding-guest");

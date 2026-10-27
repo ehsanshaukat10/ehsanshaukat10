@@ -1,3 +1,5 @@
+import { serverMode } from "../../lib/runtime";
+import { SheetsConnection } from "../live/SheetsConnection";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ArrowUpRight, Check, RefreshCw } from "lucide-react";
@@ -107,7 +109,11 @@ export function Settings(props: ModuleProps) {
           </Link>
         </Panel>
       ) : panel === "connections" ? (
-        <Connections {...props} />
+        serverMode ? (
+          <SheetsConnection companyId={props.company.id} />
+        ) : (
+          <Connections {...props} />
+        )
       ) : panel === "preferences" ? (
         <PreferenceSettings {...props} />
       ) : (

@@ -3,6 +3,7 @@ import { writeFileSync } from "node:fs";
 
 const result = await build({
   base: "./",
+  define: { "import.meta.env.VITE_API_MODE": JSON.stringify("prototype") },
   plugins: [
     {
       name: "standalone-html-routing",

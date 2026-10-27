@@ -1,3 +1,4 @@
+import { serverMode, serverRequest } from "./runtime";
 import { mockRequest } from "./mockService";
 export type User = {
   id: string;
@@ -59,14 +60,40 @@ export type Company = {
   version: number;
   data: WorkspaceData;
 };
-/** Local frontend adapter; does not call or configure any backend. */
+/** Explicit server mode uses the API; the default prototype stays offline. */
 export async function api<T = any>(
   url: string,
   method = "GET",
   body?: unknown,
   headers: Record<string, string> = {},
 ): Promise<T> {
-  return mockRequest<T>(url, method, body, headers);
+  if (!serverMode) return mockRequest<T>(url, method, body, headers);
+  const result = await serverRequest<T>(url, method, body, headers);
+  // The backend deliberately redacts configuration for scoped roles. Supply
+  // empty presentation containers, never values from another scope or demo.
+  const normalize = (value: any) =>
+    value?.id && value?.data && typeof value.data === "object"
+      ? {
+          ...value,
+          data: {
+            departments: [],
+            priorities: [],
+            sources: [],
+            mappings: [],
+            kpis: [],
+            goals: [],
+            steps: {},
+            ...value.data,
+          },
+        }
+      : value;
+  return (
+    /^\/companies(?:\/[^/]+(?:\/profile)?)?$/.test(url)
+      ? Array.isArray(result)
+        ? result.map(normalize)
+        : normalize(result)
+      : result
+  ) as T;
 }
 export const steps = [
   "departments",

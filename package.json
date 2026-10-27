@@ -1,0 +1,40 @@
+{
+  "name": "aynor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev-live.mjs",
+    "build": "npm run build:live",
+    "start": "npm run start:live",
+    "test": "node --test tests/*.test.js",
+    "test:e2e": "node scripts/test-live.mjs",
+    "format": "prettier --write server scripts tests/*.test.js tests/*.mjs tests/fixtures",
+    "format:check": "prettier --check server scripts tests/*.test.js tests/*.mjs tests/fixtures",
+    "dev:live": "node scripts/dev-live.mjs",
+    "build:live": "cd aynor-onboarding-frontend/source && VITE_API_MODE=server npm run build",
+    "start:live": "NODE_ENV=production FRONTEND_DIST=aynor-onboarding-frontend/source/dist node server/index.js"
+  },
+  "dependencies": {
+    "@fontsource/geist": "^5.3.0",
+    "@vitejs/plugin-react": "latest",
+    "lucide-react": "^0.468.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.9.0",
+    "typescript": "~5.9.3",
+    "vite": "latest",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "concurrently": "^9.2.0",
+    "prettier": "^3.9.10"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

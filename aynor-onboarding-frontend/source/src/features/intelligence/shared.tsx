@@ -1,3 +1,4 @@
+import { serverMode } from "../../lib/runtime";
 import {
   useEffect,
   useLayoutEffect,
@@ -226,9 +227,10 @@ export function useExecutive(company: Company) {
     : usesExampleData(company)
       ? "connected"
       : "workspace";
-  const scenario: Scenario =
-    ["sync-error", "stale"].includes(initialScenario) &&
-    local.state.sync[company.data.sources[0]] === "Synced"
+  const scenario: Scenario = serverMode
+    ? "workspace"
+    : ["sync-error", "stale"].includes(initialScenario) &&
+        local.state.sync[company.data.sources[0]] === "Synced"
       ? usesExampleData(company)
         ? "connected"
         : "workspace"
@@ -371,6 +373,20 @@ export function ModulePage({
   );
 }
 export function DataNotice({ exec }: { exec: Executive }) {
+  const location = useLocation();
+  if (serverMode)
+    return location.pathname.includes("/settings/") ? null : (
+      <div className="intel-notice">
+        <Database size={14} />
+        <span>
+          This module does not yet read your connected financial source.
+        </span>
+        <Link to={exec.link(exec.base + "/overview", exec.origin)}>
+          View live Overview <ArrowUpRight size={12} />
+        </Link>
+      </div>
+    );
+
   return exec.scenario === "workspace" ? (
     <div className="intel-notice">
       <Database size={14} />
