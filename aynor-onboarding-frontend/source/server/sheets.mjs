@@ -21,6 +21,7 @@ export function createServerlessSheets({
       c?.status === "syncing" && Number(c.lease_until || 0) < Date.now();
     return {
       configured: google.configured(),
+      googleSetup: google.configuration(),
       connected: !!c,
       mode: c?.public_url ? "public" : "oauth",
       spreadsheet: c?.spreadsheet || null,
@@ -159,8 +160,15 @@ export function createServerlessSheets({
             "Authorization expired or did not match this session. Start again.",
           );
         await member(pending.company_id, user.id, true);
+        // The full state, including destination, was bound to this user/company
+        // and consumed above. Only fixed same-origin destinations are allowed.
+        const destination = state.split(".")[1];
         const back =
-          "/companies/" + pending.company_id + "/settings/connections";
+          "/companies/" +
+          pending.company_id +
+          (["integrations", "mapping"].includes(destination)
+            ? "/onboarding/" + destination
+            : "/settings/connections");
         if (url.searchParams.has("error"))
           return redirect(back + "?google=cancelled");
         try {
@@ -225,11 +233,20 @@ export function createServerlessSheets({
           "Hosted mode uses status polling and manual sync, not persistent event streams.",
         );
       if (action === "authorize" && method === "POST") {
-        if (!google.configured())
+        if (!google.configured()) {
+          const setup = google.configuration();
           fail(
             503,
-            "Configure Google OAuth on the server first, or use Published sheet.",
+            "Google connection needs deployment setup. " +
+              (setup.missing.length
+                ? "Missing: " + setup.missing.join(", ") + ". "
+                : "") +
+              (setup.invalid.length
+                ? "Check: " + setup.invalid.join(", ") + ". "
+                : "") +
+              "Add these in Vercel Production and redeploy.",
           );
+        }
         const callback = new URL(env.GOOGLE_REDIRECT_URI);
         if (
           callback.protocol !== "https:" ||
@@ -239,8 +256,18 @@ export function createServerlessSheets({
             503,
             "Configure an HTTPS Google callback ending in /api/integrations/google/callback.",
           );
+        if (callback.origin !== url.origin)
+          fail(
+            409,
+            "Connect Google from " +
+              callback.origin +
+              ". Google must return to the same domain as your signed-in session.",
+          );
         await db.remove("sheet_oauth", { expires: "lt." + Date.now() });
-        const state = randomBytes(32).toString("hex");
+        const destination = ["integrations", "mapping"].includes(body.returnTo)
+          ? body.returnTo
+          : "connections";
+        const state = randomBytes(32).toString("hex") + "." + destination;
         await db.insert("sheet_oauth", {
           state: hash(state),
           company_id: company,
@@ -297,8 +324,22 @@ export function createServerlessSheets({
           preview: rows.slice(1, 6),
         });
       }
-      if (action === "inspect" && method === "POST")
-        return send(await inspect(company, body.url, body.tabId));
+      if (action === "inspect" && method === "POST") {
+        // Respect the tab selected in a normal Google Sheets share link.
+        let tabId = body.tabId;
+        if (tabId === undefined) {
+          try {
+            const link = new URL(body.url);
+            const gid =
+              link.searchParams.get("gid") ||
+              new URLSearchParams(link.hash.slice(1)).get("gid");
+            if (gid && /^\d{1,12}$/.test(gid)) tabId = Number(gid);
+          } catch {
+            /* sheetId also accepts a bare spreadsheet ID. */
+          }
+        }
+        return send(await inspect(company, body.url, tabId));
+      }
       if (action === "mapping" && method === "PUT") {
         const mapping = body.mapping;
         if (

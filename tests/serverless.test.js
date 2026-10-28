@@ -366,9 +366,29 @@ test("serverless private Sheets: bound OAuth, encrypted credentials, refresh and
       cookie,
     ),
     base = "/companies/" + created.data.id + "/sheets";
-  const consent = await call(base + "/authorize", "POST", {}, cookie);
+  const consent = await call(
+    base + "/authorize",
+    "POST",
+    { returnTo: "mapping" },
+    cookie,
+  );
   assert.equal(consent.code, 200);
   const state = new URL(consent.data.url).searchParams.get("state");
+  // Changing the destination invalidates the whole state without consuming
+  // the legitimate pending grant.
+  assert.equal(
+    (
+      await call(
+        "/integrations/google/callback?state=" +
+          state.replace(".mapping", ".connections") +
+          "&code=test",
+        "GET",
+        undefined,
+        cookie,
+      )
+    ).code,
+    400,
+  );
   assert.equal(
     new URL(consent.data.url).searchParams.get("scope"),
     "https://www.googleapis.com/auth/spreadsheets.readonly",
@@ -392,7 +412,10 @@ test("serverless private Sheets: bound OAuth, encrypted credentials, refresh and
     cookie,
   );
   assert.equal(callback.code, 303);
-  assert.match(callback.headers.Location, /google=connected/);
+  assert.equal(
+    callback.headers.Location,
+    `/companies/${created.data.id}/onboarding/mapping?google=connected`,
+  );
   assert.equal(
     (
       await call(
@@ -457,6 +480,38 @@ test("serverless private Sheets: bound OAuth, encrypted credentials, refresh and
     (await call("/session", "GET", undefined, cookie)).data.user.id,
     login.data.user.id,
   );
+  const cancelled = await call(
+    base + "/authorize",
+    "POST",
+    { returnTo: "integrations" },
+    cookie,
+  );
+  const cancelledState = new URL(cancelled.data.url).searchParams.get("state");
+  const cancelledCallback = await call(
+    "/integrations/google/callback?state=" +
+      cancelledState +
+      "&error=access_denied",
+    "GET",
+    undefined,
+    cookie,
+  );
+  assert.equal(
+    cancelledCallback.headers.Location,
+    `/companies/${created.data.id}/onboarding/integrations?google=cancelled`,
+  );
+  assert.equal(
+    (await call(base, "GET", undefined, cookie)).data.hasSnapshot,
+    true,
+  );
+  env.GOOGLE_REDIRECT_URI =
+    "https://different.example/api/integrations/google/callback";
+  assert.equal((await call(base + "/authorize", "POST", {}, cookie)).code, 409);
+  delete env.GOOGLE_CLIENT_SECRET;
+  const missing = await call(base, "GET", undefined, cookie);
+  assert.equal(missing.data.configured, false);
+  assert.deepEqual(missing.data.googleSetup.missing, ["GOOGLE_CLIENT_SECRET"]);
+  assert.ok(!JSON.stringify(missing.data).includes("fixture-client"));
+  assert.equal((await call(base + "/authorize", "POST", {}, cookie)).code, 503);
 });
 
 test("owner configuration errors identify the failing setting without exposing or changing credentials", async (t) => {

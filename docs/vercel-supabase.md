@@ -22,6 +22,18 @@ Public CSV needs no Google OAuth credentials. Private sheets additionally need s
 
 Only spreadsheet read scope is requested. OAuth state is hashed, user/company-bound, expiring and consumed once. Stored tokens use AES-256-GCM; refresh uses a credential compare-and-swap so another connection cannot be overwritten. Google errors do not expire the app session. No key or source credential is returned by the API.
 
+**Connect Google** is always actionable. When credentials are missing it opens a setup guide, with safe variable-name diagnostics and the callback address for the current domain. An optional browser-generated encryption key is copied directly to the clipboard, never sent to analytics, rendered, or stored in browser storage. Paste it only into the server-only Vercel Secret and retain that value across deployments. The app cannot create a Google Cloud project or provision OAuth credentials in the operator's account.
+
+One-time Google setup:
+
+1. Open [Google Sheets API](https://console.cloud.google.com/apis/library/sheets.googleapis.com), select/create an Aynor project and enable the API.
+2. In Google Auth Platform, set up branding/contact details and an External audience. Under Data Access add `https://www.googleapis.com/auth/spreadsheets.readonly`. While the app is in Testing, add the Google account that has access to your sheet as a test user. Testing-mode grants can expire; publishing/verification is a separate Google-controlled requirement before a wider release.
+3. Create a **Web application** OAuth client. Register `https://aynor.vercel.app/api/integrations/google/callback` as the Authorized redirect URI for this production deployment.
+4. Save that client's ID and secret under `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in Vercel Production. Save the exact callback under `GOOGLE_REDIRECT_URI` and a stable random 64-hex-character secret under `SHEETS_ENCRYPTION_KEY`. All are server variables, never `VITE_*`. Redeploy.
+5. Sign in on `https://aynor.vercel.app`, choose Private sheet, paste your sheet link and choose **Connect Google & read columns**. Grant read-only permission using the account that can open the sheet.
+
+Authorization returns to the originating onboarding integrations/mapping screen, or Connections settings, using a fixed destination bound into the one-use state. A pasted link is retained in company-scoped session storage during the redirect. Choosing the combined connect/read action reads the columns on return. Cancellation preserves the prior source and keeps the link available for retry. A `gid` in the pasted link selects that tab. A preview-domain session cannot initiate consent using a different production callback domain; use the actual production hostname.
+
 ## Consistency and access
 
 The HTTPS adapter uses the Supabase server secret in `apikey`. Modern `sb_secret_` keys are not treated as JWT bearer tokens. All data access is server-side. Browser roles have no table or RPC privileges; service-role SQL functions are SECURITY INVOKER and explicitly deny PUBLIC/anon/authenticated execution. The API must authenticate the user and pass the trusted actor ID. Database-side membership checks protect atomic mutations; company-wide financial reports are Owner/Admin only.

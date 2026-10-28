@@ -53,6 +53,9 @@ try {
   const check = start(["tests/live.browser.mjs"], { SERVERLESS_TEST: "true" });
   const code = await new Promise((r) => check.on("exit", r));
   if (code !== 0) throw Error("Serverless browser check failed.");
+  const privateCheck = start(["tests/private-sheets.browser.mjs"]);
+  if ((await new Promise((r) => privateCheck.on("exit", r))) !== 0)
+    throw Error("Private Sheets browser check failed.");
 } finally {
   await Promise.all(
     children

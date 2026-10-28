@@ -1,0 +1,85 @@
+.google-setup {
+  color: #626779;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.google-setup > p {
+  margin: 0 0 20px;
+}
+.google-setup ol {
+  padding-left: 22px;
+  margin: 0;
+}
+.google-setup li {
+  padding-left: 6px;
+  margin-bottom: 20px;
+}
+.google-setup li::marker {
+  color: #6856db;
+}
+.google-setup strong {
+  color: #272b3a;
+  font-size: 14px;
+  font-weight: 500;
+}
+.google-setup p {
+  margin: 6px 0 10px;
+}
+.google-setup a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #6551d6;
+}
+.google-setup code {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.google-setup-copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f6f5fc;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+.google-setup-copy code {
+  flex: 1;
+  min-width: 0;
+}
+.google-setup-copy .button {
+  flex-shrink: 0;
+  padding: 8px;
+}
+.google-setup dl {
+  margin: 12px 0;
+}
+.google-setup dl > div {
+  padding: 8px 0;
+  border-bottom: 1px solid #efedf5;
+}
+.google-setup dt {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #303549;
+}
+.google-setup dt > span {
+  color: #765fb3;
+  font-size: 11px;
+}
+.google-setup dd {
+  margin: 3px 0 0;
+  font-size: 12px;
+}
+.google-setup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 10px;
+}
+@media (max-width: 480px) {
+  .google-setup-actions {
+    flex-wrap: wrap;
+  }
+}

@@ -1,5 +1,5 @@
 import { Select } from "./LiveSelect";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ExternalLink,
   FileSpreadsheet,
@@ -10,8 +10,13 @@ import {
 import { Button, ErrorBox, Field } from "../../components/ui";
 import { serverRequest } from "../../lib/runtime";
 import { Confirm, Panel } from "../intelligence/shared";
+import {
+  GoogleConnectionSetup,
+  type GoogleSetup,
+} from "./GoogleConnectionSetup";
 export type SourceStatus = {
   configured: boolean;
+  googleSetup?: GoogleSetup;
   connected: boolean;
   mode: string;
   spreadsheet: string | null;
@@ -86,9 +91,25 @@ export function useSheetStatus(company: string, enabled = true) {
   return { source, error };
 }
 export function SheetsConnection({ companyId }: { companyId: string }) {
+  return <SheetsConnectionContent key={companyId} companyId={companyId} />;
+}
+function SheetsConnectionContent({ companyId }: { companyId: string }) {
+  const draftKey = `aynor:google-draft:${companyId}`;
+  function readDraft() {
+    try {
+      return JSON.parse(sessionStorage.getItem(draftKey) || "null") as {
+        url: string;
+        autoRead: boolean;
+      } | null;
+    } catch {
+      return null;
+    }
+  }
   const { source, error: streamError } = useSheetStatus(companyId),
     [mode, setMode] = useState("oauth"),
-    [url, setUrl] = useState(""),
+    [url, setUrl] = useState(() => readDraft()?.url || ""),
+    [setupOpen, setSetupOpen] = useState(false),
+    [setup, setSetup] = useState<GoogleSetup>(),
     [inspection, setInspection] = useState<Inspection | null>(null),
     [mapping, setMapping] = useState({ date: "", revenue: "", expenses: "" }),
     [busy, setBusy] = useState(""),
@@ -105,6 +126,58 @@ export function SheetsConnection({ companyId }: { companyId: string }) {
     }),
     [remove, setRemove] = useState(false);
   const root = `/companies/${companyId}/sheets`;
+  const resumed = useRef(false);
+  async function connect(autoRead = false) {
+    await perform("authorize", async () => {
+      const current = await serverRequest<SourceStatus>(root);
+      setSetup(current.googleSetup);
+      if (!current.configured) {
+        setSetupOpen(true);
+        return;
+      }
+      const returnTo =
+        window.location.pathname.match(
+          /\/onboarding\/(integrations|mapping)$/,
+        )?.[1] || "connections";
+      const result = await serverRequest<{ url: string }>(
+        root + "/authorize",
+        "POST",
+        { returnTo },
+      );
+      try {
+        sessionStorage.setItem(draftKey, JSON.stringify({ url, autoRead }));
+      } catch {
+        /* Connection still works when browser storage is unavailable. */
+      }
+      window.location.assign(result.url);
+    });
+  }
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get("google");
+    const draft = readDraft();
+    if (
+      !resumed.current &&
+      result === "connected" &&
+      source?.connected &&
+      source.mode === "oauth"
+    ) {
+      resumed.current = true;
+      try {
+        sessionStorage.removeItem(draftKey);
+      } catch {
+        /* Optional draft only. */
+      }
+      if (draft?.autoRead && url.trim()) void inspect();
+      // Consume the callback marker so reloads do not repeat an import.
+      const location = new URL(window.location.href);
+      location.searchParams.delete("google");
+      window.history.replaceState(
+        window.history.state,
+        "",
+        location.pathname + location.search + location.hash,
+      );
+    }
+  }, [source]);
   async function perform(name: string, task: () => Promise<void>) {
     setBusy(name);
     setError("");
@@ -175,17 +248,10 @@ export function SheetsConnection({ companyId }: { companyId: string }) {
               requests spreadsheet read permission only.
             </p>
             <Button
-              disabled={!!busy || !source?.configured}
+              type="button"
+              disabled={!!busy}
               busy={busy === "authorize"}
-              onClick={() =>
-                perform("authorize", async () => {
-                  const result = await serverRequest<{ url: string }>(
-                    root + "/authorize",
-                    "POST",
-                  );
-                  window.location.assign(result.url);
-                })
-              }
+              onClick={() => void connect()}
             >
               <ExternalLink size={14} />
               {source?.connected && source.mode === "oauth"
@@ -197,7 +263,7 @@ export function SheetsConnection({ companyId }: { companyId: string }) {
                 <p>
                   Google connection is not set up for this workspace yet. A
                   private link needs Google authorization before its columns can
-                  be read. Use a published sheet below to connect data now.
+                  be read. Choose Connect Google to see the setup steps.
                 </p>
                 <Button
                   variant="secondary"
@@ -222,7 +288,14 @@ export function SheetsConnection({ companyId }: { companyId: string }) {
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            void inspect();
+            if (
+              mode === "oauth" &&
+              (!source?.connected ||
+                source.mode !== "oauth" ||
+                source.status === "reauth_required")
+            )
+              void connect(true);
+            else void inspect();
           }}
           className="intel-inline-form"
           style={{ marginTop: 20 }}
@@ -243,16 +316,13 @@ export function SheetsConnection({ companyId }: { companyId: string }) {
                 : "https://docs.google.com/spreadsheets/d/…/edit"
             }
           />
-          <Button
-            disabled={
-              !!busy ||
-              !url.trim() ||
-              (mode === "oauth" &&
-                (!source?.connected || source.mode !== "oauth"))
-            }
-            busy={busy === "inspect"}
-          >
-            Read columns
+          <Button disabled={!!busy || !url.trim()} busy={busy === "inspect"}>
+            {mode === "oauth" &&
+            (!source?.connected ||
+              source.mode !== "oauth" ||
+              source.status === "reauth_required")
+              ? "Connect Google & read columns"
+              : "Read columns"}
           </Button>
         </form>
         {inspection && (
@@ -453,6 +523,16 @@ export function SheetsConnection({ companyId }: { companyId: string }) {
               setMessage("Spreadsheet disconnected.");
             })
           }
+        />
+      )}
+      {setupOpen && (
+        <GoogleConnectionSetup
+          setup={setup}
+          onClose={() => setSetupOpen(false)}
+          onRetry={() => {
+            setSetupOpen(false);
+            void connect(Boolean(url.trim()));
+          }}
         />
       )}
     </div>

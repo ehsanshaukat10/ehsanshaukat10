@@ -3,13 +3,40 @@ import { fail } from "./database.mjs";
 import { publicSheetUrl, parseCSV } from "./sheets-validation.mjs";
 export const scope = "https://www.googleapis.com/auth/spreadsheets.readonly";
 export function createGoogle({ db, env = process.env, fetchImpl = fetch }) {
-  const configured = () =>
-    !!(
-      env.GOOGLE_CLIENT_ID &&
-      env.GOOGLE_CLIENT_SECRET &&
-      env.GOOGLE_REDIRECT_URI &&
-      /^[a-f0-9]{64}$/i.test(env.SHEETS_ENCRYPTION_KEY || "")
-    );
+  // Only variable names are exposed to workspace administrators, never values.
+  function configuration() {
+    const names = [
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+      "GOOGLE_REDIRECT_URI",
+      "SHEETS_ENCRYPTION_KEY",
+    ];
+    const missing = names.filter((name) => !env[name]?.trim());
+    const invalid = [];
+    if (
+      env.SHEETS_ENCRYPTION_KEY &&
+      !/^[a-f0-9]{64}$/i.test(env.SHEETS_ENCRYPTION_KEY)
+    )
+      invalid.push("SHEETS_ENCRYPTION_KEY");
+    if (env.GOOGLE_REDIRECT_URI) {
+      try {
+        const callback = new URL(env.GOOGLE_REDIRECT_URI);
+        if (
+          callback.protocol !== "https:" ||
+          callback.pathname !== "/api/integrations/google/callback" ||
+          callback.username ||
+          callback.password ||
+          callback.search ||
+          callback.hash
+        )
+          throw Error();
+      } catch {
+        invalid.push("GOOGLE_REDIRECT_URI");
+      }
+    }
+    return { ready: !missing.length && !invalid.length, missing, invalid };
+  }
+  const configured = () => configuration().ready;
   function key() {
     if (!configured())
       fail(
@@ -200,5 +227,13 @@ export function createGoogle({ db, env = process.env, fetchImpl = fetch }) {
       fail(422, error.message);
     }
   }
-  return { configured, seal, open, fetchGoogle, read, publicRows };
+  return {
+    configured,
+    configuration,
+    seal,
+    open,
+    fetchGoogle,
+    read,
+    publicRows,
+  };
 }
