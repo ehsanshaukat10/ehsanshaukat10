@@ -129,11 +129,18 @@ export function validateRows(values, mapping) {
 }
 export function aggregate(snapshot, period, now = new Date()) {
   const months = { month: 1, quarter: 3, half: 6, year: 12 }[period];
-  if (!months) throw Error("Choose month, quarter, half or year.");
-  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const start = new Date(
-    Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - months, 1),
-  );
+  if (!months && period !== "all")
+    throw Error("Choose month, quarter, half, year or all.");
+  const end =
+    period === "all"
+      ? new Date(
+          Date.parse(snapshot.points.at(-1).date + "T00:00:00Z") + 86400000,
+        )
+      : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const start =
+    period === "all"
+      ? new Date(snapshot.points[0].date + "T00:00:00Z")
+      : new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - months, 1));
   const points = snapshot.points.filter(
     (p) =>
       p.date >= start.toISOString().slice(0, 10) &&
@@ -174,14 +181,23 @@ export function publicSheetUrl(input) {
     url.port ||
     url.username ||
     url.password ||
-    !/^\/spreadsheets\/d\/e\/[a-zA-Z0-9_-]{20,200}\/pub$/.test(url.pathname)
+    (!/^\/spreadsheets\/d\/e\/[a-zA-Z0-9_-]{20,200}\/pub$/.test(url.pathname) &&
+      !/^\/spreadsheets\/d\/[a-zA-Z0-9_-]{20,150}(?:\/(?:edit|export|view))?\/?$/.test(
+        url.pathname,
+      ))
   )
     throw Error(
-      "Use Google Sheets → File → Share → Publish to web → CSV. Paste that published link.",
+      "Paste a Google Sheets link shared for viewing, or a published CSV link. Use Connect Google for private sheets.",
     );
-  const gid = url.searchParams.get("gid") || "0";
+  const gid =
+    url.searchParams.get("gid") ||
+    new URLSearchParams(url.hash.slice(1)).get("gid") ||
+    "0";
   if (!/^\d{1,12}$/.test(gid)) throw Error("Invalid published tab identifier.");
-  return `https://docs.google.com${url.pathname}?output=csv&gid=${gid}&single=true`;
+  if (url.pathname.includes("/d/e/"))
+    return `https://docs.google.com${url.pathname}?output=csv&gid=${gid}&single=true`;
+  const id = url.pathname.split("/")[3];
+  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
 }
 export function parseCSV(text) {
   const rows = [];

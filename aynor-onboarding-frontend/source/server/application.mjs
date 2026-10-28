@@ -193,6 +193,11 @@ export function createApplication({
           ? "/" + (url.searchParams.get("route") || "")
           : url.pathname.replace(/^\/api/, "");
       const method = req.method || "GET";
+      const bodyLimit = /^\/companies\/[a-f0-9-]{36}\/sheets\/upload$/i.test(
+        path,
+      )
+        ? 3 * 1024 * 1024
+        : 200000;
       if (!["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"].includes(method))
         fail(405, "Method not allowed.");
       let body = {};
@@ -221,7 +226,7 @@ export function createApplication({
               typeof req.body === "string"
                 ? req.body
                 : JSON.stringify(req.body),
-            ) > 200000
+            ) > bodyLimit
           )
             fail(413, "Request too large.");
           try {
@@ -234,7 +239,7 @@ export function createApplication({
           let raw = "";
           for await (const chunk of req) {
             raw += chunk;
-            if (Buffer.byteLength(raw) > 200000)
+            if (Buffer.byteLength(raw) > bodyLimit)
               fail(413, "Request too large.");
           }
           try {

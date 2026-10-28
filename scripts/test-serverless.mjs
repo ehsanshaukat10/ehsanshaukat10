@@ -56,6 +56,9 @@ try {
   const privateCheck = start(["tests/private-sheets.browser.mjs"]);
   if ((await new Promise((r) => privateCheck.on("exit", r))) !== 0)
     throw Error("Private Sheets browser check failed.");
+  const uploadCheck = start(["tests/upload-sheets.browser.mjs"]);
+  if ((await new Promise((r) => uploadCheck.on("exit", r))) !== 0)
+    throw Error("Upload Sheets browser check failed.");
 } finally {
   await Promise.all(
     children

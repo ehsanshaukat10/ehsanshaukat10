@@ -1,0 +1,77 @@
+.sheet-source-tabs {
+  width: 100%;
+  margin: 20px 0;
+}
+.sheet-source-tabs > button {
+  flex: 1;
+  white-space: nowrap;
+  font-weight: 400;
+}
+.sheet-upload {
+  margin-top: 18px;
+}
+.sheet-upload-drop {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  text-align: center;
+  padding: 24px 18px;
+  border: 1px dashed #d3cfea;
+  border-radius: 14px;
+  background: #faf9fe;
+  transition:
+    background 0.18s,
+    border-color 0.18s;
+}
+.sheet-upload-drop.is-dragging {
+  background: #efecff;
+  border-color: #7460e8;
+}
+.sheet-upload-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #ede9fb;
+  color: #725bcb;
+  margin-bottom: 12px;
+}
+.sheet-upload-drop strong {
+  font-size: 14px;
+  font-weight: 500;
+  color: #33394a;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.sheet-upload-drop p {
+  margin: 5px 0 14px;
+  font-size: 13px;
+  color: #747889;
+}
+.sheet-upload-drop small {
+  margin-top: 12px;
+  font-size: 11px;
+  color: #858799;
+}
+.sheet-upload-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 18px;
+}
+.sheet-upload-note {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #747889;
+  margin: 12px 0 0;
+}
+@media (max-width: 480px) {
+  .sheet-source-tabs > button {
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+  .sheet-upload-options {
+    grid-template-columns: 1fr;
+  }
+}

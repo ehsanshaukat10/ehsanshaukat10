@@ -72,16 +72,14 @@ try {
   await page.getByRole("button", { name: "Finance", exact: true }).click();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Google Sheets", exact: true }),
+    page.getByRole("heading", { name: "Connect your data", exact: true }),
   ).toBeVisible();
   await page.goto(
     `http://127.0.0.1:5176/companies/${company}/settings/connections`,
   );
+  await page.getByRole("button", { name: "Paste URL", exact: true }).click();
   await page
-    .getByRole("button", { name: "Published sheet", exact: true })
-    .click();
-  await page
-    .getByLabel("Published CSV link", { exact: true })
+    .getByLabel("Sheet URL", { exact: true })
     .fill(
       "https://docs.google.com/spreadsheets/d/e/2PACXabcdefghijklmnopqrstuvwx/pub?output=csv&gid=0",
     );

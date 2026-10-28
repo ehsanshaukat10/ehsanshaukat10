@@ -1,4 +1,4 @@
-import { randomBytes, createHash } from "node:crypto";
+import { randomBytes, randomUUID, createHash } from "node:crypto";
 import { fail } from "./database.mjs";
 import { createGoogle, scope } from "./google.mjs";
 import {
@@ -23,7 +23,11 @@ export function createServerlessSheets({
       configured: google.configured(),
       googleSetup: google.configuration(),
       connected: !!c,
-      mode: c?.public_url ? "public" : "oauth",
+      mode: c?.spreadsheet?.startsWith("upload:")
+        ? "upload"
+        : c?.public_url
+          ? "public"
+          : "oauth",
       spreadsheet: c?.spreadsheet || null,
       tabId: c?.tab_id ?? null,
       tabTitle: c?.tab_title || null,
@@ -41,7 +45,8 @@ export function createServerlessSheets({
         !!snapshot &&
         (!!c?.error ||
           interrupted ||
-          Date.now() - Number(snapshot.created) > 86400000),
+          (!c?.spreadsheet?.startsWith("upload:") &&
+            Date.now() - Number(snapshot.created) > 86400000)),
       intervalMs: 0,
       syncMode: "manual",
     };
@@ -55,6 +60,14 @@ export function createServerlessSheets({
     return present(read.connection, read.snapshot);
   }
   async function sync(actor, company) {
+    const current = await db.one("sheet_connections", {
+      company_id: "eq." + company,
+    });
+    if (current?.spreadsheet?.startsWith("upload:"))
+      fail(
+        409,
+        "This source is an uploaded file. Upload the updated workbook to refresh its data.",
+      );
     const c = await db.rpc("sheet_claim", {
       p_actor: actor,
       p_company: company,
@@ -194,6 +207,9 @@ export function createServerlessSheets({
           const previous = await db.one("sheet_connections", {
             company_id: "eq." + pending.company_id,
           });
+          const replacingSource =
+            !!previous?.public_url ||
+            previous?.spreadsheet?.startsWith("upload:");
           await db.rpc("sheet_configure", {
             p_actor: user.id,
             p_company: pending.company_id,
@@ -203,7 +219,7 @@ export function createServerlessSheets({
                 expires: Date.now() + Number(token.expires_in || 3600) * 1000,
               }),
               public_url: null,
-              ...(previous?.public_url
+              ...(replacingSource
                 ? {
                     mapping: null,
                     spreadsheet: null,
@@ -212,7 +228,7 @@ export function createServerlessSheets({
                   }
                 : {}),
             },
-            p_reset: !!previous?.public_url,
+            p_reset: !!replacingSource,
           });
           return redirect(back + "?google=connected");
         } catch {
@@ -220,7 +236,7 @@ export function createServerlessSheets({
         }
       }
       const match = path.match(
-        /^\/companies\/([a-f0-9-]{36})\/sheets(?:\/(authorize|inspect|public|mapping|sync|overview|events))?$/i,
+        /^\/companies\/([a-f0-9-]{36})\/sheets(?:\/(authorize|inspect|public|upload|mapping|sync|overview|events))?$/i,
       );
       if (!match) return false;
       const [, company, action] = match;
@@ -232,6 +248,109 @@ export function createServerlessSheets({
           405,
           "Hosted mode uses status polling and manual sync, not persistent event streams.",
         );
+      if (action === "upload" && method === "POST") {
+        const { name, tabTitle, values, mapping } = body;
+        if (
+          typeof name !== "string" ||
+          !/\.(xlsx|csv)$/i.test(name) ||
+          name.length > 180 ||
+          typeof tabTitle !== "string" ||
+          !tabTitle.trim() ||
+          tabTitle.length > 150
+        )
+          fail(400, "Choose an Excel (.xlsx) or CSV file and a worksheet.");
+        if (
+          !Array.isArray(values) ||
+          !values.length ||
+          values.length > 10001 ||
+          values.some(
+            (row) =>
+              !Array.isArray(row) ||
+              row.length > 52 ||
+              row.some(
+                (cell) =>
+                  cell !== null &&
+                  ((typeof cell !== "string" &&
+                    typeof cell !== "number" &&
+                    typeof cell !== "boolean") ||
+                    (typeof cell === "string" && cell.length > 10000) ||
+                    (typeof cell === "number" && !Number.isFinite(cell))),
+              ),
+          )
+        )
+          fail(
+            422,
+            "Use a worksheet with up to 10,000 records and 52 columns. Remove oversized cell contents before importing.",
+          );
+        let headers;
+        try {
+          headers = columns(values);
+        } catch (error) {
+          fail(422, error.message);
+        }
+        if (!mapping)
+          return send({
+            spreadsheetId: "upload:preview",
+            title: name,
+            tabs: [{ sheetId: 0, title: tabTitle }],
+            tabId: 0,
+            tabTitle,
+            headers,
+            preview: values.slice(1, 6),
+            rowCount: values
+              .slice(1)
+              .filter((row) => row.some((cell) => String(cell ?? "").trim()))
+              .length,
+          });
+        if (
+          typeof mapping !== "object" ||
+          Object.keys(mapping).sort().join(",") !== "date,expenses,revenue" ||
+          Object.values(mapping).some((value) => typeof value !== "string")
+        )
+          fail(400, "Choose date, revenue and expenses columns.");
+        let snapshot;
+        // Validate completely before replacing any existing source or report.
+        try {
+          snapshot = validateRows(values, mapping);
+        } catch (error) {
+          fail(422, error.message);
+        }
+        const id = "upload:" + randomUUID();
+        await db.rpc("sheet_configure", {
+          p_actor: user.id,
+          p_company: company,
+          p_config: {
+            spreadsheet: id,
+            tab_id: 0,
+            tab_title: name + " · " + tabTitle,
+            public_url: null,
+            mapping,
+          },
+          p_reset: true,
+        });
+        const claim = await db.rpc("sheet_claim", {
+          p_actor: user.id,
+          p_company: company,
+        });
+        if (claim.spreadsheet !== id)
+          fail(
+            409,
+            "The source changed during import. Review the current connection before retrying.",
+          );
+        const published = await db.rpc("sheet_publish", {
+          p_actor: user.id,
+          p_company: company,
+          p_generation: claim.generation,
+          p_lease: claim.lease_id,
+          p_data: snapshot,
+        });
+        if (!published)
+          fail(
+            409,
+            "The source changed during import. Retry with the current connection.",
+          );
+        return send(await status(company, user.id));
+      }
       if (action === "authorize" && method === "POST") {
         if (!google.configured()) {
           const setup = google.configuration();
@@ -300,20 +419,22 @@ export function createServerlessSheets({
         } catch (error) {
           fail(error.status || 422, error.message);
         }
-        const id = new URL(canonical).pathname.split("/")[4];
-        await db.rpc("sheet_configure", {
-          p_actor: user.id,
-          p_company: company,
-          p_config: {
-            credentials: "",
-            public_url: canonical,
-            spreadsheet: id,
-            tab_id: 0,
-            tab_title: "Published report",
-            mapping: null,
-          },
-          p_reset: true,
-        });
+        const segments = new URL(canonical).pathname.split("/");
+        const id = segments[3] === "e" ? segments[4] : segments[3];
+        if (!body.previewOnly)
+          await db.rpc("sheet_configure", {
+            p_actor: user.id,
+            p_company: company,
+            p_config: {
+              credentials: "",
+              public_url: canonical,
+              spreadsheet: id,
+              tab_id: 0,
+              tab_title: "Published report",
+              mapping: null,
+            },
+            p_reset: true,
+          });
         return send({
           spreadsheetId: id,
           title: "Published report",
@@ -354,6 +475,34 @@ export function createServerlessSheets({
             400,
             "Choose three distinct date, revenue and expenses columns.",
           );
+        if (body.publicUrl) {
+          let canonical, rows;
+          try {
+            canonical = publicSheetUrl(body.publicUrl);
+            rows = await google.publicRows(canonical);
+            validateRows(rows, mapping);
+          } catch (error) {
+            fail(error.status || 422, error.message);
+          }
+          const segments = new URL(canonical).pathname.split("/");
+          const id = segments[3] === "e" ? segments[4] : segments[3];
+          if (body.spreadsheetId !== id || body.tabId !== 0)
+            fail(409, "Read columns again for the current URL.");
+          await db.rpc("sheet_configure", {
+            p_actor: user.id,
+            p_company: company,
+            p_config: {
+              credentials: "",
+              public_url: canonical,
+              spreadsheet: id,
+              tab_id: 0,
+              tab_title: "Shared sheet",
+              mapping,
+            },
+            p_reset: true,
+          });
+          return send(await sync(user.id, company));
+        }
         const c = await db.one("sheet_connections", {
           company_id: "eq." + company,
         });

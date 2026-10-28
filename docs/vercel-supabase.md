@@ -34,6 +34,18 @@ One-time Google setup:
 
 Authorization returns to the originating onboarding integrations/mapping screen, or Connections settings, using a fixed destination bound into the one-use state. A pasted link is retained in company-scoped session storage during the redirect. Choosing the combined connect/read action reads the columns on return. Cancellation preserves the prior source and keeps the link available for retry. A `gid` in the pasted link selects that tab. A preview-domain session cannot initiate consent using a different production callback domain; use the actual production hostname.
 
+## Spreadsheet import tabs
+
+The hosted import UI has **Connect Google**, **Upload sheet**, and **Paste URL** tabs in both onboarding and Connections settings. Existing private Google consent and manual sync remain available.
+
+**Upload sheet** accepts Excel `.xlsx` and UTF-8 comma-separated `.csv` files up to 5 MB. Older `.xls` workbooks must be saved as `.xlsx` first. A maintained Excel parser runs in a Web Worker, with a 20-second timeout and no formula execution. Excel date cells become ISO dates; formulas use the workbook's saved/cached results. The operator can choose a worksheet and header row, review the preview, edit the three financial mappings and confirm import. Workbooks can contain up to 50 worksheets; each imported dataset supports 52 columns, 10,000 records and a 3 MB normalized JSON request. The default header suggestion examines the first 20 rows; the selector exposes the first 100 rows.
+
+The upload API validates every record **before** replacing a source. Preview requests do not change the current source. The existing backend-only configure/claim/publish operations persist the mapping and normalized reporting snapshot with a generation/lease check. Original files and unmapped raw cell contents are not stored. Uploaded reports survive new function instances and page reloads. This uses the existing SQL setup—no migration, bucket, OAuth credentials or new environment variable is required for file uploads. Uploaded files are snapshots; **Upload new version** updates the report rather than implying that a local file can sync automatically. The financial report defaults to **All available records** for uploads, including records in the current month.
+
+**Paste URL** accepts published Google CSV links and ordinary Google Sheets links shared for viewing; `gid` selects the tab. Outbound requests remain restricted to Google spreadsheet endpoints and allowed Google content redirects. Private/sign-in-required URLs are directed to Connect Google. UI URL previews preserve the current saved report until mapping is confirmed. Validation errors preserve existing saved data. A workspace currently has one active financial reporting source; confirming a new import replaces that source.
+
+`npm run test:serverless` includes real `.xlsx` bytes with multiple worksheets, a title row, a styled Excel date and a cached formula, then verifies mapping, current-month totals, reload persistence, rejected replacement retention, CSV replacement, shared-URL import, and phone/tablet/wide layouts. Google provider responses remain controlled test fixtures, not a claim of a new live cloud test.
+
 ## Consistency and access
 
 The HTTPS adapter uses the Supabase server secret in `apikey`. Modern `sb_secret_` keys are not treated as JWT bearer tokens. All data access is server-side. Browser roles have no table or RPC privileges; service-role SQL functions are SECURITY INVOKER and explicitly deny PUBLIC/anon/authenticated execution. The API must authenticate the user and pass the trusted actor ID. Database-side membership checks protect atomic mutations; company-wide financial reports are Owner/Admin only.

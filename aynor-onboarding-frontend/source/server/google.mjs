@@ -199,6 +199,11 @@ export function createGoogle({ db, env = process.env, fetchImpl = fetch }) {
       }
       if (![301, 302, 303, 307, 308].includes(response.status)) break;
       const next = new URL(response.headers.get("location") || "", url);
+      if (next.hostname === "accounts.google.com")
+        fail(
+          403,
+          "This sheet requires Google sign-in. Use Connect Google to read it privately, or share the sheet for viewing.",
+        );
       if (
         next.protocol !== "https:" ||
         next.username ||

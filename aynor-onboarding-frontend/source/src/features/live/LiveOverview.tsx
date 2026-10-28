@@ -37,6 +37,9 @@ export function LiveOverview({ company }: { company: Company }) {
     [selected, setSelected] = useState(0);
   const base = `/companies/${company.id}`;
   useEffect(() => {
+    if (source?.mode === "upload") setPeriod("all");
+  }, [source?.mode]);
+  useEffect(() => {
     if (!["Owner", "Admin"].includes(company.role)) return;
     let active = true;
     setBusy(true);
@@ -103,6 +106,7 @@ export function LiveOverview({ company }: { company: Company }) {
           value={period}
           onChange={(event) => setPeriod(event.target.value)}
         >
+          <option value="all">All available records</option>
           <option value="month">Last complete month</option>
           <option value="quarter">Last 3 complete months</option>
           <option value="year">Last 12 complete months</option>
@@ -122,7 +126,10 @@ export function LiveOverview({ company }: { company: Company }) {
             : source?.stale
               ? "Source needs attention · last valid snapshot"
               : source?.lastSuccess
-                ? "Last synced " + new Date(source.lastSuccess).toLocaleString()
+                ? (source.mode === "upload"
+                    ? "File imported "
+                    : "Last synced ") +
+                  new Date(source.lastSuccess).toLocaleString()
                 : "No validated source yet"}
         </span>
         <Link to={base + "/settings/connections"}>
@@ -141,7 +148,7 @@ export function LiveOverview({ company }: { company: Company }) {
           <p>
             {data
               ? `The source contains ${data.recordsAvailable} records, but none fall between ${data.start} and ${data.endExclusive} (exclusive). Choose a different period or update the source dates.`
-              : "Connect a private or published Google Sheet, map date, revenue and expenses, then run the first sync. Your real metrics will appear here."}
+              : "Connect Google, upload an Excel or CSV file, or paste a shared sheet URL. Map your columns to see your real metrics here."}
           </p>
           <Link
             className="button secondary"
