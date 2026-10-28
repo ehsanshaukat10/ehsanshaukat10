@@ -127,10 +127,17 @@ export function Auth({ mode: initial }: { mode?: string }) {
   const { user, setUser, development, toast } = useApp();
   const hosted = serverMode && !development;
   const requestedMode = initial || params.mode || "signup";
-  const mode = hosted ? "login" : requestedMode;
+  const mode =
+    hosted &&
+    !["signup", "login", "verify", "confirmed"].includes(requestedMode)
+      ? "login"
+      : requestedMode;
   const nav = useNavigate(),
     loc = useLocation();
   const [oauth, setOauth] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState(
+    () => sessionStorage.getItem("aynor:pending-signup-email") || "",
+  );
   const [name, setName] = useState(""),
     [email, setEmail] = useState(
       user?.id === "onboarding-guest" ? "" : user?.email || "",
@@ -161,8 +168,22 @@ export function Auth({ mode: initial }: { mode?: string }) {
     setError("");
     setSent(false);
     setPassword("");
-    if (mode === "verify")
+    if (mode === "verify" && !hosted)
       setToken(sessionStorage.getItem("aynor-dev-challenge") || "123456");
+    if (mode === "verify" && hosted) setCooldown(60);
+    if (mode === "confirmed" && hosted) {
+      const result = new URLSearchParams(window.location.hash.slice(1));
+      if (result.has("error"))
+        setError(
+          result.get("error_description") ||
+            "This confirmation link expired. Request a new email.",
+        );
+      window.history.replaceState(
+        window.history.state,
+        "",
+        window.location.pathname + window.location.search,
+      );
+    }
     if (mode === "reset-password")
       setToken(new URLSearchParams(loc.search).get("token") || "");
   }, [mode]);
@@ -184,6 +205,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
     verify: "One quick check.",
     "forgot-password": "Let’s get you back.",
     "reset-password": "A fresh start.",
+    confirmed: "Ready to sign in.",
   };
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -193,6 +215,15 @@ export function Auth({ mode: initial }: { mode?: string }) {
     try {
       if (mode === "signup") {
         const r = await api("/auth/signup", "POST", { name, email, password });
+        if (hosted) {
+          setPendingEmail(email.trim());
+          sessionStorage.setItem("aynor:pending-signup-email", email.trim());
+          if (r.verificationRequired === false) {
+            toast("Account created. Sign in to continue.");
+            nav(link("login"));
+          } else nav(link("verify"));
+          return;
+        }
         setUser(r.user);
         if (r.developmentToken) {
           sessionStorage.setItem("aynor-dev-challenge", r.developmentToken);
@@ -230,7 +261,11 @@ export function Auth({ mode: initial }: { mode?: string }) {
     setBusy(true);
     setError("");
     try {
-      const r = await api("/auth/resend", "POST");
+      const r = await api(
+        "/auth/resend",
+        "POST",
+        hosted ? { email: pendingEmail } : undefined,
+      );
       if (r.developmentToken) {
         setToken(r.developmentToken);
         sessionStorage.setItem("aynor-dev-challenge", r.developmentToken);
@@ -262,9 +297,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
               <Logo />
             </Link>
             <span>
-              {hosted ? (
-                "Private workspace"
-              ) : mode === "signup" ? (
+              {mode === "signup" ? (
                 <>
                   Already a member?{" "}
                   <Link to={link("login")}>
@@ -275,7 +308,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
                 <>
                   New to Aynor?{" "}
                   <Link to={link("signup")}>
-                    Get started <ArrowUpRight size={12} />
+                    Create account <ArrowUpRight size={12} />
                   </Link>
                 </>
               )}
@@ -291,7 +324,11 @@ export function Auth({ mode: initial }: { mode?: string }) {
                 <CircleUserRound size={24} />
               )}
             </div>
-            <h1>{titles[mode] || titles.login}</h1>
+            <h1>
+              {hosted && mode === "verify"
+                ? "Check your inbox."
+                : titles[mode] || titles.login}
+            </h1>
             <p className="auth-subtitle">
               {mode === "signup" ? (
                 "Your business intelligence starts here."
@@ -302,9 +339,14 @@ export function Auth({ mode: initial }: { mode?: string }) {
                   Verify your email to create your workspace.
                   <br />
                   <span className="masked-email">
-                    {user?.email.replace(/^(.{2}).*(@.*)$/, "$1••••$2")}
+                    {(hosted ? pendingEmail : user?.email)?.replace(
+                      /^(.{2}).*(@.*)$/,
+                      "$1••••$2",
+                    )}
                   </span>
                 </>
+              ) : mode === "confirmed" ? (
+                "Sign in to finish setting up your account."
               ) : mode === "forgot-password" ? (
                 "A little help getting back to what matters."
               ) : (
@@ -352,7 +394,40 @@ export function Auth({ mode: initial }: { mode?: string }) {
               </div>
             )}
             <ErrorBox>{error}</ErrorBox>
-            {sent ? (
+            {hosted && ["verify", "confirmed"].includes(mode) ? (
+              <div className="auth-confirmation">
+                <p>
+                  {mode === "verify"
+                    ? "Open the confirmation email from Aynor or Supabase and follow its link. Then return here to sign in. Check your spam folder too."
+                    : "Your email confirmation will be checked when you sign in."}
+                </p>
+                <Link
+                  className="button full-width auth-submit"
+                  to={link("login")}
+                >
+                  {mode === "verify"
+                    ? "I've confirmed my email"
+                    : "Continue to sign in"}
+                  <ArrowRight size={16} />
+                </Link>
+                {pendingEmail && (
+                  <Button
+                    type="button"
+                    variant="text"
+                    busy={busy}
+                    disabled={cooldown > 0}
+                    onClick={resend}
+                  >
+                    {cooldown
+                      ? `Resend in ${cooldown}s`
+                      : "Resend confirmation email"}
+                  </Button>
+                )}
+                <Link className="text-button" to={link("signup")}>
+                  Use a different email
+                </Link>
+              </div>
+            ) : sent ? (
               <div className="recovery-confirm">
                 <ShieldCheck size={28} />
                 <h3>Check your inbox</h3>
@@ -590,7 +665,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
         <Modal title={legal} onClose={() => setLegal("")}>
           <p>
             {serverMode
-              ? "Sign in with your workspace owner email and password. Public signup, Google sign-in and email password recovery are not enabled for this pilot. Contact your workspace administrator if you need access."
+              ? "Create an account with your email and password, confirm your email through Supabase, then sign in. Each account has separate workspace access. Google sign-in and email password recovery are not yet available. Keep your password saved securely."
               : legal === "Help & support"
                 ? "Explore a sample workspace or create a prototype account. Verification uses 123456. All sign-ins, connections, and email actions are simulated locally."
                 : legal === "Privacy Policy"

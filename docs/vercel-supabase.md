@@ -7,7 +7,7 @@ This deployment uses the existing Vercel root `aynor-onboarding-frontend/source`
 1. Run `supabase/migrations/202610270001_aynor_foundation.sql` in Supabase SQL Editor. This was the first setup script.
 2. Run `supabase/migrations/202610270002_serverless_operations.sql`. Expected result: **AYNOR serverless setup complete**. It adds backend-only atomic operations and sync leases; it does not remove existing records. Run the complete file, not a selected fragment.
 3. In Vercel's Production environment, keep `SUPABASE_URL` as the bare project HTTPS address and `SUPABASE_SECRET_KEY` as a Secret. Never use the publishable key in that variable. No database connection string, IPv4 add-on, paid persistent disk or Render account is needed.
-4. Add `INITIAL_OWNER_EMAIL` (your email) and `INITIAL_OWNER_PASSWORD` (a new private strong password, 16–200 characters) as server variables. Make the password Secret. This operator-provisions a verified pilot identity; it does not enable public signup or send email. An existing account/password is never overwritten.
+4. Add `INITIAL_OWNER_EMAIL` (your email) and `INITIAL_OWNER_PASSWORD` (a new private strong password, 16–200 characters) as server variables. Make the password Secret. This operator-provisions the existing owner identity independently of public signup. An existing account/password is never overwritten. New public accounts use Supabase Auth email confirmation as described below.
 5. Keep `VITE_API_MODE=server` as Config in Production. Vercel builds also detect the platform through its system environment and automatically use the API, so a missing/mistyped mode value cannot silently choose demo accounts. Local development still defaults to the offline prototype unless explicitly enabled. The HTML exporter always forces offline mode, even on Vercel. Never give credentials a `VITE_` prefix.
 6. Redeploy the latest tested `main` revision. Keep Root Directory `aynor-onboarding-frontend/source`, Vite preset and output `dist`. Vercel reads `vercel.json` from that root. Node 24.x is declared in its package. Do not change the root to the repository root.
 7. Visit `/api/health` on the actual deployment. Expected JSON: `{"status":"ok","storage":"supabase","syncMode":"manual"}`. Then visit `/auth/login`, sign in using the owner credentials, and create a workspace. The health check needs the second setup script and the correct server secret but does not reveal those values.
@@ -15,6 +15,22 @@ This deployment uses the existing Vercel root `aynor-onboarding-frontend/source`
 9. Once sign-in works and the password is saved in a password manager, remove **both** `INITIAL_OWNER_EMAIL` and `INITIAL_OWNER_PASSWORD` and redeploy. The stored account remains. Password recovery email is not implemented; retain that password securely.
 
 Do not share secrets in screenshots/chat. The SQL files contain no credentials and can be shared. Missing setup/config produces an explicit error; it never silently changes to demo financial data.
+
+## Account signup and logout
+
+Public signup is available at `/auth/signup`; login links to it and signup links back to login. New registrations are handled by the existing Supabase project's Auth service, not browser mock data. Email confirmation must succeed before an app account/session and company access are provisioned. The existing owner and other legacy scrypt accounts continue to sign in through their existing credentials. New accounts use a `supabase:<provider UUID>` identity marker in the app password column, and Supabase remains authoritative for their password checks. No new database migration or Vercel variable is required.
+
+Production activation requires these **Supabase Authentication settings**:
+
+1. Enable the Email provider and new user signups. Keep **Confirm email** enabled.
+2. Under **URL Configuration**, set Site URL to `https://aynor.vercel.app` and add `https://aynor.vercel.app/auth/confirmed` to Redirect URLs. Confirmation links must return to the actual production domain.
+3. Configure **custom SMTP** under the Authentication email settings to deliver to arbitrary user addresses. Supabase's built-in sender restricts delivery to project-team addresses and has low email rate limits; it is not a general delivery service. Sender verification and SMTP credentials belong in Supabase, never in browser code or chat. The application cannot create/configure the operator's mail-provider account from this workspace.
+
+The browser asks users to check their inbox and sign in after following the confirmation link. Resend has a visible cooldown; server-side IP/email limits and provider limits also apply. Unconfirmed sign-in is denied. Provider credentials, tokens and diagnostic bodies are never returned. Confirmation redirects remove hash tokens from the URL; the app establishes its own HttpOnly Secure SameSite=Lax session only after checking the confirmed identity with Supabase. Default-sender restrictions, disabled signup, temporary delivery failure and rate limits have explicit errors rather than fake verification success.
+
+**Log out** is visible below the desktop sidebar account section and in the header profile dialog (including mobile); the company-list header also exposes logout. Logout revokes the current native session, expires its cookie, clears session drafts and notifies other tabs. Failed requests keep the current screen/account and allow retry. Logout is idempotent for an expired/already-revoked session. It does not revoke sessions on other devices. Signing up with another email creates no membership in the previous account's companies. Existing owner workspaces remain intact.
+
+The account browser test covers logout across tabs, signup, denial before confirmation, controlled provider confirmation, isolated workspace creation, mobile logout access, retry after a failed logout, and returning to the original owner. Tests use a local email-provider fixture; actual SMTP delivery and Supabase URL/provider settings still require the operator's live setup.
 
 ## Private sheets
 
@@ -50,7 +66,7 @@ The upload API validates every record **before** replacing a source. Preview req
 
 The HTTPS adapter uses the Supabase server secret in `apikey`. Modern `sb_secret_` keys are not treated as JWT bearer tokens. All data access is server-side. Browser roles have no table or RPC privileges; service-role SQL functions are SECURITY INVOKER and explicitly deny PUBLIC/anon/authenticated execution. The API must authenticate the user and pass the trusted actor ID. Database-side membership checks protect atomic mutations; company-wide financial reports are Owner/Admin only.
 
-Company creation, owner membership, audit and idempotency results commit together. Workspace/profile changes check a locked current version. Permission changes reject ownership changes and invalid scopes. Invitation acceptance checks identity/expiry/status atomically. Outbound email and public registration remain disabled in hosted mode, matching the previous production boundary.
+Company creation, owner membership, audit and idempotency results commit together. Workspace/profile changes check a locked current version. Permission changes reject ownership changes and invalid scopes. Invitation acceptance checks identity/expiry/status atomically. Public email signup uses Supabase Auth. App invitations are not automatically created, and outbound invitation email and password recovery remain separate unfinished features.
 
 Each manual sync claims a durable PostgreSQL lease. Another function cannot claim an active sync. Lease expiry allows recovery after a function is terminated. Source generation and lease IDs guard publication, so removed/remapped sources cannot be overwritten by old requests. Source changes invalidate old snapshots atomically. Failed validation/provider reads retain the last valid snapshot. Company membership is checked again on publication. There is no fire-and-forget work after the function responds.
 
@@ -62,7 +78,7 @@ Input/size/date/currency rules match the local live slice: ISO dates, numeric am
 
 This changes the application's storage path; it does **not** automatically import old SQLite files or browser prototype state. Those remain untouched. The current Supabase project was initialized empty. Existing real SQLite data needs a separate deliberate export/import with ownership checks before switching a populated deployment.
 
-The live financial Overview is connected. The other intelligence modules retain their documented integration limits; AI, actions and goal-tracking metadata are not magically promoted to production persistence. This remains an owner-provisioned pilot, not unrestricted public onboarding. Free-provider quotas and plan eligibility still apply; manual sync avoids a paid always-on worker but is not an unlimited hosting guarantee.
+The live financial Overview is connected. The other intelligence modules retain their documented integration limits; AI, actions and goal-tracking metadata are not magically promoted to production persistence. Email signup can create separate workspaces after provider-confirmed email ownership; this remains an MVP with the reporting and recovery limits described here. Free-provider quotas and plan eligibility still apply; manual sync avoids a paid always-on worker but is not an unlimited hosting guarantee.
 
 ## Verification
 
@@ -70,4 +86,4 @@ The live financial Overview is connected. The other intelligence modules retain 
 
 `npm run test:serverless` runs Chromium against the serverless application plus PostgreSQL fixture. It verifies actual form/API navigation, persisted metrics, manual sync language, no event-stream requests, mobile/tablet/wide layouts and disconnect. `npm run test:e2e` retains the original local backend browser checks. The live cloud health and sheet smoke test still require the user's deployment and credentials; they have not been claimed as already completed.
 
-Hosted owner login intentionally omits prototype Google sign-in, skip-login, public signup and email-reset links. `/auth/signup` and recovery routes show the owner login in this pilot. The compiled browser test sets `VERCEL=1` with an empty `VITE_API_MODE`, verifies the real wrong-password response and a successful owner sign-in, then runs the manual-sync journey.
+Hosted authentication includes distinct signup, confirmation and login screens. Prototype Google sign-in, skip-login and unsupported recovery controls remain hidden. The compiled browser test sets `VERCEL=1` with an empty `VITE_API_MODE`, verifies the real wrong-password response and a successful owner sign-in, then runs the manual-sync journey.

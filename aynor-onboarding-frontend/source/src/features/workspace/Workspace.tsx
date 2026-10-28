@@ -1,5 +1,6 @@
 import { serverMode } from "../../lib/runtime";
 import { LiveOverview } from "../live/LiveOverview";
+import { SignOutButton } from "../../components/SignOutButton";
 import { Intelligence } from "../intelligence/Intelligence";
 import {
   readPreferences,
@@ -593,6 +594,7 @@ export function Workspace({
             <Sparkles size={16} />
           </button>
         </div>
+        <SignOutButton compact={collapsed} className="sidebar-sign-out" />
       </aside>
       <div className="workspace-main">
         <header className="workspace-header">
@@ -895,6 +897,7 @@ export function Workspace({
             >
               Manage companies
             </Link>
+            <SignOutButton />
           </div>
         </Modal>
       )}

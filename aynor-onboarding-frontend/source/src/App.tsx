@@ -39,6 +39,7 @@ function initialize() {
 }
 export default function App() {
   const [user, setUser] = useState<User | null>(null),
+    [signedOut, setSignedOut] = useState(false),
     [ready, setReady] = useState(false),
     [development, setDevelopment] = useState(false),
     [toast, setToast] = useState(""),
@@ -53,12 +54,35 @@ export default function App() {
       })
       .catch((e) => setError(message(e)));
     const expire = () => {
+      setSignedOut(true);
       setUser(null);
       setToast("Your session expired. Sign in to continue.");
       nav("/auth/login");
     };
     window.addEventListener("session-expired", expire);
-    return () => window.removeEventListener("session-expired", expire);
+    const signedOut = () => {
+      boot = null;
+      setSignedOut(true);
+      setUser(null);
+      nav("/auth/login", { replace: true });
+    };
+    window.addEventListener("aynor:signed-out", signedOut);
+    let authChannel: BroadcastChannel | null = null;
+    try {
+      if ("BroadcastChannel" in window)
+        authChannel = new BroadcastChannel("aynor:auth");
+    } catch {
+      /* Optional cross-tab notifications. */
+    }
+    if (authChannel)
+      authChannel.onmessage = (event) => {
+        if (event.data === "signed-out") signedOut();
+      };
+    return () => {
+      window.removeEventListener("session-expired", expire);
+      window.removeEventListener("aynor:signed-out", signedOut);
+      authChannel?.close();
+    };
   }, []);
   useEffect(() => {
     if (toast) {
@@ -83,7 +107,18 @@ export default function App() {
       </div>
     );
   return (
-    <Context.Provider value={{ user, setUser, development, toast: setToast }}>
+    <Context.Provider
+      value={{
+        user,
+        setUser: (next) => {
+          setUser(next);
+          if (next) setSignedOut(false);
+        },
+        signedOut,
+        development,
+        toast: setToast,
+      }}
+    >
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/home" element={<Home />} />
@@ -195,14 +230,16 @@ export default function App() {
   );
 }
 function Guard({ children }: { children: ReactNode }) {
-  const { user } = useApp();
+  const { user, signedOut } = useApp();
   const loc = useLocation();
   if (!user)
     return (
       <Navigate
         to={
-          "/auth/signup?next=" +
-          encodeURIComponent(loc.pathname + loc.search + loc.hash)
+          signedOut
+            ? "/auth/login"
+            : "/auth/signup?next=" +
+              encodeURIComponent(loc.pathname + loc.search + loc.hash)
         }
         replace
       />

@@ -10,6 +10,7 @@ import { z } from "zod";
 import { createDatabase, fail } from "./database.mjs";
 import { workspaceSchema } from "./contracts.mjs";
 import { createServerlessSheets } from "./sheets.mjs";
+import { createRegistration } from "./registration.mjs";
 const derive = promisify(scrypt),
   hash = (value) => createHash("sha256").update(value).digest("hex");
 const uuid = (value) => z.string().uuid().safeParse(value).success;
@@ -75,6 +76,7 @@ export function createApplication({
   database,
 } = {}) {
   const db = database || createDatabase({ env, fetchImpl });
+  const registration = createRegistration({ env, fetchImpl });
   async function member(company, actor, admin = false) {
     if (!uuid(company)) fail(404, "Workspace not found.");
     const c = await db.one("companies", {
@@ -260,7 +262,8 @@ export function createApplication({
           developmentSession: false,
           googleOAuth: sheets.configured(),
           publicSheets: true,
-          emailDelivery: false,
+          emailDelivery: "supabase",
+          publicSignup: true,
           syncMode: "manual",
           databaseReady: ready,
         });
@@ -292,6 +295,55 @@ export function createApplication({
         : null;
       if (path === "/session" && method === "GET")
         return send({ user: user ? safeUser(user) : null });
+      if (path === "/auth/logout" && method === "POST") {
+        if (token) await db.remove("sessions", { token: "eq." + hash(token) });
+        cookie =
+          "aynor_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0";
+        return send({ ok: true });
+      }
+      if (
+        ["/auth/signup", "/auth/resend"].includes(path) &&
+        method === "POST"
+      ) {
+        const email =
+          typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+        if (!z.string().email().max(254).safeParse(email).success)
+          fail(400, "Enter a valid email address.");
+        const ip = String(
+          req.headers["x-forwarded-for"] ||
+            req.socket?.remoteAddress ||
+            "unknown",
+        )
+          .split(",")[0]
+          .trim();
+        await rate("registration:" + ip, 10, 3600000);
+        await rate("confirmation:" + email, 3, 600000);
+        if (path === "/auth/resend") {
+          await registration.resend(email, url.origin);
+          return send({ ok: true });
+        }
+        if (
+          !z.string().trim().min(1).max(100).safeParse(body.name).success ||
+          typeof body.password !== "string" ||
+          body.password.trim().length < 10 ||
+          body.password.length > 200
+        )
+          fail(400, "Enter your name and a password of 10–200 characters.");
+        if (await db.one("users", { email: "eq." + email }))
+          fail(
+            409,
+            "An account already exists for this email. Sign in instead.",
+          );
+        return send(
+          await registration.signup({
+            email,
+            password: body.password,
+            name: body.name.trim(),
+            origin: url.origin,
+          }),
+          201,
+        );
+      }
       if (path === "/auth/login" && method === "POST") {
         const ip = String(
           req.headers["x-forwarded-for"] ||
@@ -304,15 +356,47 @@ export function createApplication({
         await bootstrap();
         const email =
           typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-        const candidate = z.string().email().safeParse(email).success
+        let candidate = z.string().email().safeParse(email).success
           ? await db.one("users", { email: "eq." + email })
           : null;
         if (
+          z.string().email().safeParse(email).success &&
+          (!candidate || candidate.password.startsWith("supabase:")) &&
+          typeof body.password === "string" &&
+          body.password.length <= 200
+        ) {
+          const identity = await registration.login(email, body.password);
+          if (!uuid(identity.id))
+            fail(503, "Account service returned an invalid identity.");
+          if (!candidate) {
+            await db.insert(
+              "users",
+              {
+                id: identity.id,
+                email,
+                name: String(
+                  identity.user_metadata?.name || email.split("@")[0],
+                ).slice(0, 100),
+                password: "supabase:" + identity.id,
+                verified: true,
+              },
+              {
+                query: { on_conflict: "email" },
+                prefer: "resolution=ignore-duplicates,return=minimal",
+              },
+            );
+            candidate = await db.one("users", { email: "eq." + email });
+          }
+          if (candidate?.password !== "supabase:" + identity.id)
+            fail(401, "Email or password is incorrect.");
+        } else if (
           !candidate ||
           typeof body.password !== "string" ||
           body.password.length > 200 ||
           !(await validPassword(body.password, candidate.password))
         )
+          fail(401, "Email or password is incorrect.");
+        if (!candidate || !candidate.verified)
           fail(401, "Email or password is incorrect.");
         const next = randomBytes(32).toString("hex");
         await db.insert("sessions", {
@@ -325,9 +409,7 @@ export function createApplication({
       }
       if (
         [
-          "/auth/signup",
           "/auth/recover",
-          "/auth/resend",
           "/auth/reset",
           "/auth/verify",
           "/auth/google",
@@ -335,16 +417,10 @@ export function createApplication({
       )
         fail(
           503,
-          "Hosted public registration and email delivery are not enabled. Use the owner account configured in Vercel.",
+          "This account operation is not enabled yet. Email signup and sign-in are available.",
         );
       if (!user) fail(401, "Your session has expired. Please sign in.");
       if (!user.verified) fail(403, "Verified account required.");
-      if (path === "/auth/logout" && method === "POST") {
-        await db.remove("sessions", { token: "eq." + hash(token) });
-        cookie =
-          "aynor_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0";
-        return send({ ok: true });
-      }
       if (!["GET", "HEAD"].includes(method))
         await rate("mutation:" + user.id, 90, 60000);
       if (path === "/companies" && method === "GET") {

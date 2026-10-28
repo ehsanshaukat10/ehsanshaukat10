@@ -955,3 +955,46 @@ body .refined-shell.workspace-shell .company-switcher {
 body .refined-shell .company-switcher > span:nth-child(2) {
   gap: 0;
 }
+
+body .refined-shell .sidebar-sign-out {
+  justify-content: flex-start;
+  width: calc(100% - 24px);
+  min-height: 38px;
+  margin: 4px 12px 12px;
+  padding: 8px 12px;
+  color: #6e6881;
+  font-size: 13px;
+  font-weight: 400;
+  border-radius: 8px;
+}
+body .refined-shell .sidebar-sign-out:hover {
+  background: #f2eefb;
+  color: #6950cc;
+}
+body .refined-shell .sidebar-sign-out:focus-visible {
+  outline: 2px solid #8b74da;
+  outline-offset: 2px;
+}
+.auth-confirmation {
+  display: grid;
+  gap: 16px;
+  text-align: center;
+}
+.auth-confirmation p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #717789;
+}
+@media (min-width: 761px) {
+  body .refined-shell.sidebar-collapsed .sidebar-sign-out {
+    width: 100%;
+    margin: 6px 0;
+    justify-content: center;
+    padding: 10px;
+  }
+}
+@media (max-width: 760px) {
+  body .refined-shell .sidebar-sign-out {
+    display: none;
+  }
+}

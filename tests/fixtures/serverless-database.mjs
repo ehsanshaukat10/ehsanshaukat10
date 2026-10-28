@@ -24,12 +24,62 @@ export async function fixtureDatabase() {
     invalidGrant: false,
     tokenLifetime: 3600,
     fail: false,
+    authUsers: new Map(),
+    emailsSent: 0,
+    authError: null,
   };
   const encode = (value) =>
     value !== null && typeof value === "object" ? JSON.stringify(value) : value;
   async function fetchImpl(input, options = {}) {
     const url = new URL(input),
       method = options.method || "GET";
+    if (
+      url.hostname === "test.supabase.co" &&
+      url.pathname.startsWith("/auth/v1/")
+    ) {
+      if (options.headers.apikey !== "sb_secret_test_fixture_only")
+        throw Error("Auth server key missing");
+      if (control.authError)
+        return Response.json(
+          {
+            code: control.authError,
+            message: "private provider diagnostic must not leak",
+          },
+          { status: control.authError.includes("rate") ? 429 : 400 },
+        );
+      const body = JSON.parse(options.body);
+      const account = control.authUsers.get(body.email);
+      if (url.pathname.endsWith("/signup")) {
+        control.emailsSent++;
+        if (!account)
+          control.authUsers.set(body.email, {
+            id: crypto.randomUUID(),
+            email: body.email,
+            password: body.password,
+            user_metadata: body.data,
+            email_confirmed_at: null,
+          });
+        return Response.json({
+          id: control.authUsers.get(body.email).id,
+          email: body.email,
+          email_confirmed_at: null,
+        });
+      }
+      if (url.pathname.endsWith("/resend")) {
+        control.emailsSent++;
+        return Response.json({});
+      }
+      if (!account || account.password !== body.password)
+        return Response.json({ code: "invalid_credentials" }, { status: 400 });
+      if (!account.email_confirmed_at)
+        return Response.json({ code: "email_not_confirmed" }, { status: 400 });
+      const { password, ...identity } = account;
+      return Response.json({
+        user: identity,
+        access_token: "private-provider-token",
+        refresh_token: "private-provider-refresh",
+      });
+    }
     if (url.hostname === "oauth2.googleapis.com") {
       control.tokens++;
       return control.invalidGrant

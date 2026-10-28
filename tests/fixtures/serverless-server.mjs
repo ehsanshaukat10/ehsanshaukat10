@@ -18,7 +18,19 @@ const app = createApplication({
   },
   fetchImpl: fixture.fetchImpl,
 });
-const server = http.createServer(app);
+const server = http.createServer(async (req, res) => {
+  // Local fixture only. The deployed application has no confirmation bypass.
+  if (req.url === "/api/__fixture/confirm-email" && req.method === "POST") {
+    let raw = "";
+    for await (const chunk of req) raw += chunk;
+    const account = fixture.control.authUsers.get(JSON.parse(raw).email);
+    if (account) account.email_confirmed_at = new Date().toISOString();
+    res.writeHead(account ? 200 : 404, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: !!account }));
+    return;
+  }
+  await app(req, res);
+});
 server.listen(3194, "127.0.0.1", () =>
   console.log("Isolated serverless fixture on 3194"),
 );
