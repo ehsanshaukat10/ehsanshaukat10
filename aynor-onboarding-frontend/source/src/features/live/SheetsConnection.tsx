@@ -36,6 +36,7 @@ type Inspection = {
   tabId: number;
   tabTitle: string;
   headers: string[];
+  preview?: string[][];
 };
 export function useSheetStatus(company: string, enabled = true) {
   const [source, setSource] = useState<SourceStatus | null>(null),
@@ -125,7 +126,15 @@ export function SheetsConnection({ companyId }: { companyId: string }) {
         { url, ...(tabId === undefined ? {} : { tabId }) },
       );
       setInspection(value);
-      setMapping({ date: "", revenue: "", expenses: "" });
+      const match = (pattern: RegExp) =>
+        value.headers.find((header) => pattern.test(header)) || "";
+      setMapping({
+        date: match(/^(date|record date|transaction date)$/i),
+        revenue: match(/^(revenue|sales|income|monthly revenue)$/i),
+        expenses: match(
+          /^(costs|expenses|operating expenses|operating costs)$/i,
+        ),
+      });
     });
   }
   return (
@@ -143,6 +152,7 @@ export function SheetsConnection({ companyId }: { companyId: string }) {
             onClick={() => {
               setMode("oauth");
               setInspection(null);
+              setError("");
             }}
           >
             Private sheet
@@ -152,6 +162,7 @@ export function SheetsConnection({ companyId }: { companyId: string }) {
             onClick={() => {
               setMode("public");
               setInspection(null);
+              setError("");
             }}
           >
             Published sheet
@@ -182,10 +193,24 @@ export function SheetsConnection({ companyId }: { companyId: string }) {
                 : "Connect Google"}
             </Button>
             {source && !source.configured && (
-              <p>
-                Private access needs server OAuth credentials. Published sheets
-                are available without them.
-              </p>
+              <div role="status">
+                <p>
+                  Google connection is not set up for this workspace yet. A
+                  private link needs Google authorization before its columns can
+                  be read. Use a published sheet below to connect data now.
+                </p>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setMode("public");
+                    setError("");
+                    setInspection(null);
+                    setUrl("");
+                  }}
+                >
+                  Use published sheet
+                </Button>
+              </div>
             )}
           </>
         ) : (
@@ -210,6 +235,7 @@ export function SheetsConnection({ companyId }: { companyId: string }) {
             onChange={(event) => {
               setUrl(event.target.value);
               setInspection(null);
+              setError("");
             }}
             placeholder={
               mode === "public"
@@ -260,10 +286,59 @@ export function SheetsConnection({ companyId }: { companyId: string }) {
                 </option>
               ))}
             </Select>
+            <p role="status">
+              {inspection.headers.length} columns found. Review your data and
+              choose the reporting columns.
+            </p>
+            {inspection.preview?.length ? (
+              <div
+                style={{ overflowX: "auto", maxHeight: 180, marginBottom: 16 }}
+              >
+                <table
+                  style={{
+                    width: "100%",
+                    fontSize: 12,
+                    textAlign: "left",
+                    borderCollapse: "collapse",
+                  }}
+                >
+                  <thead>
+                    <tr>
+                      {inspection.headers.map((header) => (
+                        <th
+                          key={header}
+                          style={{ padding: 8, fontWeight: 500 }}
+                        >
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {inspection.preview.map((row, index) => (
+                      <tr key={index}>
+                        {inspection.headers.map((header, i) => (
+                          <td
+                            key={header}
+                            style={{
+                              padding: 8,
+                              borderTop: "1px solid #ecebf3",
+                            }}
+                          >
+                            {String(row[i] ?? "—")}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
             <p>
-              One row per record. Dates must use YYYY-MM-DD. Revenue and
-              expenses must be numeric amounts in your workspace currency; no
-              currency conversion is applied.
+              One row per record. Dates accept year-first formats such as
+              2026-09-01 or 2026/9/1. Revenue and expenses accept numbers,
+              thousands separators and common currency symbols in your workspace
+              currency; no currency conversion is applied.
             </p>
             <div className="intel-form-grid">
               {(["date", "revenue", "expenses"] as const).map((field) => (

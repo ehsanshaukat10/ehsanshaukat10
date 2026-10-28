@@ -23,19 +23,34 @@ export function sheetId(input) {
   return match[1];
 }
 export function columns(values) {
-  const headers = values[0];
+  const width = Math.max(0, ...values.map((row) => row.length));
+  const headers =
+    values[0] && Array.from({ length: width }, (_, i) => values[0][i]);
   if (!Array.isArray(headers) || !headers.length || headers.length > 52)
     throw Error("Use one header row with at most 52 columns.");
-  const names = headers.map((v) => String(v ?? "").trim());
-  if (
-    names.some((n) => !n || n.length > 150) ||
-    new Set(names.map((n) => n.toLowerCase())).size !== names.length
-  )
-    throw Error("Column headers must be nonempty and unique.");
+  const used = new Set();
+  const names = headers.map((value, index) => {
+    const base =
+      String(value ?? "")
+        .trim()
+        .slice(0, 130) || `Column ${index + 1}`;
+    let name = base,
+      suffix = 2;
+    while (used.has(name.toLowerCase())) name = `${base} (${suffix++})`;
+    used.add(name.toLowerCase());
+    return name;
+  });
   return names;
 }
 function amount(value, row, field) {
-  const raw = String(value ?? "").trim();
+  let raw = String(value ?? "")
+    .trim()
+    .replace(/\u00a0/g, " ");
+  raw = raw
+    .replace(/^(?:USD|EUR|GBP|PKR|INR|AED)\s*/i, "")
+    .replace(/[$€£₹₨]/g, "")
+    .trim();
+  if (/^\(.*\)$/.test(raw)) raw = "-" + raw.slice(1, -1).trim();
   if (!raw || !/^-?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,6})?$/.test(raw))
     throw Error(
       `Row ${row}: ${field} must be a number; use a decimal point and no currency symbols.`,
@@ -70,7 +85,11 @@ export function validateRows(values, mapping) {
       row.slice(headers.length).some((v) => String(v ?? "").trim())
     )
       throw Error(`Row ${i + 1}: values exist without column headers.`);
-    const date = String(row[indices.date] ?? "").trim();
+    let date = String(row[indices.date] ?? "").trim();
+    // Year-first formats are unambiguous across spreadsheet locales.
+    const parts = date.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+    if (parts)
+      date = `${parts[1]}-${parts[2].padStart(2, "0")}-${parts[3].padStart(2, "0")}`;
     if (
       !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
       !Number.isFinite(Date.parse(date)) ||
@@ -155,8 +174,7 @@ export function publicSheetUrl(input) {
     url.port ||
     url.username ||
     url.password ||
-    !/^\/spreadsheets\/d\/e\/[a-zA-Z0-9_-]{20,200}\/pub$/.test(url.pathname) ||
-    url.searchParams.get("output") !== "csv"
+    !/^\/spreadsheets\/d\/e\/[a-zA-Z0-9_-]{20,200}\/pub$/.test(url.pathname)
   )
     throw Error(
       "Use Google Sheets → File → Share → Publish to web → CSV. Paste that published link.",

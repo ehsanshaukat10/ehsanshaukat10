@@ -65,7 +65,7 @@ export function createServerlessSheets({
         : (
             await google.read(
               company,
-              `${c.spreadsheet}/values/${encodeURIComponent(range)}?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`,
+              `${c.spreadsheet}/values/${encodeURIComponent(range)}?valueRenderOption=FORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`,
             )
           ).values || [];
       let snapshot;
@@ -121,7 +121,7 @@ export function createServerlessSheets({
     if (!tab) fail(422, "Choose an available grid tab.");
     const values = await google.read(
       company,
-      `${id}/values/${encodeURIComponent("'" + tab.title.replaceAll("'", "''") + "'!A1:BA1")}`,
+      `${id}/values/${encodeURIComponent("'" + tab.title.replaceAll("'", "''") + "'!A1:BA6")}`,
     );
     let headers;
     try {
@@ -136,6 +136,7 @@ export function createServerlessSheets({
       tabId: tab.sheetId,
       tabTitle: tab.title,
       headers,
+      preview: (values.values || []).slice(1, 6),
     };
   }
   return {
@@ -265,9 +266,10 @@ export function createServerlessSheets({
         } catch (error) {
           fail(400, error.message);
         }
-        let headers;
+        let headers, rows;
         try {
-          headers = columns(await google.publicRows(canonical));
+          rows = await google.publicRows(canonical);
+          headers = columns(rows);
         } catch (error) {
           fail(error.status || 422, error.message);
         }
@@ -292,6 +294,7 @@ export function createServerlessSheets({
           tabId: 0,
           tabTitle: "Published report",
           headers,
+          preview: rows.slice(1, 6),
         });
       }
       if (action === "inspect" && method === "POST")
