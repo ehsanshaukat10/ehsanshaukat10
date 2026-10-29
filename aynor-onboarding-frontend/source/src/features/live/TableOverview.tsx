@@ -5,6 +5,22 @@ import { Button, Field } from "../../components/ui";
 import { Panel } from "../intelligence/shared";
 import "./table-review.css";
 type Table = {
+  parentTitle?: string;
+  department?: string;
+  sourceId?: string;
+  tabId?: number;
+  lastSuccess?: number;
+  error?: string;
+  changes?: { added: number; removed: number; updated: number };
+  financial?: {
+    points: { date: string; revenue: number; costs: number }[];
+    totals: {
+      revenue: number;
+      costs: number;
+      profit: number;
+      margin: number | null;
+    };
+  };
   title: string;
   purpose: string;
   headers: string[];
@@ -30,13 +46,16 @@ export type TableReport = {
     matched: number;
   }[];
   tables: Table[];
+  sources?: { title: string; tabs: { mapped: boolean; title: string }[] }[];
 };
 export function TableOverview({
   report,
   companyId,
+  currency = "USD",
 }: {
   report: TableReport;
   companyId: string;
+  currency?: string;
 }) {
   const [selected, setSelected] = useState(0),
     [query, setQuery] = useState(""),
@@ -61,10 +80,54 @@ export function TableOverview({
   );
   const pages = Math.max(1, Math.ceil(filtered.length / 25));
   const current = Math.min(page, pages - 1);
+  const financial = table.financial;
+  const money = (n: number) =>
+    new Intl.NumberFormat("en", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(n);
+  const totalPages =
+    report.sources?.reduce((n, s) => n + s.tabs.length, 0) ||
+    report.tables.length;
+  const unmapped =
+    report.sources?.reduce(
+      (n, s) => n + s.tabs.filter((t) => !t.mapped).length,
+      0,
+    ) || 0;
   const cells = table.rowCount * table.headers.length;
   const filled = table.columns.reduce((n, c) => n + c.filled, 0);
   return (
     <section aria-label="Imported table dashboard">
+      {!!report.sources?.length && (
+        <div className="source-coverage">
+          <span>
+            {totalPages - unmapped} of {totalPages} worksheet pages mapped
+          </span>
+          {unmapped > 0 && (
+            <Link to={`/companies/${companyId}/settings/connections?map=1`}>
+              Map {unmapped} remaining page{unmapped === 1 ? "" : "s"}
+            </Link>
+          )}
+        </div>
+      )}
+      {table.parentTitle && (
+        <p className="mapping-submit-note">
+          {table.parentTitle} / {table.title} ·{" "}
+          {table.department || "Department not assigned"}
+        </p>
+      )}
+      {table.error && (
+        <p className="source-page-error">
+          {table.error} Your last saved data is still shown.
+        </p>
+      )}
+      {table.changes && (
+        <p className="mapping-submit-note">
+          Last sync: {table.changes.added} added · {table.changes.updated}{" "}
+          changed · {table.changes.removed} removed
+        </p>
+      )}
       <div
         className="table-report-tabs"
         role="group"
@@ -82,7 +145,9 @@ export function TableOverview({
             }}
           >
             <Table2 size={14} />
-            {item.title}
+            {item.parentTitle
+              ? `${item.parentTitle} / ${item.title}`
+              : item.title}
           </Button>
         ))}
       </div>
@@ -112,21 +177,101 @@ export function TableOverview({
         </Panel>
       )}
       <div className="intel-kpi-grid">
-        {[
-          ["Records", table.rowCount.toLocaleString()],
-          ["Columns", String(table.headers.length)],
-          [
-            "Filled cells",
-            `${cells ? Math.round((filled / cells) * 100) : 0}%`,
-          ],
-          ["Table purpose", table.purpose],
-        ].map(([label, value]) => (
+        {(financial
+          ? [
+              ["Revenue", money(financial.totals.revenue)],
+              ["Operating expenses", money(financial.totals.costs)],
+              ["Operating profit", money(financial.totals.profit)],
+              ["Records", table.rowCount.toLocaleString()],
+            ]
+          : [
+              ["Records", table.rowCount.toLocaleString()],
+              ["Columns", String(table.headers.length)],
+              [
+                "Filled cells",
+                `${cells ? Math.round((filled / cells) * 100) : 0}%`,
+              ],
+              ["Department", table.department || table.purpose],
+            ]
+        ).map(([label, value]) => (
           <div className="intel-kpi" key={label}>
             <span>{label}</span>
             <strong>{value}</strong>
           </div>
         ))}
       </div>
+      {financial && (
+        <Panel title="Revenue & operating costs">
+          <div className="live-legend">
+            <span>● Revenue</span>
+            <span>● Operating expenses</span>
+          </div>
+          <svg
+            viewBox="0 0 800 220"
+            role="img"
+            aria-label="Revenue and operating expenses from this worksheet"
+            style={{ width: "100%", maxHeight: 260 }}
+          >
+            {financial.points.slice(-30).map((point, i, points) => {
+              const max = Math.max(
+                  1,
+                  ...points.flatMap((p) => [p.revenue, p.costs]),
+                ),
+                min = Math.min(
+                  0,
+                  ...points.flatMap((p) => [p.revenue, p.costs]),
+                ),
+                y = (n: number) => 180 - ((n - min) / (max - min)) * 150,
+                slot = 740 / points.length,
+                x = 40 + (i + 0.5) * slot,
+                w = Math.min(22, slot * 0.3);
+              return (
+                <g key={point.date}>
+                  <rect
+                    x={x - w}
+                    y={Math.min(y(0), y(point.revenue))}
+                    width={w}
+                    height={Math.abs(y(point.revenue) - y(0))}
+                    rx="3"
+                    fill="#8d78cf"
+                  >
+                    <title>
+                      {point.date}: Revenue {money(point.revenue)}
+                    </title>
+                  </rect>
+                  <rect
+                    x={x + 2}
+                    y={Math.min(y(0), y(point.costs))}
+                    width={w}
+                    height={Math.abs(y(point.costs) - y(0))}
+                    rx="3"
+                    fill="#d9d0ed"
+                  >
+                    <title>
+                      {point.date}: Expenses {money(point.costs)}
+                    </title>
+                  </rect>
+                  {points.length < 12 && (
+                    <text
+                      x={x}
+                      y="205"
+                      textAnchor="middle"
+                      fontSize="10"
+                      fill="#82788f"
+                    >
+                      {point.date.slice(5)}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+          <p>
+            Daily totals · most recent 30 reporting dates. Metrics include every
+            imported date.
+          </p>
+        </Panel>
+      )}
       <div className="table-report-grid">
         {table.columns
           .filter((c) => c.categories.length && c.uniqueCount < c.filled)

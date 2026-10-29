@@ -63,38 +63,24 @@ try {
     page.getByLabel("Verification code", { exact: true }),
   ).toHaveCount(0);
   await page
-    .getByRole("link", { name: "I've confirmed my email", exact: true })
+    .getByRole("button", { name: "Check verification", exact: true })
     .click();
-  await page
-    .getByLabel("Email address", { exact: true })
-    .fill("new-tester@example.test");
-  await page
-    .getByLabel("Password", { exact: true })
-    .fill("new-account-password-long");
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Confirm your email");
-  assert.ok(
-    (
-      await page.request.post(base + "/api/__fixture/confirm-email", {
-        data: { email: "new-tester@example.test" },
-      })
-    ).ok(),
+  await expect(page).toHaveURL(/auth\/verify$/);
+  await expect(page.getByRole("alert")).toContainText("has not been verified");
+  assert.equal(
+    (await (await page.request.get(base + "/api/session")).json()).user,
+    null,
   );
-  await page.goto(base + "/auth/confirmed#access_token=must-be-removed");
-  await expect(
-    page.getByRole("heading", { name: "Ready to sign in.", exact: true }),
-  ).toBeVisible();
-  await expect(page).toHaveURL(base + "/auth/confirmed");
-  await page
-    .getByRole("link", { name: "Continue to sign in", exact: true })
-    .click();
-  await page
-    .getByLabel("Email address", { exact: true })
-    .fill("new-tester@example.test");
-  await page
-    .getByLabel("Password", { exact: true })
-    .fill("new-account-password-long");
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.goto(base + "/auth/confirmed#access_token=invented-token");
+  await expect(page.getByRole("alert")).toContainText("expired");
+  const confirmed = await (
+    await page.request.post(base + "/api/__fixture/confirm-email", {
+      data: { email: "new-tester@example.test" },
+    })
+  ).json();
+  await page.goto(
+    base + "/auth/confirmed#type=signup&access_token=" + confirmed.accessToken,
+  );
   await expect(
     page.getByRole("heading", {
       name: "Let’s build your workspace.",
@@ -148,6 +134,56 @@ try {
   await page.locator(".sidebar-sign-out").click();
   await expect(page).toHaveURL(/\/auth\/login$/);
   await page
+    .getByRole("link", { name: "Forgot password?", exact: true })
+    .click();
+  await page
+    .getByLabel("Email address", { exact: true })
+    .fill("new-tester@example.test");
+  await page
+    .getByRole("button", { name: "Send reset link", exact: true })
+    .click();
+  await expect(
+    page.getByText(
+      "If this email has an account, you’ll receive a secure reset link. Check your inbox and spam folder.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  const recovered = await (
+    await page.request.post(base + "/api/__fixture/recovery-token", {
+      data: { email: "new-tester@example.test" },
+    })
+  ).json();
+  await page.goto(
+    base +
+      "/auth/confirmed#type=recovery&access_token=" +
+      recovered.accessToken,
+  );
+  await expect(page).toHaveURL(/auth\/reset-password$/);
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("new-recovered-password-long");
+  await page
+    .getByLabel("Confirm password", { exact: true })
+    .fill("new-recovered-password-long");
+  await page
+    .getByRole("button", { name: "Update password", exact: true })
+    .click();
+  await expect(page).toHaveURL(/auth\/login$/);
+  await page
+    .getByLabel("Email address", { exact: true })
+    .fill("new-tester@example.test");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("new-recovered-password-long");
+
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/companies/${newCompany}/onboarding/departments$`),
+  );
+  await page.goto(`${base}/companies/${newCompany}/overview`);
+  await page.locator(".sidebar-sign-out").click();
+  await expect(page).toHaveURL(/auth\/login$/);
+  await page
     .getByLabel("Email address", { exact: true })
     .fill("owner@example.test");
   await page
@@ -165,7 +201,7 @@ try {
   );
   assert.deepEqual(errors, []);
   console.log(
-    "PASS dashboard logout → session revocation across tabs → email signup → unconfirmed denial → confirmed login → separate workspace → mobile account logout → retry after failed logout → original owner login (controlled email provider)",
+    "PASS dashboard logout → session revocation across tabs → email signup → unconfirmed denial → verified callback automatic sign-in → secure email password recovery → separate workspace → mobile account logout → retry after failed logout → original owner login (controlled email provider)",
   );
 } catch (error) {
   console.log(await page.locator("body").innerText());

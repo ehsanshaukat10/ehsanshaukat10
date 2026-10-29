@@ -1,9 +1,16 @@
+import { randomBytes } from "node:crypto";
 import { fail } from "./database.mjs";
 
 // Supabase delivers confirmation emails and proves email ownership. Provider
 // tokens stay on this server; Aynor continues using its HttpOnly app session.
 export function createRegistration({ env, fetchImpl }) {
-  async function request(path, body, login = false, method = "POST") {
+  async function request(
+    path,
+    body,
+    login = false,
+    method = "POST",
+    accessToken,
+  ) {
     let base;
     try {
       base = new URL(env.SUPABASE_URL);
@@ -25,6 +32,12 @@ export function createRegistration({ env, fetchImpl }) {
         method,
         headers: {
           apikey: env.SUPABASE_SECRET_KEY,
+          ...(accessToken
+            ? { Authorization: "Bearer " + accessToken }
+            : path.startsWith("admin/") &&
+                env.SUPABASE_SECRET_KEY.startsWith("eyJ")
+              ? { Authorization: "Bearer " + env.SUPABASE_SECRET_KEY }
+              : {}),
           "Content-Type": "application/json",
         },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -37,6 +50,11 @@ export function createRegistration({ env, fetchImpl }) {
       fail(503, "Account service is temporarily unavailable. Please retry.");
     }
     if (!response.ok) {
+      if (accessToken)
+        fail(
+          response.status === 429 ? 429 : 403,
+          "This email link has expired or is invalid. Request a new link and try again.",
+        );
       if (
         response.status === 429 ||
         /rate_limit/.test(data.code || data.error_code || "")
@@ -92,7 +110,71 @@ export function createRegistration({ env, fetchImpl }) {
         "Email confirmation is required. Enable Confirm email in Supabase Authentication before continuing.",
       );
   }
+  async function verifiedIdentity(accessToken) {
+    if (
+      typeof accessToken !== "string" ||
+      accessToken.length < 10 ||
+      accessToken.length > 16000
+    )
+      fail(403, "Open the verification link from your email to continue.");
+    const user = await request("user", undefined, false, "GET", accessToken);
+    if (!user.email_confirmed_at || !user.email || !user.id)
+      fail(403, "Your email has not been verified yet.");
+    return user;
+  }
   return {
+    verifiedIdentity,
+    async confirm(input) {
+      await requireConfirmation();
+      if (input.tokenHash) {
+        if (
+          typeof input.tokenHash !== "string" ||
+          input.tokenHash.length > 1000 ||
+          !["signup", "email"].includes(input.type)
+        )
+          fail(403, "Invalid confirmation link.");
+        const data = await request("verify", {
+          token_hash: input.tokenHash,
+          type: input.type,
+        });
+        return verifiedIdentity(data.access_token);
+      }
+      return verifiedIdentity(input.accessToken);
+    },
+    async recover(email, origin, legacy) {
+      if (legacy) {
+        try {
+          // Create no session and assert no email ownership here. Recovery email
+          // must prove ownership before the legacy password can be changed.
+          await request("admin/users", {
+            email,
+            password: randomBytes(32).toString("hex"),
+            email_confirm: false,
+            user_metadata: { name: legacy.name },
+          });
+        } catch (error) {
+          if (error.status !== 409) throw error;
+        }
+      }
+      await request(
+        "recover?redirect_to=" + encodeURIComponent(origin + "/auth/confirmed"),
+        { email },
+      );
+    },
+    async reset(input, consume) {
+      let token = input.accessToken;
+      if (input.tokenHash) {
+        const data = await request("verify", {
+          token_hash: input.tokenHash,
+          type: "recovery",
+        });
+        token = data.access_token;
+      }
+      const user = await verifiedIdentity(token);
+      await consume(user);
+      await request("user", { password: input.password }, false, "PUT", token);
+      return user;
+    },
     async signup({ email, password, name, origin }) {
       await requireConfirmation();
       const data = await request(

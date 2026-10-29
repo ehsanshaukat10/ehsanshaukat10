@@ -102,7 +102,7 @@ The live financial Overview is connected. The other intelligence modules retain 
 
 Hosted authentication includes distinct signup, confirmation and login screens. Prototype Google sign-in, skip-login and unsupported recovery controls remain hidden. The compiled browser test sets `VERCEL=1` with an empty `VITE_API_MODE`, verifies the real wrong-password response and a successful owner sign-in, then runs the manual-sync journey.
 
-### Flexible table imports
+### Legacy flexible table endpoint (`/sheets/tables`)
 
 Hosted imports now have two explicit report modes. Existing financial imports keep their date/revenue/expenses aggregation and current contracts. The new **Explore my table** mode imports arbitrary rectangular tables without assigning financial meanings. Google inspection reads the first 100 rows for header/type suggestions, lists all grid tabs, and permits a header-row override. Empty tabs can be switched without losing access to the tab picker. Excel uses the same header suggestion. Column types are suggested from samples, then editable as text, number, currency, percentage, date, boolean, or excluded. Ambiguous non-year-first dates remain text until the user chooses Date and an explicit day-first/month-first format. Optional last-data-row selection excludes footnotes/totals. Blank cells remain null; every retained typed value is checked on the server before replacing the current source.
 
@@ -115,3 +115,7 @@ Generic snapshots now retain the actual imported nonfinancial records (not only 
 For multi-tab imports, shared ID/code/email column names generate optional connection suggestions. Only explicitly checked connections are stored. The backend requires compatible column types, actual matching values and a unique reference key, preventing many-to-many duplication. Connections display in Overview and reference-table rows navigate to filtered related records. No financial totals are combined across tables. Names that differ or nonidentifier relationships are not auto-inferred.
 
 Validation: `tests/table-data.test.js` covers locale ambiguity, header/range selection, physical error-row numbering, real PostgreSQL persistence, invalid replacement retention, Google re-sync, and unique-key relationship rules. `tests/tables.browser.mjs` covers an actual multi-tab Excel import through onboarding and the table dashboard, including explicit dates, confirmed links, related-record navigation, search, pagination, reload and responsive layouts. Existing financial/authentication browser journeys remain in `npm run test:serverless`. Provider interactions use controlled fixtures, not live customer Google accounts.
+
+### Current customer connection and mapping flow
+
+The current UI uses the additive `/companies/:id/sources` catalog, with connection in onboarding step 3 and department/column mapping in step 4. It replaces the earlier single-active-source UI described in the legacy endpoint section above. Google, file and URL sources coexist. The catalog uses existing tables and lease/publish RPCs without another migration. Existing reports are retained during adoption and sync. See [Customer journey feedback](customer-journey-feedback.md) for the full behaviors, verification, recovery, compatibility and provider requirements.

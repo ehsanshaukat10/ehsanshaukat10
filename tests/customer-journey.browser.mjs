@@ -1,5 +1,6 @@
 import { chromium, expect } from "@playwright/test";
 import assert from "node:assert/strict";
+import { map, save } from "./fixtures/feedback-browser.mjs";
 const browser = await chromium.launch({
   executablePath: "/usr/bin/chromium",
   args: ["--no-sandbox"],
@@ -45,10 +46,14 @@ try {
     (await (await page.request.get(base + "/api/session")).json()).user,
     null,
   );
-  await page.request.post(base + "/api/__fixture/confirm-email", {
-    data: { email },
-  });
-  await login();
+  const proof = await (
+    await page.request.post(base + "/api/__fixture/confirm-email", {
+      data: { email },
+    })
+  ).json();
+  await page.goto(
+    base + "/auth/confirmed#type=signup&access_token=" + proof.accessToken,
+  );
   await expect(
     page.getByRole("heading", {
       name: "Let’s build your workspace.",
@@ -88,10 +93,10 @@ try {
   );
   await page.reload();
   await expect(
-    page.getByRole("heading", { name: "Connect your data", exact: true }),
+    page.getByRole("button", { name: "Upload sheet", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Finish importing");
+  await expect(page.getByRole("alert")).toContainText("Connect a workbook");
   await page.getByRole("button", { name: "Upload sheet", exact: true }).click();
   const now = new Date(),
     date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
@@ -104,17 +109,15 @@ try {
       mimeType: "text/csv",
       buffer: Buffer.from(`Date,Revenue,Expenses\n${date},5000,1700`),
     });
-  await page
-    .getByRole("button", { name: "Import my sheet", exact: true })
-    .click();
-  await expect(page.locator(".live-source .intel-status")).toHaveText("synced");
+  await expect(
+    page.getByRole("status").filter({ hasText: "Source connected" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.locator(".onboarding-mapping-summary")).toContainText(
-    "Money in",
-  );
-  await expect(page.locator(".onboarding-mapping-summary")).toContainText(
-    "Expenses",
-  );
+  await expect(page).toHaveURL(/onboarding\/mapping$/);
+  await map(page, "CSV");
+  await save(page);
+  await expect(page).toHaveURL(/onboarding\/mapping$/);
+  await expect(page.locator(".source-page")).toContainText("Finance");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "What matters most?", exact: true }),

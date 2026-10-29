@@ -197,7 +197,9 @@ export function createApplication({
           : url.pathname.replace(/^\/api/, "");
       const method = req.method || "GET";
       const bodyLimit =
-        /^\/companies\/[a-f0-9-]{36}\/sheets\/(?:upload|tables)$/i.test(path)
+        /^\/companies\/[a-f0-9-]{36}\/(?:sheets\/(?:upload|tables)|sources)$/i.test(
+          path,
+        )
           ? 3 * 1024 * 1024
           : 200000;
       if (!["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"].includes(method))
@@ -293,6 +295,161 @@ export function createApplication({
       const user = session
         ? await db.one("users", { id: "eq." + session.user_id })
         : null;
+      async function finishLogin(candidate) {
+        const memberships = await db.rows("members", {
+          user_id: "eq." + candidate.id,
+        });
+        const companies = (
+          await Promise.all(
+            memberships.map(async (membership) => {
+              const company = await db.one("companies", {
+                id: "eq." + membership.company_id,
+                archived: "eq.false",
+              });
+              return company
+                ? { id: company.id, role: membership.role, data: company.data }
+                : null;
+            }),
+          )
+        ).filter(Boolean);
+        const destination = authenticatedDestination(companies, body.next);
+        const next = randomBytes(32).toString("hex");
+        await db.insert("sessions", {
+          token: hash(next),
+          user_id: candidate.id,
+          expires: Date.now() + 604800000,
+        });
+        cookie = `aynor_session=${next}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800`;
+        return send({ user: safeUser(candidate), destination });
+      }
+      async function provision(identity) {
+        if (
+          !uuid(identity.id) ||
+          !identity.email_confirmed_at ||
+          !z.string().email().safeParse(identity.email).success
+        )
+          fail(403, "Verified email required.");
+        const email = identity.email.toLowerCase();
+        let candidate = await db.one("users", { email: "eq." + email });
+        if (!candidate) {
+          await db.insert(
+            "users",
+            {
+              id: identity.id,
+              email,
+              name: String(
+                identity.user_metadata?.name || email.split("@")[0],
+              ).slice(0, 100),
+              password: "supabase:" + identity.id,
+              verified: true,
+            },
+            {
+              query: { on_conflict: "email" },
+              prefer: "resolution=ignore-duplicates,return=minimal",
+            },
+          );
+          candidate = await db.one("users", { email: "eq." + email });
+        }
+        if (candidate?.password !== "supabase:" + identity.id)
+          fail(
+            409,
+            "This email already has an existing account. Sign in to that account.",
+          );
+        return candidate;
+      }
+      if (path === "/auth/confirm" && method === "POST") {
+        await rate(
+          "confirm-link:" +
+            String(
+              req.headers["x-forwarded-for"] ||
+                req.socket?.remoteAddress ||
+                "unknown",
+            )
+              .split(",")[0]
+              .trim(),
+          30,
+        );
+        const candidate = await provision(await registration.confirm(body));
+        if (
+          !(await db.rpc("rate_limit", {
+            p_key: hash(
+              "confirmation-proof:" +
+                String(body.accessToken || body.tokenHash || ""),
+            ),
+            p_max: 1,
+            p_window: 604800000,
+          }))
+        )
+          fail(
+            403,
+            "This verification link was already used. Sign in to your verified account or request a new email link.",
+          );
+        return finishLogin(candidate);
+      }
+      if (path === "/auth/recover" && method === "POST") {
+        const email =
+          typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+        if (!z.string().email().max(254).safeParse(email).success)
+          fail(400, "Enter a valid email address.");
+        await rate("recovery:" + email, 3, 600000);
+        const existing = await db.one("users", { email: "eq." + email });
+        await registration.recover(
+          email,
+          url.origin,
+          existing && !existing.password.startsWith("supabase:")
+            ? { name: existing.name }
+            : undefined,
+        );
+        return send({ ok: true });
+      }
+      if (path === "/auth/reset" && method === "POST") {
+        if (
+          typeof body.password !== "string" ||
+          body.password.trim().length < 10 ||
+          body.password.length > 200
+        )
+          fail(400, "Use a password of 10–200 characters.");
+        await rate(
+          "reset:" +
+            String(
+              req.headers["x-forwarded-for"] ||
+                req.socket?.remoteAddress ||
+                "unknown",
+            )
+              .split(",")[0]
+              .trim(),
+          15,
+        );
+        const identity = await registration.reset(body, async () => {
+          await rate(
+            "reset-proof:" +
+              hash(String(body.accessToken || body.tokenHash || "")),
+            1,
+            604800000,
+          );
+        });
+        const existing = await db.one("users", {
+          email: "eq." + identity.email.toLowerCase(),
+        });
+        if (existing) {
+          if (
+            existing.password.startsWith("supabase:") &&
+            existing.password !== "supabase:" + identity.id
+          )
+            fail(403, "Account identity does not match.");
+          // Legacy operators may recover through a verified provider email too.
+          if (!existing.password.startsWith("supabase:"))
+            await db.update(
+              "users",
+              { id: "eq." + existing.id },
+              { password: await password(body.password) },
+            );
+          await db.remove("sessions", { user_id: "eq." + existing.id });
+        }
+        cookie =
+          "aynor_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0";
+        return send({ ok: true });
+      }
       if (path === "/session" && method === "GET")
         return send({ user: user ? safeUser(user) : null });
       if (path === "/auth/logout" && method === "POST") {
@@ -398,40 +555,9 @@ export function createApplication({
           fail(401, "Email or password is incorrect.");
         if (!candidate || !candidate.verified)
           fail(401, "Email or password is incorrect.");
-        const memberships = await db.rows("members", {
-          user_id: "eq." + candidate.id,
-        });
-        const companies = (
-          await Promise.all(
-            memberships.map(async (membership) => {
-              const company = await db.one("companies", {
-                id: "eq." + membership.company_id,
-                archived: "eq.false",
-              });
-              return company
-                ? { id: company.id, role: membership.role, data: company.data }
-                : null;
-            }),
-          )
-        ).filter(Boolean);
-        const destination = authenticatedDestination(companies, body.next);
-        const next = randomBytes(32).toString("hex");
-        await db.insert("sessions", {
-          token: hash(next),
-          user_id: candidate.id,
-          expires: Date.now() + 604800000,
-        });
-        cookie = `aynor_session=${next}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800`;
-        return send({ user: safeUser(candidate), destination });
+        return finishLogin(candidate);
       }
-      if (
-        [
-          "/auth/recover",
-          "/auth/reset",
-          "/auth/verify",
-          "/auth/google",
-        ].includes(path)
-      )
+      if (["/auth/verify", "/auth/google"].includes(path))
         fail(
           503,
           "This account operation is not enabled yet. Email signup and sign-in are available.",

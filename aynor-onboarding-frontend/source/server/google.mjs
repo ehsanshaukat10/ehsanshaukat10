@@ -136,7 +136,7 @@ export function createGoogle({ db, env = process.env, fetchImpl = fetch }) {
     const c = await db.one("sheet_connections", {
       company_id: "eq." + company,
     });
-    if (!c || c.public_url)
+    if (!c?.credentials)
       fail(409, "Connect Google before reading private sheets.");
     const credentials = open(c.credentials);
     if (credentials.expires > Date.now() + 60000)
@@ -240,5 +240,24 @@ export function createGoogle({ db, env = process.env, fetchImpl = fetch }) {
     fetchGoogle,
     read,
     publicRows,
+    async files(company) {
+      try {
+        const data = await fetchGoogle(
+          "https://www.googleapis.com/drive/v3/files?" +
+            new URLSearchParams({
+              q: "mimeType='application/vnd.google-apps.spreadsheet' and trashed=false",
+              fields: "files(id,name),nextPageToken",
+              pageSize: "100",
+              orderBy: "modifiedTime desc",
+            }),
+          { headers: { Authorization: "Bearer " + (await access(company)) } },
+        );
+        return { files: data.files || [], needsUrl: !!data.nextPageToken };
+      } catch (error) {
+        if ([403, 404, 502].includes(error.status))
+          return { files: [], needsUrl: true };
+        throw error;
+      }
+    },
   };
 }

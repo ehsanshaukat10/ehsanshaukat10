@@ -20,14 +20,27 @@ export function parseNumber(value) {
   return Number.isFinite(n) && Math.abs(n) <= 1e12 ? n : null;
 }
 export function parseDate(value, format = "ymd") {
-  const raw = String(value ?? "").trim();
+  const raw = String(value ?? "")
+    .trim()
+    .replace(/[\u200e\u200f]/g, "");
+  if (format === "excel") {
+    const n = Number(raw);
+    if (!raw || !Number.isFinite(n) || n < 1 || n > 2958465) return null;
+    if (Math.floor(n) === 60) return null; // Excel's fictional 1900-02-29 is not a real date.
+    return new Date(
+      Date.UTC(1899, 11, 30) + (Math.floor(n) + (n < 60 ? 1 : 0)) * 86400000,
+    )
+      .toISOString()
+      .slice(0, 10);
+  }
+  if (raw.includes("T") && !Number.isFinite(Date.parse(raw))) return null;
   let y, m, d;
   const iso = raw.match(
-    /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:T00:00:00(?:\.000)?Z)?$/,
+    /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))?$/,
   );
   if (iso) [, y, m, d] = iso;
   else {
-    const parts = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+    const parts = raw.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
     if (!parts || !["dmy", "mdy"].includes(format)) return null;
     y = parts[3];
     m = parts[format === "dmy" ? 2 : 1];

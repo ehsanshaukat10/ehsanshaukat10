@@ -107,7 +107,7 @@ export const steps = [
 export const stepLabels = [
   "Add departments",
   "Connect data sheets",
-  "Match columns",
+  "Map worksheet pages",
   "Business priorities",
   "Goal set",
   "Review",

@@ -27,6 +27,11 @@ test("table profiling preserves meaning and explicit locale choices", () => {
   assert.equal(profiles[2].type, "text");
   assert.equal(profiles[2].ambiguousDate, true);
   assert.equal(profiles[3].type, "number");
+  assert.equal(parseDate("29.10.2026", "dmy"), "2026-10-29");
+  assert.equal(parseDate("2026-10-29T14:30:00+05:00"), "2026-10-29");
+  assert.equal(parseDate("2026-10-29T99:99:99Z"), null);
+  assert.equal(parseDate(46324, "excel"), "2026-10-29");
+  assert.equal(parseDate(60, "excel"), null);
   assert.equal(parseDate("03/04/2026"), null);
   assert.equal(parseDate("03/04/2026", "dmy"), "2026-04-03");
   assert.equal(parseDate("03/04/2026", "mdy"), "2026-03-04");

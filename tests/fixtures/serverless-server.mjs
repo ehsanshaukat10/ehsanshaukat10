@@ -27,7 +27,19 @@ const server = http.createServer(async (req, res) => {
     const account = fixture.control.authUsers.get(JSON.parse(raw).email);
     if (account) account.email_confirmed_at = new Date().toISOString();
     res.writeHead(account ? 200 : 404, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ok: !!account }));
+    const token = "fixture-confirmation-" + account?.id;
+    if (account) fixture.control.authTokens.set(token, account.email);
+    res.end(JSON.stringify({ ok: !!account, accessToken: token }));
+    return;
+  }
+  if (req.url === "/api/__fixture/recovery-token" && req.method === "POST") {
+    let raw = "";
+    for await (const chunk of req) raw += chunk;
+    const account = fixture.control.authUsers.get(JSON.parse(raw).email);
+    const token = "fixture-recovery-" + crypto.randomUUID();
+    if (account) fixture.control.recoveryTokens.set(token, account.email);
+    res.writeHead(account ? 200 : 404, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ accessToken: token }));
     return;
   }
   await app(req, res);

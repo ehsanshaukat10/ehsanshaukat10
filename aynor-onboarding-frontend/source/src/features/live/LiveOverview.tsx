@@ -47,7 +47,10 @@ export function LiveOverview({ company }: { company: Company }) {
     setBusy(true);
     serverRequest<Overview>(base + "/sheets/overview?period=" + period)
       .then((value) => {
-        if (active) {
+        if (
+          active &&
+          !(source?.status === "syncing" && !value.data && report)
+        ) {
           setReport(
             (value.data as unknown as TableReport)?.kind === "tables"
               ? {
@@ -155,9 +158,9 @@ export function LiveOverview({ company }: { company: Company }) {
       {source?.error && <ErrorBox>{source.error}</ErrorBox>}
       {report?.tableReport ? (
         <TableOverview
-          key={source?.revision}
           report={report.tableReport}
           companyId={company.id}
+          currency={company.currency || "USD"}
         />
       ) : !data || !points.length ? (
         <Panel

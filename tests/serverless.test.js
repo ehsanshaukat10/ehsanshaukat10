@@ -391,7 +391,7 @@ test("serverless private Sheets: bound OAuth, encrypted credentials, refresh and
   );
   assert.equal(
     new URL(consent.data.url).searchParams.get("scope"),
-    "https://www.googleapis.com/auth/spreadsheets.readonly",
+    "https://www.googleapis.com/auth/spreadsheets.readonly openid email",
   );
   assert.equal(
     (

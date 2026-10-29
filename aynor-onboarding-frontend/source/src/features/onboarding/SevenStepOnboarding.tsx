@@ -1,5 +1,6 @@
-import { serverMode } from "../../lib/runtime";
-import { useSheetStatus, SheetsConnection } from "../live/SheetsConnection";
+import { SourceWorkspace } from "../live/SourceWorkspace";
+import { serverMode, serverRequest } from "../../lib/runtime";
+import { useSheetStatus } from "../live/SheetsConnection";
 import {
   ArrowLeft,
   ArrowRight,
@@ -55,8 +56,8 @@ const titles: Record<string, [string, string]> = {
     "Connect a spreadsheet, upload a file, or paste a Google Sheets URL.",
   ],
   mapping: [
-    "A quick check of your data.",
-    "Check how we read your sheet. You can change these choices later.",
+    "Map your worksheet pages.",
+    "Choose a department and column properties. You can map remaining pages later.",
   ],
   priorities: [
     "What matters most?",
@@ -239,6 +240,15 @@ export function SevenStepOnboarding({
   }
   async function advance(skip = false) {
     setError("");
+    let checkedSource = liveSource;
+    if (serverMode && ["integrations", "mapping"].includes(step) && !skip) {
+      try {
+        checkedSource = await serverRequest(`/companies/${company.id}/sheets`);
+      } catch (e) {
+        setError((e as Error).message);
+        return;
+      }
+    }
     if (step === "departments" && !data.departments.length) {
       setError("Choose at least one department, or add your own.");
       return;
@@ -247,10 +257,12 @@ export function SevenStepOnboarding({
       serverMode &&
       ["integrations", "mapping"].includes(step) &&
       !skip &&
-      !liveSource?.hasSnapshot
+      !(step === "integrations"
+        ? checkedSource?.hasSources || checkedSource?.hasSnapshot
+        : checkedSource?.hasSnapshot)
     ) {
       setError(
-        "Finish importing and mapping your data below, or choose Skip for now to connect it later.",
+        "Connect a workbook to continue, or choose Skip for now. Mapping happens in the next step.",
       );
       return;
     }
@@ -260,6 +272,7 @@ export function SevenStepOnboarding({
     }
     if (
       step === "mapping" &&
+      !serverMode &&
       !skip &&
       data.mappings.some(
         (m) => !m.ignored && (!m.field.trim() || !m.department || !m.confirmed),
@@ -277,7 +290,11 @@ export function SevenStepOnboarding({
       return;
     }
     const skipDependentMapping =
-      serverMode && step === "integrations" && skip && !liveSource?.hasSnapshot;
+      serverMode &&
+      step === "integrations" &&
+      skip &&
+      !liveSource?.hasSources &&
+      !liveSource?.hasSnapshot;
     const index = steps.indexOf(step),
       target = reviewEdit
         ? "review"
@@ -502,53 +519,11 @@ export function SevenStepOnboarding({
           </form>
         </>
       )}
-      {serverMode &&
-      step === "mapping" &&
-      liveSource?.hasSnapshot &&
-      liveSource.mapping ? (
-        <section className="onboarding-mapping-summary">
-          <Badge tone="success">Data imported</Badge>
-          <h2>{liveSource.tabTitle || "Your spreadsheet"}</h2>
-          <p>
-            {liveSource.dataKind === "tables"
-              ? "Your tables are ready to explore, with their original column names."
-              : "Your financial columns are ready to use."}{" "}
-            Your original sheet stays unchanged.
-          </p>
-          <dl>
-            {Object.entries(liveSource.mapping)
-              .filter(([field]) => !field.startsWith("_"))
-              .map(([field, column]) => (
-                <div key={field}>
-                  <dt>
-                    {liveSource.dataKind === "tables"
-                      ? field
-                      : field === "expenses"
-                        ? "Money out"
-                        : field === "date"
-                          ? "Date"
-                          : "Money in"}
-                  </dt>
-                  <dd>
-                    <Check size={14} />
-                    {column}
-                  </dd>
-                </div>
-              ))}
-          </dl>
-          <Link
-            className="button secondary"
-            to={`/companies/${company.id}/onboarding/integrations`}
-          >
-            <Pencil size={14} />
-            Change column choices
-          </Link>
-        </section>
-      ) : (
-        serverMode &&
-        ["integrations", "mapping"].includes(step) && (
-          <SheetsConnection companyId={company.id} />
-        )
+      {serverMode && ["integrations", "mapping"].includes(step) && (
+        <SourceWorkspace
+          companyId={company.id}
+          phase={step === "integrations" ? "connect" : "mapping"}
+        />
       )}
       {step === "integrations" && !serverMode && (
         <>
@@ -1084,7 +1059,7 @@ export function SevenStepOnboarding({
               subtitle: serverMode
                 ? liveSource?.mapping
                   ? liveSource.dataKind === "tables"
-                    ? "Tables confirmed"
+                    ? `${liveSource.mappedCount ?? Object.keys(liveSource.mapping).length} worksheet pages mapped`
                     : "Financial fields mapped"
                   : "Mapping not configured"
                 : data.steps.mapping === "skipped"

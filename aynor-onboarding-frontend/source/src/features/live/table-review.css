@@ -159,3 +159,16 @@
 .table-report-search input {
   padding-right: 38px;
 }
+
+.source-coverage {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f3effb;
+  border-radius: 12px;
+  font-size: 13px;
+  margin: 16px 0;
+  flex-wrap: wrap;
+}

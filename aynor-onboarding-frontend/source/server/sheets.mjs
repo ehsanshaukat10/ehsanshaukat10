@@ -1,3 +1,4 @@
+import { createSourceCatalog } from "./source-catalog.mjs";
 import {
   suggestHeader,
   profileColumns,
@@ -23,6 +24,7 @@ export function createServerlessSheets({
   fetchImpl = fetch,
 }) {
   const google = createGoogle({ db, env, fetchImpl });
+  const catalog = createSourceCatalog({ db, google, member });
   function present(c, snapshot) {
     const interrupted =
       c?.status === "syncing" && Number(c.lease_until || 0) < Date.now();
@@ -65,6 +67,11 @@ export function createServerlessSheets({
     };
   }
   async function status(company, actor) {
+    const existing = await db.one("sheet_connections", {
+      company_id: "eq." + company,
+    });
+    if (existing?.mapping?.kind === "catalog")
+      return catalog.status(company, actor);
     const read = await db.rpc("sheet_read", {
       p_actor: actor,
       p_company: company,
@@ -220,7 +227,7 @@ export function createServerlessSheets({
         !Number.isInteger(config.tabId) ||
         config.tabId < 0 ||
         typeof config.title !== "string" ||
-        !["ymd", "dmy", "mdy"].includes(config.dateFormat)
+        !["ymd", "dmy", "mdy", "excel"].includes(config.dateFormat)
       )
         fail(422, "Review each table and its date format.");
       let values;
@@ -334,36 +341,53 @@ export function createServerlessSheets({
             !token.scope?.split(" ").includes(scope)
           )
             fail(403, "Read-only offline access was not granted.");
-          const previous = await db.one("sheet_connections", {
-            company_id: "eq." + pending.company_id,
-          });
-          const replacingSource =
-            !!previous?.public_url ||
-            previous?.spreadsheet?.startsWith("upload:");
+          let email = null;
+          try {
+            const identity = await google.fetchGoogle(
+              "https://openidconnect.googleapis.com/v1/userinfo",
+              { headers: { Authorization: "Bearer " + token.access_token } },
+            );
+            if (identity.email_verified && typeof identity.email === "string")
+              email = identity.email;
+          } catch {
+            /* Account identity is optional for older read-only grants. */
+          }
           await db.rpc("sheet_configure", {
             p_actor: user.id,
             p_company: pending.company_id,
             p_config: {
               credentials: google.seal({
                 ...token,
+                email,
                 expires: Date.now() + Number(token.expires_in || 3600) * 1000,
               }),
-              public_url: null,
-              ...(replacingSource
-                ? {
-                    mapping: null,
-                    spreadsheet: null,
-                    tab_id: null,
-                    tab_title: null,
-                  }
-                : {}),
             },
-            p_reset: !!replacingSource,
+            p_reset: false,
           });
           return redirect(back + "?google=connected");
         } catch {
           return redirect(back + "?google=failed");
         }
+      }
+      const catalogRoute = path.match(
+        /^\/companies\/([a-f0-9-]{36})\/sources(?:\/([a-z0-9-]+)(?:\/(inspect|map|sync|skip))?)?$/i,
+      );
+      if (catalogRoute) {
+        const [, company, id, action] = catalogRoute;
+        await member(company, user.id, true);
+        if (id === "google-files" && method === "GET")
+          return send(await google.files(company));
+        const operation = action || (id ? "remove" : "sources");
+        return send(
+          await catalog.handle({
+            company,
+            actor: user.id,
+            action: operation,
+            id,
+            method,
+            body,
+          }),
+        );
       }
       const match = path.match(
         /^\/companies\/([a-f0-9-]{36})\/sheets(?:\/(authorize|inspect|public|upload|tables|mapping|sync|overview|events))?$/i,
@@ -371,6 +395,25 @@ export function createServerlessSheets({
       if (!match) return false;
       const [, company, action] = match;
       await member(company, user.id, true);
+      const currentConnection = await db.one("sheet_connections", {
+        company_id: "eq." + company,
+      });
+      if (currentConnection?.mapping?.kind === "catalog") {
+        if (action === "overview" && method === "GET")
+          return send({
+            source: await catalog.status(company, user.id),
+            data: await catalog.overview(
+              company,
+              user.id,
+              url.searchParams.get("period"),
+            ),
+          });
+        if (["tables", "mapping", "upload", "public", "sync"].includes(action))
+          fail(
+            409,
+            "Manage each connected source from Data connections. Existing sources have been preserved.",
+          );
+      }
       if (!action && method === "GET")
         return send(await status(company, user.id));
       if (action === "events")
@@ -625,7 +668,7 @@ export function createServerlessSheets({
           client_id: env.GOOGLE_CLIENT_ID,
           redirect_uri: env.GOOGLE_REDIRECT_URI,
           response_type: "code",
-          scope,
+          scope: scope + " openid email",
           state,
           access_type: "offline",
           prompt: "consent",

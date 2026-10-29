@@ -139,6 +139,7 @@ export function DateFormat({
       onChange={(e) => onChange(e.target.value)}
     >
       <option value="ymd">Year / month / day · 2026-10-29</option>
+      <option value="excel">Excel date serial · 46324</option>
       <option value="dmy">Day / month / year · 29/10/2026</option>
       <option value="mdy">Month / day / year · 10/29/2026</option>
     </Select>

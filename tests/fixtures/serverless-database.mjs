@@ -25,6 +25,10 @@ export async function fixtureDatabase() {
     tokenLifetime: 3600,
     fail: false,
     authUsers: new Map(),
+    authTokens: new Map(),
+    recoveryTokens: new Map(),
+    googleSheets: null,
+    googleRows: null,
     emailsSent: 0,
     authError: null,
     autoConfirm: false,
@@ -54,8 +58,40 @@ export async function fixtureDatabase() {
           },
           { status: control.authError.includes("rate") ? 429 : 400 },
         );
+      if (url.pathname.endsWith("/user")) {
+        const token = options.headers.Authorization?.replace("Bearer ", "");
+        const email =
+          control.authTokens.get(token) || control.recoveryTokens.get(token);
+        const account = control.authUsers.get(email);
+        if (!account)
+          return Response.json({ code: "bad_jwt" }, { status: 401 });
+        if (method === "PUT")
+          account.password = JSON.parse(options.body).password;
+        const { password, ...identity } = account;
+        return Response.json(identity);
+      }
+      if (url.pathname.endsWith("/verify")) {
+        const body = JSON.parse(options.body),
+          email =
+            control.authTokens.get(body.token_hash) ||
+            control.recoveryTokens.get(body.token_hash),
+          account = control.authUsers.get(email);
+        if (!account)
+          return Response.json({ code: "otp_expired" }, { status: 403 });
+        account.email_confirmed_at = new Date().toISOString();
+        return Response.json({ access_token: body.token_hash, user: account });
+      }
       const body = JSON.parse(options.body);
       const account = control.authUsers.get(body.email);
+      if(url.pathname.endsWith("/admin/users")) {
+        if(account)return Response.json({code:"email_exists"},{status:422});
+        const created={id:crypto.randomUUID(),email:body.email,password:body.password,user_metadata:body.user_metadata,email_confirmed_at:null};
+        control.authUsers.set(body.email,created);return Response.json(created);
+      }
+      if (url.pathname.endsWith("/recover")) {
+        control.emailsSent++;
+        return Response.json({});
+      }
       if (url.pathname.endsWith("/signup")) {
         control.emailsSent++;
         if (!account)
@@ -81,12 +117,20 @@ export async function fixtureDatabase() {
       if (!account.email_confirmed_at)
         return Response.json({ code: "email_not_confirmed" }, { status: 400 });
       const { password, ...identity } = account;
+      control.authTokens.set("private-provider-token", body.email);
       return Response.json({
         user: identity,
         access_token: "private-provider-token",
         refresh_token: "private-provider-refresh",
       });
     }
+    if (url.hostname === "openidconnect.googleapis.com")
+      return Response.json({
+        email: "sheets-owner@example.test",
+        email_verified: true,
+      });
+    if (url.hostname === "www.googleapis.com")
+      return Response.json({ error: "not authorized" }, { status: 403 });
     if (url.hostname === "oauth2.googleapis.com") {
       control.tokens++;
       return control.invalidGrant
@@ -113,14 +157,16 @@ export async function fixtureDatabase() {
           .slice(0, 10);
       return url.pathname.includes("/values/")
         ? Response.json({
-            values: [
-              ["Date", "Revenue", "Expenses"],
-              [date, 500, 200],
-            ],
+            values: control.googleRows
+              ? control.googleRows(decodeURIComponent(url.pathname))
+              : [
+                  ["Date", "Revenue", "Expenses"],
+                  [date, 500, 200],
+                ],
           })
         : Response.json({
             properties: { title: "Private report" },
-            sheets: [
+            sheets: control.googleSheets || [
               {
                 properties: { sheetId: 0, title: "Finance", sheetType: "GRID" },
               },
@@ -167,6 +213,10 @@ export async function fixtureDatabase() {
       for (const [key, value] of url.searchParams) {
         if (["select", "limit", "on_conflict"].includes(key)) continue;
         if (!/^[a-z_]+$/.test(key)) throw Error("Bad column");
+        if (value === "is.null") {
+          where.push(`"${key}" IS NULL`);
+          continue;
+        }
         const match = /^(eq|gt|lt)\.(.*)$/s.exec(value);
         if (!match) throw Error("Bad filter");
         args.push(match[2]);

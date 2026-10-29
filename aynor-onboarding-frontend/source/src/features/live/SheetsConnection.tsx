@@ -1,3 +1,4 @@
+import { SourceWorkspace } from "./SourceWorkspace";
 import { profileColumns, type Profile } from "../../../shared/table-data.mjs";
 import { TableReview, DateFormat, type TableChoice } from "./TableReview";
 import { Select } from "./LiveSelect";
@@ -27,6 +28,10 @@ import "./sheet-upload.css";
 import { ColumnMatches, type ColumnMapping } from "./ColumnMatches";
 export type SourceStatus = {
   dataKind?: "tables" | "financial";
+  hasSources?: boolean;
+  sourceCount?: number;
+  mappedCount?: number;
+  unmappedCount?: number;
   configured: boolean;
   googleSetup?: GoogleSetup;
   connected: boolean;
@@ -127,9 +132,13 @@ export function useSheetStatus(company: string, enabled = true) {
   return { source, error };
 }
 export function SheetsConnection({ companyId }: { companyId: string }) {
-  return <SheetsConnectionContent key={companyId} companyId={companyId} />;
+  return <SourceWorkspace key={companyId} companyId={companyId} />;
 }
-function SheetsConnectionContent({ companyId }: { companyId: string }) {
+export function LegacySheetsConnectionContent({
+  companyId,
+}: {
+  companyId: string;
+}) {
   const draftKey = `aynor:google-draft:${companyId}`;
   function readDraft() {
     try {

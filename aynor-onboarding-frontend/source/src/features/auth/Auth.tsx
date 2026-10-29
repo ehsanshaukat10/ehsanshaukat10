@@ -20,7 +20,7 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   Link,
   Navigate,
@@ -144,7 +144,14 @@ export function Auth({ mode: initial }: { mode?: string }) {
   const requestedMode = initial || params.mode || "signup";
   const mode =
     hosted &&
-    !["signup", "login", "verify", "confirmed"].includes(requestedMode)
+    ![
+      "signup",
+      "login",
+      "verify",
+      "confirmed",
+      "forgot-password",
+      "reset-password",
+    ].includes(requestedMode)
       ? "login"
       : requestedMode;
   const nav = useNavigate(),
@@ -161,6 +168,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
       user?.id === "onboarding-guest" ? "" : user?.email || "",
     ),
     [password, setPassword] = useState(""),
+    [confirmPassword, setConfirmPassword] = useState(""),
     [token, setToken] = useState(
       new URLSearchParams(loc.search).get("token") ||
         sessionStorage.getItem("aynor-dev-challenge") ||
@@ -171,6 +179,36 @@ export function Auth({ mode: initial }: { mode?: string }) {
     [sent, setSent] = useState(false),
     [cooldown, setCooldown] = useState(0),
     [legal, setLegal] = useState("");
+  const emailProof = useRef<{
+    accessToken?: string;
+    tokenHash?: string;
+    type?: string;
+  }>({});
+  const confirmationRequest = useRef<{
+    key: string;
+    promise: Promise<any>;
+  } | null>(null);
+  async function checkVerification(quiet = false) {
+    if (!quiet) {
+      setBusy(true);
+      setError("");
+    }
+    try {
+      const result = await api("/session");
+      if (result.user?.verified) {
+        setUser(result.user);
+        toast("Email verified. Your account is ready.");
+        nav(entryPath, { replace: true });
+      } else if (!quiet)
+        setError(
+          "Your email has not been verified in this browser yet. Open the link in your inbox. If you verified on another device, sign in here.",
+        );
+    } catch (e) {
+      if (!quiet) setError(message(e));
+    } finally {
+      if (!quiet) setBusy(false);
+    }
+  }
   const next = new URLSearchParams(loc.search).get("next");
   const safeNext = safeReturnPath(next);
   const entryPath =
@@ -185,6 +223,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
     setExistingAccount(false);
     setSent(false);
     setPassword("");
+    setConfirmPassword("");
     if (mode === "verify" && !hosted)
       setToken(sessionStorage.getItem("aynor-dev-challenge") || "123456");
     if (mode === "verify" && hosted)
@@ -199,14 +238,28 @@ export function Auth({ mode: initial }: { mode?: string }) {
           ),
         ),
       );
-    if (mode === "confirmed" && hosted) {
+    if (["confirmed", "reset-password"].includes(mode) && hosted) {
       const result = new URLSearchParams(
         window.location.hash.slice(1) || window.location.search.slice(1),
       );
+      if (mode === "confirmed" && result.get("type") === "recovery") {
+        nav(
+          "/auth/reset-password" +
+            window.location.search +
+            window.location.hash,
+          { replace: true },
+        );
+        return;
+      }
+      if (result.has("access_token") || result.has("token_hash"))
+        emailProof.current = {
+          accessToken: result.get("access_token") || undefined,
+          tokenHash: result.get("token_hash") || undefined,
+          type: result.get("type") || "signup",
+        };
       if (result.has("error"))
         setError(
-          result.get("error_description") ||
-            "This confirmation link expired. Request a new email.",
+          "This email link has expired or is invalid. Request a new link below.",
         );
       window.history.replaceState(
         window.history.state,
@@ -214,10 +267,46 @@ export function Auth({ mode: initial }: { mode?: string }) {
         window.location.pathname +
           (next ? "?next=" + encodeURIComponent(safeNext) : ""),
       );
+      if (mode === "confirmed" && !result.has("error")) {
+        setBusy(true);
+        const key = JSON.stringify(emailProof.current);
+        if (
+          !confirmationRequest.current ||
+          confirmationRequest.current.key !== key
+        )
+          confirmationRequest.current = {
+            key,
+            promise: api("/auth/confirm", "POST", {
+              ...emailProof.current,
+              next: safeNext,
+            }),
+          };
+        confirmationRequest.current.promise
+          .then((r) => {
+            setDestination(r.destination || entryPath);
+            setUser(r.user);
+            toast("Email verified. Account created successfully.");
+            nav(r.destination || entryPath, { replace: true });
+          })
+          .catch((e) => setError(message(e)))
+          .finally(() => setBusy(false));
+      }
     }
     if (mode === "reset-password")
       setToken(new URLSearchParams(loc.search).get("token") || "");
-  }, [mode]);
+  }, [mode, loc.hash, loc.search]);
+  useEffect(() => {
+    if (!hosted || mode !== "verify") return;
+    const check = () => {
+      if (document.visibilityState === "visible") void checkVerification(true);
+    };
+    const timer = setInterval(check, 5000);
+    window.addEventListener("focus", check);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", check);
+    };
+  }, [mode, hosted]);
   useEffect(() => {
     if (cooldown) {
       const t = setTimeout(() => setCooldown(cooldown - 1), 1000);
@@ -238,7 +327,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
     verify: "One quick check.",
     "forgot-password": "Let’s get you back.",
     "reset-password": "A fresh start.",
-    confirmed: "Ready to sign in.",
+    confirmed: "Confirming your email.",
   };
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -284,10 +373,20 @@ export function Auth({ mode: initial }: { mode?: string }) {
         if (r.developmentToken) setToken(r.developmentToken);
         setSent(true);
       } else {
-        await api("/auth/reset", "POST", { token, password });
+        if (hosted && password !== confirmPassword)
+          throw Error(
+            "The passwords don’t match. Enter the same new password in both fields.",
+          );
+        await api(
+          "/auth/reset",
+          "POST",
+          hosted ? { ...emailProof.current, password } : { token, password },
+        );
         setUser(null);
         toast(
-          "Sample password reset complete. Sign in to continue. No password was saved.",
+          hosted
+            ? "Password updated. Sign in with your new password."
+            : "Sample password reset complete. Sign in to continue. No password was saved.",
         );
         nav(link("login"));
       }
@@ -298,7 +397,11 @@ export function Auth({ mode: initial }: { mode?: string }) {
           setError(
             mode === "login"
               ? "Sign-in is temporarily unavailable. Please try again shortly."
-              : "We couldn't send your confirmation email. Please try again shortly or contact support.",
+              : mode === "reset-password"
+                ? "Password update is temporarily unavailable. Please retry shortly."
+                : mode === "forgot-password"
+                  ? "We couldn't send a reset link. Please try again shortly or contact support."
+                  : "We couldn't send your confirmation email. Please try again shortly or contact support.",
           );
         if (
           mode === "login" &&
@@ -412,7 +515,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
                   </span>
                 </>
               ) : mode === "confirmed" ? (
-                "Sign in to finish setting up your account."
+                "Your email link is being checked securely."
               ) : mode === "forgot-password" ? (
                 "A little help getting back to what matters."
               ) : (
@@ -460,6 +563,11 @@ export function Auth({ mode: initial }: { mode?: string }) {
               </div>
             )}
             <ErrorBox>{error}</ErrorBox>
+            {hosted && mode === "reset-password" && error && (
+              <Link className="text-button" to={link("forgot-password")}>
+                Request a new reset link
+              </Link>
+            )}
             {hosted && (verificationNeeded || existingAccount) && (
               <div className="auth-recovery-actions">
                 {existingAccount && (
@@ -484,17 +592,20 @@ export function Auth({ mode: initial }: { mode?: string }) {
               <div className="auth-confirmation">
                 <p>
                   {mode === "verify"
-                    ? "Open the confirmation email from Aynor or Supabase and follow its link. Then return here to sign in. Check your spam folder too."
-                    : "Your email confirmation will be checked when you sign in."}
+                    ? "Open the verification link in your inbox. We’ll confirm your email and take you straight to workspace setup. Check your spam folder too."
+                    : "We’re checking your email link securely. Your workspace setup will open automatically after verification."}
                 </p>
-                <Link
-                  className="button full-width auth-submit"
-                  to={link("login")}
-                >
-                  {mode === "verify"
-                    ? "I've confirmed my email"
-                    : "Continue to sign in"}
-                  <ArrowRight size={16} />
+                {mode === "verify" && (
+                  <Button
+                    className="full-width auth-submit"
+                    busy={busy}
+                    onClick={() => void checkVerification()}
+                  >
+                    Check verification <ArrowRight size={16} />
+                  </Button>
+                )}
+                <Link className="text-button" to={link("login")}>
+                  Already verified on another device? Sign in
                 </Link>
                 {(mode === "verify" || error || pendingEmail) && (
                   <form
@@ -533,9 +644,9 @@ export function Auth({ mode: initial }: { mode?: string }) {
                 <ShieldCheck size={28} />
                 <h3>Check your inbox</h3>
                 <p>
-                  If an account exists, you’ll receive a reset link. In this
-                  prototype, open the sample link below. Email delivery is
-                  unavailable in this environment.
+                  {hosted
+                    ? "If this email has an account, you’ll receive a secure reset link. Check your inbox and spam folder."
+                    : "If an account exists, you’ll receive a reset link. In this prototype, use the sample link below."}
                 </p>
                 {development && token && (
                   <Link
@@ -576,7 +687,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
                 {["signup", "login", "reset-password"].includes(mode) && (
                   <>
                     <div className="password-heading">
-                      {mode === "login" && !hosted && (
+                      {mode === "login" && (
                         <Link to={link("forgot-password")}>
                           Forgot password?
                         </Link>
@@ -606,6 +717,18 @@ export function Auth({ mode: initial }: { mode?: string }) {
                     />
                   </>
                 )}
+                {hosted && mode === "reset-password" && (
+                  <Field
+                    label="Confirm password"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={10}
+                    maxLength={200}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                )}
                 {mode === "verify" && (
                   <>
                     <Field
@@ -625,7 +748,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
                     )}
                   </>
                 )}
-                {mode === "reset-password" && !token && (
+                {mode === "reset-password" && !hosted && !token && (
                   <Field
                     label="Reset code"
                     required
@@ -766,7 +889,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
         <Modal title={legal} onClose={() => setLegal("")}>
           <p>
             {serverMode
-              ? "Create an account with your email and password, confirm your email, then sign in. Each account has separate workspace access. Google sign-in and email password recovery are not yet available. Keep your password saved securely."
+              ? "Create an account with your email and password, then verify your email to open workspace setup. Each account has separate workspace access. Use Forgot password on the sign-in page to recover access. Never share your verification or reset links."
               : legal === "Help & support"
                 ? "Explore a sample workspace or create a prototype account. Verification uses 123456. All sign-ins, connections, and email actions are simulated locally."
                 : legal === "Privacy Policy"
