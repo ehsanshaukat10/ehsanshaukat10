@@ -15,6 +15,8 @@ import {
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Logo } from "../../components/ui";
+import { SignOutButton } from "../../components/SignOutButton";
+import { useApp } from "../../lib/context";
 import { steps, stepLabels } from "../../lib/api";
 
 const visualCopy: Record<
@@ -182,6 +184,7 @@ export function OnboardingFrame({
   company?: string;
   children: ReactNode;
 }) {
+  const { user } = useApp();
   const index =
     step === "company"
       ? 0
@@ -201,6 +204,7 @@ export function OnboardingFrame({
               <Logo />
             </Link>
             <span>{company || "YOUR NEW WORKSPACE"}</span>
+            {user && <SignOutButton compact className="onboarding-sign-out" />}
           </header>
           <div
             className="onboarding-progress"

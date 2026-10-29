@@ -2,6 +2,15 @@
 export const serverMode =
   import.meta.env.VITE_HOSTED_APP === true ||
   import.meta.env.VITE_API_MODE === "server";
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
 export async function serverRequest<T = any>(
   path: string,
   method = "GET",
@@ -28,7 +37,10 @@ export async function serverRequest<T = any>(
       /session has expired/i.test(result.error || "")
     )
       window.dispatchEvent(new Event("session-expired"));
-    throw Error(result.error || `Request failed (${response.status}).`);
+    throw new ApiError(
+      result.error || `Request failed (${response.status}).`,
+      response.status,
+    );
   }
   return result;
 }

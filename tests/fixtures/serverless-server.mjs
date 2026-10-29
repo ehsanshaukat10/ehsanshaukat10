@@ -2,6 +2,7 @@ import http from "node:http";
 import { fixtureDatabase } from "./serverless-database.mjs";
 import { createApplication } from "../../aynor-onboarding-frontend/source/server/application.mjs";
 const fixture = await fixtureDatabase();
+fixture.control.currentMonthGoogle = true;
 const app = createApplication({
   env: {
     NODE_ENV: "development",

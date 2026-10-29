@@ -33,7 +33,13 @@ import {
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useEffect, useState, type FocusEvent, type MouseEvent } from "react";
-import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
+import {
+  Link,
+  Navigate,
+  useNavigate,
+  useParams,
+  useLocation,
+} from "react-router-dom";
 import {
   Button,
   Empty,
@@ -311,6 +317,17 @@ export function Workspace({
   }
   const editable = !!company && ["Owner", "Admin"].includes(company.role);
   const currentStep = resolveSetupStep(step);
+  if (
+    !loading &&
+    company &&
+    company.id === id &&
+    currentStep === "complete" &&
+    !company.data.completed &&
+    !overview &&
+    !members &&
+    !intelligence
+  )
+    return <Navigate to={`/companies/${id}/onboarding/review`} replace />;
   const index = steps.indexOf(currentStep);
   const completed = steps.filter(
     (s) => company?.data.steps[s] === "completed",

@@ -3,7 +3,7 @@ import { fail } from "./database.mjs";
 // Supabase delivers confirmation emails and proves email ownership. Provider
 // tokens stay on this server; Aynor continues using its HttpOnly app session.
 export function createRegistration({ env, fetchImpl }) {
-  async function request(path, body, login = false) {
+  async function request(path, body, login = false, method = "POST") {
     let base;
     try {
       base = new URL(env.SUPABASE_URL);
@@ -22,12 +22,12 @@ export function createRegistration({ env, fetchImpl }) {
     let response, data;
     try {
       response = await fetchImpl(new URL("/auth/v1/" + path, base), {
-        method: "POST",
+        method,
         headers: {
           apikey: env.SUPABASE_SECRET_KEY,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(body),
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
         redirect: "error",
         signal: AbortSignal.timeout(15000),
       });
@@ -46,6 +46,11 @@ export function createRegistration({ env, fetchImpl }) {
           "Too many attempts or confirmation emails. Wait a few minutes before trying again.",
         );
       const code = data.code || data.error_code;
+      if (!login && ["user_already_exists", "email_exists"].includes(code))
+        fail(
+          409,
+          "An account already exists for this email. Sign in, or resend its confirmation email.",
+        );
       if (login && code === "email_not_confirmed")
         fail(
           403,
@@ -79,8 +84,17 @@ export function createRegistration({ env, fetchImpl }) {
     }
     return data;
   }
+  async function requireConfirmation() {
+    const settings = await request("settings", undefined, false, "GET");
+    if (settings.mailer_autoconfirm !== false)
+      fail(
+        503,
+        "Email confirmation is required. Enable Confirm email in Supabase Authentication before continuing.",
+      );
+  }
   return {
     async signup({ email, password, name, origin }) {
+      await requireConfirmation();
       const data = await request(
         "signup?redirect_to=" + encodeURIComponent(origin + "/auth/confirmed"),
         { email, password, data: { name } },
@@ -100,6 +114,7 @@ export function createRegistration({ env, fetchImpl }) {
       );
     },
     async login(email, password) {
+      await requireConfirmation();
       const data = await request(
         "token?grant_type=password",
         { email, password },

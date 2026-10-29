@@ -998,3 +998,62 @@ body .refined-shell .sidebar-sign-out:focus-visible {
     display: none;
   }
 }
+.auth-recovery-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 10px 0 18px;
+}
+.auth-recovery-actions .button {
+  font-size: 12px;
+}
+.onboarding-brand-header > .onboarding-sign-out {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.onboarding-brand-header > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.onboarding-mapping-summary {
+  padding: 22px 0;
+}
+.onboarding-mapping-summary h2 {
+  font-weight: 400;
+  font-size: 22px;
+  margin: 18px 0 8px;
+  overflow-wrap: anywhere;
+}
+.onboarding-mapping-summary p {
+  font-size: 13px;
+  color: #73798b;
+}
+.onboarding-mapping-summary dl {
+  margin: 22px 0;
+}
+.onboarding-mapping-summary dl > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 0;
+  border-bottom: 1px solid #eeecf5;
+  font-size: 13px;
+}
+.onboarding-mapping-summary dt {
+  color: #73798b;
+}
+.onboarding-mapping-summary dd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.onboarding-mapping-summary dd svg {
+  color: #7b65cf;
+  flex-shrink: 0;
+}

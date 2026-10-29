@@ -122,7 +122,9 @@ try {
   await page
     .getByRole("button", { name: "Save mapping & sync", exact: true })
     .click();
-  await expect(page.locator(".live-source .intel-status")).toHaveText("synced");
+  await expect(page.locator(".onboarding-mapping-summary")).toContainText(
+    "Data imported",
+  );
   await page.goto(`http://127.0.0.1:5176/companies/${company}/overview`);
   await expect(
     page

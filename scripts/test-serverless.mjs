@@ -62,6 +62,9 @@ try {
   const accountCheck = start(["tests/accounts.browser.mjs"]);
   if ((await new Promise((r) => accountCheck.on("exit", r))) !== 0)
     throw Error("Account browser check failed.");
+  const journeyCheck = start(["tests/customer-journey.browser.mjs"]);
+  if ((await new Promise((r) => journeyCheck.on("exit", r))) !== 0)
+    throw Error("Full customer journey browser check failed.");
 } finally {
   await Promise.all(
     children

@@ -11,6 +11,7 @@ import { createDatabase, fail } from "./database.mjs";
 import { workspaceSchema } from "./contracts.mjs";
 import { createServerlessSheets } from "./sheets.mjs";
 import { createRegistration } from "./registration.mjs";
+import { authenticatedDestination } from "../shared/journey.mjs";
 const derive = promisify(scrypt),
   hash = (value) => createHash("sha256").update(value).digest("hex");
 const uuid = (value) => z.string().uuid().safeParse(value).success;
@@ -398,6 +399,23 @@ export function createApplication({
           fail(401, "Email or password is incorrect.");
         if (!candidate || !candidate.verified)
           fail(401, "Email or password is incorrect.");
+        const memberships = await db.rows("members", {
+          user_id: "eq." + candidate.id,
+        });
+        const companies = (
+          await Promise.all(
+            memberships.map(async (membership) => {
+              const company = await db.one("companies", {
+                id: "eq." + membership.company_id,
+                archived: "eq.false",
+              });
+              return company
+                ? { id: company.id, role: membership.role, data: company.data }
+                : null;
+            }),
+          )
+        ).filter(Boolean);
+        const destination = authenticatedDestination(companies, body.next);
         const next = randomBytes(32).toString("hex");
         await db.insert("sessions", {
           token: hash(next),
@@ -405,7 +423,7 @@ export function createApplication({
           expires: Date.now() + 604800000,
         });
         cookie = `aynor_session=${next}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800`;
-        return send({ user: safeUser(candidate) });
+        return send({ user: safeUser(candidate), destination });
       }
       if (
         [

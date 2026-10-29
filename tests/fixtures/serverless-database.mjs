@@ -27,6 +27,8 @@ export async function fixtureDatabase() {
     authUsers: new Map(),
     emailsSent: 0,
     authError: null,
+    autoConfirm: false,
+    currentMonthGoogle: false,
   };
   const encode = (value) =>
     value !== null && typeof value === "object" ? JSON.stringify(value) : value;
@@ -39,6 +41,11 @@ export async function fixtureDatabase() {
     ) {
       if (options.headers.apikey !== "sb_secret_test_fixture_only")
         throw Error("Auth server key missing");
+      if (url.pathname.endsWith("/settings"))
+        return Response.json({
+          mailer_autoconfirm: control.autoConfirm,
+          disable_signup: false,
+        });
       if (control.authError)
         return Response.json(
           {
@@ -96,7 +103,11 @@ export async function fixtureDatabase() {
         throw Error("Google token missing");
       const now = new Date(),
         date = new Date(
-          Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1),
+          Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth() - (control.currentMonthGoogle ? 0 : 1),
+            1,
+          ),
         )
           .toISOString()
           .slice(0, 10);

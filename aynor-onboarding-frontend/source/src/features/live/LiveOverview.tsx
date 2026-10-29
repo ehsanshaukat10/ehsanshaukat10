@@ -37,8 +37,8 @@ export function LiveOverview({ company }: { company: Company }) {
     [selected, setSelected] = useState(0);
   const base = `/companies/${company.id}`;
   useEffect(() => {
-    if (source?.mode === "upload") setPeriod("all");
-  }, [source?.mode]);
+    if (source?.hasSnapshot && source.syncMode === "manual") setPeriod("all");
+  }, [source?.mode, source?.hasSnapshot]);
   useEffect(() => {
     if (!["Owner", "Admin"].includes(company.role)) return;
     let active = true;

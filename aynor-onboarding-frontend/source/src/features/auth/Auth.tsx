@@ -1,4 +1,5 @@
-import { serverMode } from "../../lib/runtime";
+import { ApiError, serverMode } from "../../lib/runtime";
+import { safeReturnPath } from "../../../shared/journey.mjs";
 import { SkipSignIn } from "../entry/SkipSignIn";
 import { prototype } from "../../lib/mockService";
 import {
@@ -32,6 +33,20 @@ import { api } from "../../lib/api";
 import { useApp } from "../../lib/context";
 const message = (e: unknown) =>
   e instanceof Error ? e.message : "Please try again.";
+const readAuthDraft = (key: string) => {
+  try {
+    return sessionStorage.getItem(key) || "";
+  } catch {
+    return "";
+  }
+};
+const writeAuthDraft = (key: string, value: string) => {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    /* Optional UI continuity only. */
+  }
+};
 
 export function BrandPanel() {
   return (
@@ -135,9 +150,12 @@ export function Auth({ mode: initial }: { mode?: string }) {
   const nav = useNavigate(),
     loc = useLocation();
   const [oauth, setOauth] = useState(false);
-  const [pendingEmail, setPendingEmail] = useState(
-    () => sessionStorage.getItem("aynor:pending-signup-email") || "",
+  const [pendingEmail, setPendingEmail] = useState(() =>
+    readAuthDraft("aynor:pending-signup-email"),
   );
+  const [destination, setDestination] = useState<string | null>(null),
+    [verificationNeeded, setVerificationNeeded] = useState(false),
+    [existingAccount, setExistingAccount] = useState(false);
   const [name, setName] = useState(""),
     [email, setEmail] = useState(
       user?.id === "onboarding-guest" ? "" : user?.email || "",
@@ -154,25 +172,37 @@ export function Auth({ mode: initial }: { mode?: string }) {
     [cooldown, setCooldown] = useState(0),
     [legal, setLegal] = useState("");
   const next = new URLSearchParams(loc.search).get("next");
-  const safeNext =
-    next &&
-    (next.startsWith("/invite/") ||
-      next.startsWith("/companies/") ||
-      next === "/companies") &&
-    !next.includes("\\")
-      ? next
-      : "/entry";
+  const safeNext = safeReturnPath(next);
+  const entryPath =
+    safeNext === "/entry"
+      ? "/entry"
+      : "/entry?next=" + encodeURIComponent(safeNext);
   const link = (m: string) =>
     "/auth/" + m + (next ? "?next=" + encodeURIComponent(next) : "");
   useEffect(() => {
     setError("");
+    setVerificationNeeded(false);
+    setExistingAccount(false);
     setSent(false);
     setPassword("");
     if (mode === "verify" && !hosted)
       setToken(sessionStorage.getItem("aynor-dev-challenge") || "123456");
-    if (mode === "verify" && hosted) setCooldown(60);
+    if (mode === "verify" && hosted)
+      setCooldown(
+        Math.max(
+          0,
+          Math.ceil(
+            (Number(readAuthDraft("aynor:confirmation-sent-at")) +
+              60000 -
+              Date.now()) /
+              1000,
+          ),
+        ),
+      );
     if (mode === "confirmed" && hosted) {
-      const result = new URLSearchParams(window.location.hash.slice(1));
+      const result = new URLSearchParams(
+        window.location.hash.slice(1) || window.location.search.slice(1),
+      );
       if (result.has("error"))
         setError(
           result.get("error_description") ||
@@ -181,7 +211,8 @@ export function Auth({ mode: initial }: { mode?: string }) {
       window.history.replaceState(
         window.history.state,
         "",
-        window.location.pathname + window.location.search,
+        window.location.pathname +
+          (next ? "?next=" + encodeURIComponent(safeNext) : ""),
       );
     }
     if (mode === "reset-password")
@@ -198,7 +229,9 @@ export function Auth({ mode: initial }: { mode?: string }) {
     user.id !== "onboarding-guest" &&
     ["signup", "login"].includes(mode)
   )
-    return <Navigate to={safeNext} replace />;
+    return (
+      <Navigate to={destination || (hosted ? entryPath : safeNext)} replace />
+    );
   const titles: Record<string, string> = {
     signup: "Create your account",
     login: "Welcome back.",
@@ -217,7 +250,8 @@ export function Auth({ mode: initial }: { mode?: string }) {
         const r = await api("/auth/signup", "POST", { name, email, password });
         if (hosted) {
           setPendingEmail(email.trim());
-          sessionStorage.setItem("aynor:pending-signup-email", email.trim());
+          writeAuthDraft("aynor:pending-signup-email", email.trim());
+          writeAuthDraft("aynor:confirmation-sent-at", String(Date.now()));
           if (r.verificationRequired === false) {
             toast("Account created. Sign in to continue.");
             nav(link("login"));
@@ -231,9 +265,15 @@ export function Auth({ mode: initial }: { mode?: string }) {
         }
         nav(link("verify"));
       } else if (mode === "login") {
-        const r = await api("/auth/login", "POST", { email, password });
+        const r = await api("/auth/login", "POST", {
+          email,
+          password,
+          next: safeNext,
+        });
+        const target = hosted ? r.destination || entryPath : safeNext;
+        setDestination(target);
         setUser(r.user);
-        nav(r.user.verified ? safeNext : link("verify"));
+        nav(r.user.verified ? target : link("verify"), { replace: true });
       } else if (mode === "verify") {
         const r = await api("/auth/verify", "POST", { token });
         setUser(r.user);
@@ -253,6 +293,24 @@ export function Auth({ mode: initial }: { mode?: string }) {
       }
     } catch (e) {
       setError(message(e));
+      if (hosted && e instanceof ApiError) {
+        if (e.status === 503)
+          setError(
+            mode === "login"
+              ? "Sign-in is temporarily unavailable. Please try again shortly."
+              : "We couldn't send your confirmation email. Please try again shortly or contact support.",
+          );
+        if (
+          mode === "login" &&
+          e.status === 403 &&
+          /confirm your email/i.test(e.message)
+        ) {
+          setPendingEmail(email.trim());
+          writeAuthDraft("aynor:pending-signup-email", email.trim());
+          setVerificationNeeded(true);
+        }
+        if (mode === "signup" && e.status === 409) setExistingAccount(true);
+      }
     } finally {
       setBusy(false);
     }
@@ -271,13 +329,21 @@ export function Auth({ mode: initial }: { mode?: string }) {
         sessionStorage.setItem("aynor-dev-challenge", r.developmentToken);
       }
       setCooldown(60);
+      if (hosted) {
+        writeAuthDraft("aynor:pending-signup-email", pendingEmail.trim());
+        writeAuthDraft("aynor:confirmation-sent-at", String(Date.now()));
+      }
       toast(
         development
           ? "A new sample verification code is ready: 123456."
           : "Verification email requested.",
       );
     } catch (e) {
-      setError(message(e));
+      setError(
+        hosted && e instanceof ApiError && e.status === 503
+          ? "Email delivery is temporarily unavailable. Please try again shortly or contact support."
+          : message(e),
+      );
     } finally {
       setBusy(false);
     }
@@ -394,6 +460,26 @@ export function Auth({ mode: initial }: { mode?: string }) {
               </div>
             )}
             <ErrorBox>{error}</ErrorBox>
+            {hosted && (verificationNeeded || existingAccount) && (
+              <div className="auth-recovery-actions">
+                {existingAccount && (
+                  <Link className="button secondary" to={link("login")}>
+                    Sign in instead
+                  </Link>
+                )}
+                <Button
+                  type="button"
+                  variant="text"
+                  onClick={() => {
+                    setPendingEmail(email.trim());
+                    writeAuthDraft("aynor:pending-signup-email", email.trim());
+                    nav(link("verify"));
+                  }}
+                >
+                  Resend confirmation email
+                </Button>
+              </div>
+            )}
             {hosted && ["verify", "confirmed"].includes(mode) ? (
               <div className="auth-confirmation">
                 <p>
@@ -410,18 +496,33 @@ export function Auth({ mode: initial }: { mode?: string }) {
                     : "Continue to sign in"}
                   <ArrowRight size={16} />
                 </Link>
-                {pendingEmail && (
-                  <Button
-                    type="button"
-                    variant="text"
-                    busy={busy}
-                    disabled={cooldown > 0}
-                    onClick={resend}
+                {(mode === "verify" || error || pendingEmail) && (
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void resend();
+                    }}
                   >
-                    {cooldown
-                      ? `Resend in ${cooldown}s`
-                      : "Resend confirmation email"}
-                  </Button>
+                    <Field
+                      label="Confirmation email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      value={pendingEmail}
+                      onChange={(event) => setPendingEmail(event.target.value)}
+                      placeholder="you@company.com"
+                    />
+                    <Button
+                      type="submit"
+                      variant="text"
+                      busy={busy}
+                      disabled={cooldown > 0 || !pendingEmail.trim()}
+                    >
+                      {cooldown
+                        ? `Resend in ${cooldown}s`
+                        : "Resend confirmation email"}
+                    </Button>
+                  </form>
                 )}
                 <Link className="text-button" to={link("signup")}>
                   Use a different email
@@ -665,7 +766,7 @@ export function Auth({ mode: initial }: { mode?: string }) {
         <Modal title={legal} onClose={() => setLegal("")}>
           <p>
             {serverMode
-              ? "Create an account with your email and password, confirm your email through Supabase, then sign in. Each account has separate workspace access. Google sign-in and email password recovery are not yet available. Keep your password saved securely."
+              ? "Create an account with your email and password, confirm your email, then sign in. Each account has separate workspace access. Google sign-in and email password recovery are not yet available. Keep your password saved securely."
               : legal === "Help & support"
                 ? "Explore a sample workspace or create a prototype account. Verification uses 123456. All sign-ins, connections, and email actions are simulated locally."
                 : legal === "Privacy Policy"

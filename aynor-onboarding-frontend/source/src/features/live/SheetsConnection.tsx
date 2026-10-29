@@ -53,17 +53,25 @@ type Inspection = {
   rowCount?: number;
 };
 type UploadData = { name: string; tabTitle: string; values: UploadCell[][] };
+function announceSource(company: string, source: SourceStatus) {
+  if (typeof source?.connected === "boolean")
+    window.dispatchEvent(
+      new CustomEvent("aynor:sheet-change", { detail: { company, source } }),
+    );
+}
 export function useSheetStatus(company: string, enabled = true) {
   const [source, setSource] = useState<SourceStatus | null>(null),
     [error, setError] = useState("");
   useEffect(() => {
     if (!enabled) return;
     let active = true;
+    let sequence = 0;
     let events: EventSource | null = null;
-    const reload = () =>
-      serverRequest<SourceStatus>(`/companies/${company}/sheets`)
+    const reload = () => {
+      const request = ++sequence;
+      return serverRequest<SourceStatus>(`/companies/${company}/sheets`)
         .then((s) => {
-          if (active) {
+          if (active && request === sequence) {
             setSource(s);
             setError("");
             if (s.syncMode !== "manual" && !events) {
@@ -86,15 +94,26 @@ export function useSheetStatus(company: string, enabled = true) {
           }
         })
         .catch((e) => {
-          if (active) setError(e.message);
+          if (active && request === sequence) setError(e.message);
         });
+    };
+    const changed = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{ company: string; source: SourceStatus }>
+      ).detail;
+      if (detail?.company === company && detail.source) {
+        sequence++;
+        setSource(detail.source);
+        setError("");
+      } else void reload();
+    };
     void reload();
     const timer = setInterval(reload, 15000);
-    window.addEventListener("aynor:sheet-change", reload);
+    window.addEventListener("aynor:sheet-change", changed);
     return () => {
       active = false;
       events?.close();
-      window.removeEventListener("aynor:sheet-change", reload);
+      window.removeEventListener("aynor:sheet-change", changed);
       clearInterval(timer);
     };
   }, [company, enabled]);
@@ -513,20 +532,22 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
             onSubmit={(event) => {
               event.preventDefault();
               void perform("mapping", async () => {
+                let updated: SourceStatus;
                 if (mode === "upload") {
                   if (!uploadData)
                     throw Error("Choose your file and read its columns first.");
-                  await serverRequest(root + "/upload", "POST", {
+                  updated = await serverRequest(root + "/upload", "POST", {
                     ...uploadData,
                     mapping,
                   });
                 } else
-                  await serverRequest(root + "/mapping", "PUT", {
+                  updated = await serverRequest(root + "/mapping", "PUT", {
                     spreadsheetId: inspection.spreadsheetId,
                     tabId: inspection.tabId,
                     mapping,
                     ...(mode === "public" ? { publicUrl: url } : {}),
                   });
+                announceSource(companyId, updated);
                 setMessage(
                   mode === "upload"
                     ? "File imported. Your dashboard now uses these records."
@@ -705,7 +726,11 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
                 }
                 onClick={() =>
                   perform("sync", async () => {
-                    await serverRequest(root + "/sync", "POST");
+                    const updated = await serverRequest<SourceStatus>(
+                      root + "/sync",
+                      "POST",
+                    );
+                    announceSource(companyId, updated);
                     setMessage(
                       source.syncMode === "manual"
                         ? "Sync completed. Your report is up to date."
@@ -738,6 +763,16 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
           onConfirm={() =>
             void perform("remove", async () => {
               await serverRequest(root, "DELETE");
+              if (source)
+                announceSource(companyId, {
+                  ...source,
+                  connected: false,
+                  hasSnapshot: false,
+                  mapping: null,
+                  status: "disconnected",
+                  lastSuccess: null,
+                  error: null,
+                });
               setRemove(false);
               setInspection(null);
               setMessage("Spreadsheet disconnected.");

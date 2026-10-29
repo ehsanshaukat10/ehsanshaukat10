@@ -239,6 +239,21 @@ export function SevenStepOnboarding({
   }
   async function advance(skip = false) {
     setError("");
+    if (step === "departments" && !data.departments.length) {
+      setError("Choose at least one department, or add your own.");
+      return;
+    }
+    if (
+      serverMode &&
+      ["integrations", "mapping"].includes(step) &&
+      !skip &&
+      !liveSource?.hasSnapshot
+    ) {
+      setError(
+        "Finish importing and mapping your data below, or choose Skip for now to connect it later.",
+      );
+      return;
+    }
     if (step === "goals" && goal.name.trim() && !skip) {
       setError("Save the goal below, or clear the form before continuing.");
       return;
@@ -261,12 +276,22 @@ export function SevenStepOnboarding({
       );
       return;
     }
+    const skipDependentMapping =
+      serverMode && step === "integrations" && skip && !liveSource?.hasSnapshot;
     const index = steps.indexOf(step),
-      target = reviewEdit ? "review" : steps[index + 1] || "complete";
+      target = reviewEdit
+        ? "review"
+        : skipDependentMapping
+          ? "priorities"
+          : steps[index + 1] || "complete";
     const next = {
       ...data,
       step: overviewEdit ? company.data.step : target,
-      steps: { ...data.steps, [step]: skip ? "skipped" : "completed" },
+      steps: {
+        ...data.steps,
+        [step]: skip ? "skipped" : "completed",
+        ...(skipDependentMapping ? { mapping: "skipped" as const } : {}),
+      },
       ...(step === "review" ? { completed: true } : {}),
     };
     if (await save(next)) {
@@ -477,8 +502,44 @@ export function SevenStepOnboarding({
           </form>
         </>
       )}
-      {serverMode && ["integrations", "mapping"].includes(step) && (
-        <SheetsConnection companyId={company.id} />
+      {serverMode &&
+      step === "mapping" &&
+      liveSource?.hasSnapshot &&
+      liveSource.mapping ? (
+        <section className="onboarding-mapping-summary">
+          <Badge tone="success">Data imported</Badge>
+          <h2>{liveSource.tabTitle || "Your spreadsheet"}</h2>
+          <p>Your mapping is saved. These fields power your dashboard.</p>
+          <dl>
+            {Object.entries(liveSource.mapping).map(([field, column]) => (
+              <div key={field}>
+                <dt>
+                  {field === "expenses"
+                    ? "Operating expenses"
+                    : field === "date"
+                      ? "Record date"
+                      : "Revenue"}
+                </dt>
+                <dd>
+                  <Check size={14} />
+                  {column}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <Link
+            className="button secondary"
+            to={`/companies/${company.id}/onboarding/integrations`}
+          >
+            <Pencil size={14} />
+            Edit source or mapping
+          </Link>
+        </section>
+      ) : (
+        serverMode &&
+        ["integrations", "mapping"].includes(step) && (
+          <SheetsConnection companyId={company.id} />
+        )
       )}
       {step === "integrations" && !serverMode && (
         <>
@@ -1122,9 +1183,15 @@ export function SevenStepOnboarding({
           <p>
             {company.name} has a place of its own.
             <br />
-            Your workspace is ready to explore.
+            {serverMode && !liveSource?.hasSnapshot
+              ? "Connect data from your dashboard when you're ready."
+              : "Your workspace is ready to explore."}
           </p>
-          <Badge>Workspace ready</Badge>
+          <Badge>
+            {serverMode && !liveSource?.hasSnapshot
+              ? "Workspace ready · data pending"
+              : "Workspace ready"}
+          </Badge>
           <Link className="button" to={`/companies/${company.id}/overview`}>
             Open dashboard <ArrowRight size={22} />
           </Link>

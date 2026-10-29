@@ -85,10 +85,23 @@ test("confirmed email signup, native sessions, logout, isolation and existing ow
   );
   f.control.authUsers.get(signup.email).email_confirmed_at =
     new Date().toISOString();
+  f.control.autoConfirm = true;
+  assert.equal((await call("/auth/login", "POST", signup)).status, 503);
+  assert.equal(
+    (
+      await call("/auth/signup", "POST", {
+        ...signup,
+        email: "no-confirm@example.test",
+      })
+    ).status,
+    503,
+  );
+  f.control.autoConfirm = false;
   const logged = await call("/auth/login", "POST", signup);
   assert.equal(logged.status, 200);
   assert.equal(logged.data.user.name, signup.name);
   assert.equal(logged.data.user.verified, true);
+  assert.equal(logged.data.destination, "/companies/new");
   assert.match(logged.headers["Set-Cookie"], /HttpOnly; Secure; SameSite=Lax/);
   assert.ok(!JSON.stringify(logged.data).includes("private-provider"));
   assert.deepEqual(
