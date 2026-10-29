@@ -84,13 +84,15 @@ try {
       "https://docs.google.com/spreadsheets/d/e/2PACXabcdefghijklmnopqrstuvwx/pub?output=csv&gid=0",
     );
   await page.getByRole("button", { name: "Read columns", exact: true }).click();
-  await page.getByLabel("Record date", { exact: true }).selectOption("Date");
-  await page.getByLabel("Revenue", { exact: true }).selectOption("Revenue");
+  await page.getByLabel("Date column", { exact: true }).selectOption("Date");
   await page
-    .getByLabel("Operating expenses", { exact: true })
+    .getByLabel("Money in column", { exact: true })
+    .selectOption("Revenue");
+  await page
+    .getByLabel("Money out column", { exact: true })
     .selectOption("Expenses");
   await page
-    .getByRole("button", { name: "Save mapping & sync", exact: true })
+    .getByRole("button", { name: "Use these columns", exact: true })
     .click();
   await expect(page.locator(".live-source .intel-status")).toHaveText("synced");
   await page.goto(`http://127.0.0.1:5176/companies/${company}/overview`);

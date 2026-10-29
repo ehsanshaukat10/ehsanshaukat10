@@ -113,14 +113,14 @@ try {
   await expect(
     page.getByLabel("Spreadsheet link", { exact: true }),
   ).toHaveValue(sheet);
-  await expect(page.getByLabel("Record date", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Date column", { exact: true })).toHaveValue(
     "Date",
   );
-  await expect(page.getByLabel("Revenue", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Money in column", { exact: true })).toHaveValue(
     "Revenue",
   );
   await page
-    .getByRole("button", { name: "Save mapping & sync", exact: true })
+    .getByRole("button", { name: "Use these columns", exact: true })
     .click();
   await expect(page.locator(".onboarding-mapping-summary")).toContainText(
     "Data imported",

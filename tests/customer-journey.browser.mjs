@@ -105,12 +105,12 @@ try {
       buffer: Buffer.from(`Date,Revenue,Expenses\n${date},5000,1700`),
     });
   await page
-    .getByRole("button", { name: "Import & update dashboard", exact: true })
+    .getByRole("button", { name: "Import my sheet", exact: true })
     .click();
   await expect(page.locator(".live-source .intel-status")).toHaveText("synced");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.locator(".onboarding-mapping-summary")).toContainText(
-    "Revenue",
+    "Money in",
   );
   await expect(page.locator(".onboarding-mapping-summary")).toContainText(
     "Expenses",

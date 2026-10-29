@@ -22,6 +22,7 @@ import {
   type UploadCell,
 } from "./upload-workbook";
 import "./sheet-upload.css";
+import { ColumnMatches, type ColumnMapping } from "./ColumnMatches";
 export type SourceStatus = {
   configured: boolean;
   googleSetup?: GoogleSetup;
@@ -146,6 +147,11 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
     [headerRow, setHeaderRow] = useState(0),
     [dragging, setDragging] = useState(false),
     [mapping, setMapping] = useState({ date: "", revenue: "", expenses: "" }),
+    [suggestions, setSuggestions] = useState<ColumnMapping>({
+      date: "",
+      revenue: "",
+      expenses: "",
+    }),
     [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
     [message, setMessage] = useState(() => {
@@ -244,11 +250,13 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
     setInspection(value);
     const match = (pattern: RegExp) =>
       value.headers.find((header) => pattern.test(header)) || "";
-    setMapping({
+    const suggested = {
       date: match(/^(date|record date|transaction date)$/i),
       revenue: match(/^(revenue|sales|income|monthly revenue)$/i),
       expenses: match(/^(costs|expenses|operating expenses|operating costs)$/i),
-    });
+    };
+    setMapping(suggested);
+    setSuggestions(suggested);
   }
   async function inspectUpload(
     book: UploadWorkbook,
@@ -326,209 +334,221 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
             </button>
           ))}
         </div>
-        {mode === "oauth" ? (
-          <>
-            <p>
-              Connect your Google account, then paste a spreadsheet link. Aynor
-              requests spreadsheet read permission only.
-            </p>
-            <Button
-              type="button"
-              disabled={!!busy}
-              busy={busy === "authorize"}
-              onClick={() => void connect()}
-            >
-              <ExternalLink size={14} />
-              {source?.connected && source.mode === "oauth"
-                ? "Reconnect Google"
-                : "Connect Google account"}
-            </Button>
-            {source && !source.configured && (
-              <div role="status">
-                <p>
-                  Google connection is not set up for this workspace yet. A
-                  private link needs Google authorization before its columns can
-                  be read. Choose Connect Google to see the setup steps.
-                </p>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setMode("public");
-                    setError("");
-                    setInspection(null);
-                    setUrl("");
-                  }}
-                >
-                  Paste a shared URL
-                </Button>
-              </div>
-            )}
-          </>
-        ) : mode === "public" ? (
-          <p>
-            Paste a published CSV link or a Google Sheet shared for viewing. For
-            private sheets, choose Connect Google.
-          </p>
-        ) : (
-          <div className="sheet-upload">
-            <div
-              className={"sheet-upload-drop" + (dragging ? " is-dragging" : "")}
-              onDragOver={(event) => {
-                event.preventDefault();
-                if (!busy) setDragging(true);
-              }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={(event) => {
-                event.preventDefault();
-                setDragging(false);
-                void chooseFile(event.dataTransfer.files[0]);
-              }}
-            >
-              <span className="sheet-upload-icon">
-                <Upload size={22} strokeWidth={1.5} />
-              </span>
-              <strong>
-                {workbook?.name || "A spreadsheet. A clearer picture."}
-              </strong>
-              <p>Drop your file here, or choose one below.</p>
-              <input
-                ref={fileInput}
-                type="file"
-                accept=".xlsx,.csv"
-                aria-label="Upload Excel or CSV file"
-                hidden
-                disabled={!!busy}
-                onChange={(event) => {
-                  void chooseFile(event.target.files?.[0]);
-                  event.target.value = "";
-                }}
-              />
+        <details className="sheet-source-controls" open={!inspection}>
+          <summary hidden={!inspection}>
+            <FileSpreadsheet size={15} />
+            <span>{inspection?.title || "Your sheet"}</span>
+            <small>Change sheet</small>
+          </summary>
+          {mode === "oauth" ? (
+            <>
+              <p>
+                Connect your Google account, then paste a spreadsheet link.
+                Aynor requests spreadsheet read permission only.
+              </p>
               <Button
                 type="button"
-                variant="secondary"
-                busy={busy === "file"}
                 disabled={!!busy}
-                onClick={() => fileInput.current?.click()}
+                busy={busy === "authorize"}
+                onClick={() => void connect()}
               >
-                {workbook ? "Choose another file" : "Choose file"}
+                <ExternalLink size={14} />
+                {source?.connected && source.mode === "oauth"
+                  ? "Reconnect Google"
+                  : "Connect Google account"}
               </Button>
-              <small>Excel .xlsx or CSV · up to 5 MB · 10,000 records</small>
-            </div>
-            {workbook && (
-              <div className="sheet-upload-options">
-                <Select
-                  label="Worksheet"
-                  value={String(worksheet)}
-                  disabled={!!busy}
-                  onChange={(event) => {
-                    const index = Number(event.target.value);
-                    const header = suggestHeaderRow(
-                      workbook.sheets[index].rows,
-                    );
-                    setWorksheet(index);
-                    setHeaderRow(header);
-                    void perform("inspect", () =>
-                      inspectUpload(workbook, index, header),
-                    );
-                  }}
-                >
-                  {workbook.sheets.map((sheet, index) => (
-                    <option key={index} value={index}>
-                      {sheet.name}
-                    </option>
-                  ))}
-                </Select>
-                <Select
-                  label="Header row"
-                  value={String(headerRow)}
-                  disabled={!!busy}
-                  onChange={(event) => {
-                    const header = Number(event.target.value);
-                    setHeaderRow(header);
-                    void perform("inspect", () =>
-                      inspectUpload(workbook, worksheet, header),
-                    );
-                  }}
-                >
-                  {Array.from(
-                    {
-                      length: Math.min(
-                        100,
-                        workbook.sheets[worksheet].rows.length,
-                      ),
-                    },
-                    (_, index) => (
-                      <option key={index} value={index}>
-                        Row {index + 1}
-                      </option>
-                    ),
-                  )}
-                </Select>
-                {!inspection && (
+              {source && !source.configured && (
+                <div role="status">
+                  <p>
+                    Google connection is not set up for this workspace yet. A
+                    private link needs Google authorization before its columns
+                    can be read. Choose Connect Google to see the setup steps.
+                  </p>
                   <Button
-                    type="button"
                     variant="secondary"
-                    disabled={!!busy}
-                    onClick={() =>
-                      void perform("inspect", () =>
-                        inspectUpload(workbook, worksheet, headerRow),
-                      )
-                    }
+                    onClick={() => {
+                      setMode("public");
+                      setError("");
+                      setInspection(null);
+                      setUrl("");
+                    }}
                   >
-                    Read columns
+                    Paste a shared URL
                   </Button>
-                )}
-              </div>
-            )}
-            <p className="sheet-upload-note">
-              A saved import stays in your workspace. Upload an updated file
-              whenever your numbers change.
+                </div>
+              )}
+            </>
+          ) : mode === "public" ? (
+            <p>
+              Paste a published CSV link or a Google Sheet shared for viewing.
+              For private sheets, choose Connect Google.
             </p>
-          </div>
-        )}
-        {mode !== "upload" && (
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (
-                mode === "oauth" &&
+          ) : (
+            <div className="sheet-upload">
+              <div
+                className={
+                  "sheet-upload-drop" + (dragging ? " is-dragging" : "")
+                }
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  if (!busy) setDragging(true);
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setDragging(false);
+                  void chooseFile(event.dataTransfer.files[0]);
+                }}
+              >
+                <span className="sheet-upload-icon">
+                  <Upload size={22} strokeWidth={1.5} />
+                </span>
+                <strong>
+                  {workbook?.name || "A spreadsheet. A clearer picture."}
+                </strong>
+                <p>Drop your file here, or choose one below.</p>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept=".xlsx,.csv"
+                  aria-label="Upload Excel or CSV file"
+                  hidden
+                  disabled={!!busy}
+                  onChange={(event) => {
+                    void chooseFile(event.target.files?.[0]);
+                    event.target.value = "";
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  busy={busy === "file"}
+                  disabled={!!busy}
+                  onClick={() => fileInput.current?.click()}
+                >
+                  {workbook ? "Choose another file" : "Choose file"}
+                </Button>
+                <small>Excel .xlsx or CSV · up to 5 MB · 10,000 records</small>
+              </div>
+              {workbook && (
+                <div className="sheet-upload-options">
+                  <Select
+                    label="Worksheet"
+                    value={String(worksheet)}
+                    disabled={!!busy}
+                    onChange={(event) => {
+                      const index = Number(event.target.value);
+                      const header = suggestHeaderRow(
+                        workbook.sheets[index].rows,
+                      );
+                      setWorksheet(index);
+                      setHeaderRow(header);
+                      void perform("inspect", () =>
+                        inspectUpload(workbook, index, header),
+                      );
+                    }}
+                  >
+                    {workbook.sheets.map((sheet, index) => (
+                      <option key={index} value={index}>
+                        {sheet.name}
+                      </option>
+                    ))}
+                  </Select>
+                  <Select
+                    label="Header row"
+                    value={String(headerRow)}
+                    disabled={!!busy}
+                    onChange={(event) => {
+                      const header = Number(event.target.value);
+                      setHeaderRow(header);
+                      void perform("inspect", () =>
+                        inspectUpload(workbook, worksheet, header),
+                      );
+                    }}
+                  >
+                    {Array.from(
+                      {
+                        length: Math.min(
+                          100,
+                          workbook.sheets[worksheet].rows.length,
+                        ),
+                      },
+                      (_, index) => (
+                        <option key={index} value={index}>
+                          Row {index + 1}
+                        </option>
+                      ),
+                    )}
+                  </Select>
+                  {!inspection && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={!!busy}
+                      onClick={() =>
+                        void perform("inspect", () =>
+                          inspectUpload(workbook, worksheet, headerRow),
+                        )
+                      }
+                    >
+                      Read columns
+                    </Button>
+                  )}
+                </div>
+              )}
+              <p className="sheet-upload-note">
+                A saved import stays in your workspace. Upload an updated file
+                whenever your numbers change.
+              </p>
+            </div>
+          )}
+          {mode !== "upload" && (
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (
+                  mode === "oauth" &&
+                  (!source?.connected ||
+                    source.mode !== "oauth" ||
+                    source.status === "reauth_required")
+                )
+                  void connect(true);
+                else void inspect();
+              }}
+              className="intel-inline-form"
+              style={{ marginTop: 20 }}
+            >
+              <Field
+                label={mode === "public" ? "Sheet URL" : "Spreadsheet link"}
+                value={url}
+                onChange={(event) => {
+                  setUrl(event.target.value);
+                  setInspection(null);
+                  setError("");
+                }}
+                placeholder={
+                  mode === "public"
+                    ? "https://docs.google.com/spreadsheets/d/e/…/pub?output=csv"
+                    : "https://docs.google.com/spreadsheets/d/…/edit"
+                }
+              />
+              <Button
+                disabled={!!busy || !url.trim()}
+                busy={busy === "inspect"}
+              >
+                {mode === "oauth" &&
                 (!source?.connected ||
                   source.mode !== "oauth" ||
                   source.status === "reauth_required")
-              )
-                void connect(true);
-              else void inspect();
-            }}
-            className="intel-inline-form"
-            style={{ marginTop: 20 }}
-          >
-            <Field
-              label={mode === "public" ? "Sheet URL" : "Spreadsheet link"}
-              value={url}
-              onChange={(event) => {
-                setUrl(event.target.value);
-                setInspection(null);
-                setError("");
-              }}
-              placeholder={
-                mode === "public"
-                  ? "https://docs.google.com/spreadsheets/d/e/…/pub?output=csv"
-                  : "https://docs.google.com/spreadsheets/d/…/edit"
-              }
-            />
-            <Button disabled={!!busy || !url.trim()} busy={busy === "inspect"}>
-              {mode === "oauth" &&
-              (!source?.connected ||
-                source.mode !== "oauth" ||
-                source.status === "reauth_required")
-                ? "Connect Google & read columns"
-                : "Read columns"}
-            </Button>
-          </form>
-        )}
+                  ? "Connect Google & read columns"
+                  : "Read columns"}
+              </Button>
+            </form>
+          )}
+        </details>
         {inspection && (
           <form
-            className="intel-form"
+            className="intel-form mapping-form"
             onSubmit={(event) => {
               event.preventDefault();
               void perform("mapping", async () => {
@@ -561,7 +581,8 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
           >
             {mode !== "upload" && (
               <Select
-                label="Spreadsheet tab"
+                label="Sheet"
+                aria-label="Spreadsheet tab"
                 value={String(inspection.tabId)}
                 onChange={(event) => void inspect(Number(event.target.value))}
               >
@@ -572,86 +593,82 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
                 ))}
               </Select>
             )}
-            <p role="status">
-              {inspection.rowCount !== undefined
-                ? `${inspection.rowCount.toLocaleString()} records · `
-                : ""}
-              {inspection.headers.length} columns found. Review your data and
-              choose the reporting columns.
-            </p>
+            <ColumnMatches
+              headers={inspection.headers}
+              preview={inspection.preview}
+              mapping={mapping}
+              suggestions={suggestions}
+              disabled={!!busy}
+              onChange={setMapping}
+            />
             {inspection.preview?.length ? (
-              <div
-                style={{ overflowX: "auto", maxHeight: 180, marginBottom: 16 }}
-              >
-                <table
+              <details className="mapping-detail">
+                <summary>
+                  See your sheet
+                  {inspection.rowCount !== undefined
+                    ? ` · ${inspection.rowCount.toLocaleString()} ${inspection.rowCount === 1 ? "row" : "rows"}`
+                    : ""}
+                </summary>
+                <div
                   style={{
-                    width: "100%",
-                    fontSize: 12,
-                    textAlign: "left",
-                    borderCollapse: "collapse",
+                    overflowX: "auto",
+                    maxHeight: 180,
+                    marginBottom: 16,
                   }}
                 >
-                  <thead>
-                    <tr>
-                      {inspection.headers.map((header) => (
-                        <th
-                          key={header}
-                          style={{ padding: 8, fontWeight: 500 }}
-                        >
-                          {header}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {inspection.preview.map((row, index) => (
-                      <tr key={index}>
-                        {inspection.headers.map((header, i) => (
-                          <td
+                  <table
+                    style={{
+                      width: "100%",
+                      fontSize: 12,
+                      textAlign: "left",
+                      borderCollapse: "collapse",
+                    }}
+                  >
+                    <thead>
+                      <tr>
+                        {inspection.headers.map((header) => (
+                          <th
                             key={header}
-                            style={{
-                              padding: 8,
-                              borderTop: "1px solid #ecebf3",
-                            }}
+                            style={{ padding: 8, fontWeight: 500 }}
                           >
-                            {String(row[i] ?? "—")}
-                          </td>
+                            {header}
+                          </th>
                         ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {inspection.preview.map((row, index) => (
+                        <tr key={index}>
+                          {inspection.headers.map((header, i) => (
+                            <td
+                              key={header}
+                              style={{
+                                padding: 8,
+                                borderTop: "1px solid #ecebf3",
+                              }}
+                            >
+                              {String(row[i] ?? "—")}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
             ) : null}
-            <p>
-              One row per record. Dates accept year-first formats such as
-              2026-09-01 or 2026/9/1. Revenue and expenses accept numbers,
-              thousands separators and common currency symbols in your workspace
-              currency; no currency conversion is applied.
-            </p>
-            <div className="intel-form-grid">
-              {(["date", "revenue", "expenses"] as const).map((field) => (
-                <Select
-                  key={field}
-                  label={
-                    field === "date"
-                      ? "Record date"
-                      : field === "revenue"
-                        ? "Revenue"
-                        : "Operating expenses"
-                  }
-                  value={mapping[field]}
-                  onChange={(event) =>
-                    setMapping({ ...mapping, [field]: event.target.value })
-                  }
-                >
-                  <option value="">Choose a column</option>
-                  {inspection.headers.map((header) => (
-                    <option key={header}>{header}</option>
-                  ))}
-                </Select>
-              ))}
-            </div>
+            <details className="mapping-detail">
+              <summary>Need help choosing?</summary>
+              <p>
+                Pick the date of each entry, the money your business earned, and
+                the money it spent. Each needs a different column. If one is
+                missing, add it to your sheet first.
+              </p>
+              <p>
+                Dates can look like 2026-10-01 or 2026/10/1. Amounts should use
+                your workspace’s currency. We don’t convert currencies.
+              </p>
+            </details>
             <Button
               disabled={
                 !!busy ||
@@ -660,10 +677,12 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
               }
               busy={busy === "mapping"}
             >
-              {mode === "upload"
-                ? "Import & update dashboard"
-                : "Save mapping & sync"}
+              {mode === "upload" ? "Import my sheet" : "Use these columns"}
             </Button>
+            <p className="mapping-submit-note">
+              Aynor will read these columns and build your dashboard. Your
+              original sheet stays unchanged.
+            </p>
           </form>
         )}
       </Panel>

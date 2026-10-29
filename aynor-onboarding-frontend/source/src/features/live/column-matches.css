@@ -1,0 +1,219 @@
+.column-matches {
+  margin: 22px 0 18px;
+}
+.column-matches-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.column-matches-heading h3 {
+  margin: 0 0 7px;
+  font-size: 23px;
+  font-weight: 400;
+  letter-spacing: -0.65px;
+  color: #303549;
+}
+.column-matches-heading p {
+  margin: 0;
+  max-width: 340px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #73798b;
+}
+.column-match-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 5px 9px;
+  border-radius: 20px;
+  background: #f1eefb;
+  color: #7660b5;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.column-match-list {
+  display: grid;
+  gap: 12px;
+}
+.column-match-row {
+  padding: 15px 16px 12px;
+  border: 1px solid #eceaf3;
+  border-radius: 12px;
+  background: #fff;
+  transition:
+    border-color 0.18s,
+    background 0.18s;
+}
+.column-match-row:focus-within {
+  border-color: #b2a2ed;
+  background: #fdfcff;
+}
+.column-match-question {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.column-match-icon {
+  display: grid;
+  place-items: center;
+  width: 33px;
+  height: 33px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: #f4f1fb;
+  color: #8065c4;
+}
+.column-match-question > div {
+  flex: 1;
+  min-width: 0;
+}
+.column-match-question strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #353b4d;
+}
+.column-match-question div > span {
+  display: block;
+  font-size: 12px;
+  color: #7e8291;
+  margin-top: 3px;
+}
+.column-match-question > small {
+  color: #8b7aaa;
+  font-size: 11px;
+  font-weight: 400;
+}
+.column-match-row .field {
+  margin: 0;
+}
+.column-match-row .field > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+.column-match-example {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #9395a2;
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+}
+.column-match-example span {
+  color: #62697b;
+}
+.column-match-next {
+  margin: 12px 0 0;
+  color: #7c758e;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.mapping-detail {
+  margin: 14px 0;
+  font-size: 12px;
+  color: #7c7d8f;
+}
+.mapping-detail > summary {
+  cursor: pointer;
+  padding: 7px 0;
+  color: #766390;
+  width: fit-content;
+}
+.mapping-detail > summary:focus-visible {
+  outline: 2px solid #a48bde;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.mapping-detail p {
+  font-size: 12px;
+  line-height: 1.7;
+}
+.mapping-submit-note {
+  font-size: 12px;
+  color: #868697;
+  margin: 10px 0 0;
+  line-height: 1.6;
+}
+@media (max-width: 480px) {
+  .column-matches-heading {
+    gap: 10px;
+  }
+  .column-matches-heading h3 {
+    font-size: 21px;
+  }
+  .column-match-row {
+    padding: 13px 12px;
+  }
+  .column-match-question > small {
+    font-size: 10px;
+  }
+}
+@media (min-width: 620px) {
+  .column-match-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) minmax(160px, 1.1fr);
+    column-gap: 18px;
+    align-items: center;
+  }
+  .column-match-question {
+    grid-row: 1 / span 2;
+    margin-bottom: 0;
+  }
+  .column-match-example {
+    grid-column: 2;
+  }
+}
+.column-match-row select {
+  font-size: 13px;
+  min-height: 44px;
+}
+.sheet-source-controls {
+  margin: 12px 0;
+}
+.sheet-source-controls > summary {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 12px 0;
+  cursor: pointer;
+  color: #77728c;
+  font-size: 13px;
+  border-bottom: 1px solid #eeedf5;
+}
+.sheet-source-controls > summary[hidden] {
+  display: none;
+}
+.sheet-source-controls > summary span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sheet-source-controls > summary small {
+  color: #8066b6;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.sheet-source-controls > summary:focus-visible {
+  outline: 2px solid #a48bde;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.live-source .mapping-form {
+  gap: 10px;
+}
+.mapping-form .column-matches {
+  margin: 10px 0;
+}
+.mapping-form .mapping-detail {
+  margin: 0;
+}
+.mapping-form .mapping-submit-note {
+  margin: 0;
+}

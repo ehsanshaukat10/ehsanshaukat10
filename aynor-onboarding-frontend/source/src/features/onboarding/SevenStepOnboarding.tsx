@@ -55,8 +55,8 @@ const titles: Record<string, [string, string]> = {
     "Connect a spreadsheet, upload a file, or paste a Google Sheets URL.",
   ],
   mapping: [
-    "Give your data meaning.",
-    "Review and edit your fields. You can also skip mapping and return later.",
+    "A quick check of your data.",
+    "Check how we read your sheet. You can change these choices later.",
   ],
   priorities: [
     "What matters most?",
@@ -509,16 +509,19 @@ export function SevenStepOnboarding({
         <section className="onboarding-mapping-summary">
           <Badge tone="success">Data imported</Badge>
           <h2>{liveSource.tabTitle || "Your spreadsheet"}</h2>
-          <p>Your mapping is saved. These fields power your dashboard.</p>
+          <p>
+            These three columns are ready to use. Your original sheet stays
+            unchanged.
+          </p>
           <dl>
             {Object.entries(liveSource.mapping).map(([field, column]) => (
               <div key={field}>
                 <dt>
                   {field === "expenses"
-                    ? "Operating expenses"
+                    ? "Money out"
                     : field === "date"
-                      ? "Record date"
-                      : "Revenue"}
+                      ? "Date"
+                      : "Money in"}
                 </dt>
                 <dd>
                   <Check size={14} />
@@ -532,7 +535,7 @@ export function SevenStepOnboarding({
             to={`/companies/${company.id}/onboarding/integrations`}
           >
             <Pencil size={14} />
-            Edit source or mapping
+            Change column choices
           </Link>
         </section>
       ) : (

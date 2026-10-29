@@ -61,18 +61,37 @@ try {
   });
   await expect(page.getByLabel("Worksheet", { exact: true })).toHaveValue("1");
   await expect(page.getByLabel("Header row", { exact: true })).toHaveValue("1");
-  await expect(page.getByLabel("Record date", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Date column", { exact: true })).toHaveValue(
     "Date",
   );
+  await expect(page.locator(".column-matches")).toContainText("Money in");
+  await expect(page.locator(".column-matches")).toContainText("Money out");
+  await expect(page.locator(".column-match-count")).toHaveText(
+    "3 of 3 matched",
+  );
+  await expect(
+    page
+      .getByLabel("Money in column", { exact: true })
+      .locator('option[value="Date"]'),
+  ).toHaveAttribute("disabled", "");
+  await expect(page.locator(".live-source table")).toBeHidden();
+  await page.locator(".mapping-detail > summary").first().click();
+  await expect(page.locator(".live-source table")).toBeVisible();
   await expect(page.locator(".live-source table")).toContainText(date);
+  await page.locator(".mapping-detail > summary").first().click();
+  await page.screenshot({
+    path: "/tmp/aynor-simple-column-matches.png",
+    fullPage: true,
+  });
   // Change worksheets and edit the mapping rather than rely on suggestions.
+  await page.locator(".sheet-source-controls > summary").click();
   await page.getByLabel("Worksheet", { exact: true }).selectOption("2");
   await expect(page.getByLabel("Header row", { exact: true })).toHaveValue("0");
   await page
-    .getByLabel("Record date", { exact: true })
+    .getByLabel("Date column", { exact: true })
     .selectOption("Recorded");
   await page
-    .getByRole("button", { name: "Import & update dashboard", exact: true })
+    .getByRole("button", { name: "Import my sheet", exact: true })
     .click();
   await expect(page.locator(".live-source .intel-status")).toHaveText("synced");
   await page.goto(base + "/overview");
@@ -94,7 +113,7 @@ try {
     buffer: Buffer.from(`Date,Revenue,Expenses\n${date},wrong,500`),
   });
   await page
-    .getByRole("button", { name: "Import & update dashboard", exact: true })
+    .getByRole("button", { name: "Import my sheet", exact: true })
     .click();
   await expect(page.getByRole("alert")).toContainText("Row 2");
   const existing = await page.request.get(
@@ -108,7 +127,7 @@ try {
     buffer: Buffer.from(`Date,Revenue,Expenses\n${date},3200,1000`),
   });
   await page
-    .getByRole("button", { name: "Import & update dashboard", exact: true })
+    .getByRole("button", { name: "Import my sheet", exact: true })
     .click();
   await expect(page.locator(".live-source .intel-status")).toHaveText("synced");
   await page.goto(base + "/overview");
@@ -121,11 +140,11 @@ try {
       "https://docs.google.com/spreadsheets/d/abcdefghijklmnopqrstuvwx1234/edit#gid=0",
     );
   await page.getByRole("button", { name: "Read columns", exact: true }).click();
-  await expect(page.getByLabel("Record date", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Date column", { exact: true })).toHaveValue(
     "Date",
   );
   await page
-    .getByRole("button", { name: "Save mapping & sync", exact: true })
+    .getByRole("button", { name: "Use these columns", exact: true })
     .click();
   await expect(page.locator(".live-source .intel-status")).toHaveText("synced");
   await page.goto(base + "/overview");
