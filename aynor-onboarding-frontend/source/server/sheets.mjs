@@ -1,3 +1,10 @@
+import {
+  suggestHeader,
+  profileColumns,
+  validateTable,
+  tableSummary,
+  validateRelationships,
+} from "../shared/table-data.mjs";
 import { randomBytes, randomUUID, createHash } from "node:crypto";
 import { fail } from "./database.mjs";
 import { createGoogle, scope } from "./google.mjs";
@@ -31,7 +38,13 @@ export function createServerlessSheets({
       spreadsheet: c?.spreadsheet || null,
       tabId: c?.tab_id ?? null,
       tabTitle: c?.tab_title || null,
-      mapping: c?.mapping || null,
+      mapping:
+        c?.mapping?.kind === "tables"
+          ? Object.fromEntries(
+              c.mapping.tables.map((t) => [t.title, t.purpose || "Other"]),
+            )
+          : c?.mapping || null,
+      dataKind: c?.mapping?.kind === "tables" ? "tables" : "financial",
       status: interrupted ? "error" : c?.status || "disconnected",
       error: interrupted
         ? "Sync was interrupted. Click Sync now to retry."
@@ -74,17 +87,23 @@ export function createServerlessSheets({
     });
     try {
       const range = "'" + c.tab_title.replaceAll("'", "''") + "'!A1:BA10002";
-      const values = c.public_url
-        ? await google.publicRows(c.public_url)
-        : (
-            await google.read(
-              company,
-              `${c.spreadsheet}/values/${encodeURIComponent(range)}?valueRenderOption=FORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`,
-            )
-          ).values || [];
+      const values =
+        c.mapping.kind === "tables"
+          ? []
+          : c.public_url
+            ? await google.publicRows(c.public_url)
+            : (
+                await google.read(
+                  company,
+                  `${c.spreadsheet}/values/${encodeURIComponent(range)}?valueRenderOption=FORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`,
+                )
+              ).values || [];
       let snapshot;
       try {
-        snapshot = validateRows(values, c.mapping);
+        snapshot =
+          c.mapping.kind === "tables"
+            ? await readTables(company, c.mapping, c.spreadsheet, c.public_url)
+            : validateRows(values, c.mapping);
       } catch (error) {
         fail(422, error.message);
       }
@@ -116,7 +135,7 @@ export function createServerlessSheets({
     }
     return status(company, actor);
   }
-  async function inspect(company, input, tabId) {
+  async function inspect(company, input, tabId, headerRow) {
     let id;
     try {
       id = sheetId(input);
@@ -135,11 +154,21 @@ export function createServerlessSheets({
     if (!tab) fail(422, "Choose an available grid tab.");
     const values = await google.read(
       company,
-      `${id}/values/${encodeURIComponent("'" + tab.title.replaceAll("'", "''") + "'!A1:BA6")}`,
+      `${id}/values/${encodeURIComponent("'" + tab.title.replaceAll("'", "''") + "'!A1:BA101")}`,
     );
     let headers;
     try {
-      headers = columns(values.values || []);
+      headerRow =
+        headerRow === undefined
+          ? suggestHeader(values.values || [])
+          : headerRow;
+      if (!Number.isInteger(headerRow) || headerRow < 0 || headerRow > 99)
+        fail(422, "Choose a header row between 1 and 100.");
+      headers = (values.values || [])
+        .slice(headerRow)
+        .some((row) => row.some((cell) => String(cell ?? "").trim()))
+        ? columns((values.values || []).slice(headerRow))
+        : [];
     } catch (error) {
       fail(422, error.message);
     }
@@ -150,8 +179,109 @@ export function createServerlessSheets({
       tabId: tab.sheetId,
       tabTitle: tab.title,
       headers,
-      preview: (values.values || []).slice(1, 6),
+      headerRow,
+      rawPreview: (values.values || []).slice(0, 100),
+      profiles: profileColumns(
+        headers,
+        (values.values || []).slice(headerRow + 1),
+      ),
+      preview: (values.values || []).slice(headerRow + 1, headerRow + 6),
     };
+  }
+  async function readTables(
+    company,
+    mapping,
+    spreadsheet,
+    publicUrl,
+    uploaded,
+  ) {
+    if (
+      !Array.isArray(mapping.tables) ||
+      !mapping.tables.length ||
+      mapping.tables.length > 10
+    )
+      fail(422, "Choose between 1 and 10 tables per import.");
+    if (
+      new Set(mapping.tables.map((t) => t?.tabId)).size !==
+      mapping.tables.length
+    )
+      fail(422, "Choose each worksheet once.");
+    const tables = [];
+    let metadata;
+    if (!publicUrl && !uploaded)
+      metadata = await google.read(
+        company,
+        `${spreadsheet}?fields=sheets(properties(sheetId,title,sheetType))`,
+      );
+    for (const config of mapping.tables) {
+      if (
+        !config ||
+        typeof config !== "object" ||
+        !Number.isInteger(config.tabId) ||
+        config.tabId < 0 ||
+        typeof config.title !== "string" ||
+        !["ymd", "dmy", "mdy"].includes(config.dateFormat)
+      )
+        fail(422, "Review each table and its date format.");
+      let values;
+      let title = config.title;
+      if (uploaded)
+        values = uploaded.find((t) => t?.tabId === config.tabId)?.values;
+      else if (publicUrl) {
+        if (mapping.tables.length !== 1)
+          fail(
+            422,
+            "A shared URL imports its selected tab only. Use Connect Google or Excel for multiple tabs.",
+          );
+        values = await google.publicRows(publicUrl);
+      } else {
+        const tab = metadata.sheets.find(
+          (t) =>
+            t.properties.sheetId === config.tabId &&
+            t.properties.sheetType === "GRID",
+        )?.properties;
+        if (!tab)
+          fail(
+            422,
+            "A selected worksheet no longer exists. Read the spreadsheet again.",
+          );
+        title = tab.title;
+        values =
+          (
+            await google.read(
+              company,
+              `${spreadsheet}/values/${encodeURIComponent("'" + title.replaceAll("'", "''") + "'!A1:BA10101")}?valueRenderOption=FORMATTED_VALUE`,
+            )
+          ).values || [];
+      }
+      try {
+        tables.push(validateTable(values, { ...config, title }, columns));
+      } catch (error) {
+        fail(422, `${title}: ${error.message}`);
+      }
+    }
+    let relationships;
+    try {
+      relationships = validateRelationships(
+        tables,
+        mapping.tables,
+        mapping.relationships,
+      );
+    } catch (error) {
+      fail(422, error.message);
+    }
+    const snapshot = {
+      kind: "tables",
+      tables,
+      relationships,
+      rowCount: tables.reduce((sum, t) => sum + t.rowCount, 0),
+    };
+    if (Buffer.byteLength(JSON.stringify(snapshot)) > 3 * 1024 * 1024)
+      fail(
+        422,
+        "Selected tables exceed 3 MB. Import fewer tabs or ignore large text columns.",
+      );
+    return snapshot;
   }
   return {
     configured: google.configured,
@@ -236,7 +366,7 @@ export function createServerlessSheets({
         }
       }
       const match = path.match(
-        /^\/companies\/([a-f0-9-]{36})\/sheets(?:\/(authorize|inspect|public|upload|mapping|sync|overview|events))?$/i,
+        /^\/companies\/([a-f0-9-]{36})\/sheets(?:\/(authorize|inspect|public|upload|tables|mapping|sync|overview|events))?$/i,
       );
       if (!match) return false;
       const [, company, action] = match;
@@ -248,6 +378,100 @@ export function createServerlessSheets({
           405,
           "Hosted mode uses status polling and manual sync, not persistent event streams.",
         );
+      if (action === "tables" && method === "POST") {
+        const mapping = {
+          kind: "tables",
+          tables: body.tables,
+          relationships: body.relationships || [],
+        };
+        let spreadsheet,
+          publicUrl = null,
+          uploaded;
+        if (body.mode === "upload") {
+          if (
+            !Array.isArray(body.uploaded) ||
+            body.uploaded.length > 10 ||
+            typeof body.name !== "string" ||
+            !/\.(xlsx|csv)$/i.test(body.name) ||
+            body.name.length > 180
+          )
+            fail(400, "Choose an Excel or CSV workbook.");
+          uploaded = body.uploaded;
+          spreadsheet = "upload:" + randomUUID();
+        } else if (body.mode === "public") {
+          try {
+            publicUrl = publicSheetUrl(body.url);
+          } catch (error) {
+            fail(400, error.message);
+          }
+          spreadsheet = "shared:" + randomUUID();
+        } else if (body.mode === "oauth") {
+          try {
+            spreadsheet = sheetId(body.url);
+          } catch (error) {
+            fail(400, error.message);
+          }
+        } else fail(400, "Choose a supported source.");
+        // Fetch and validate every selected table before replacing saved data.
+        const snapshot = await readTables(
+          company,
+          mapping,
+          spreadsheet,
+          publicUrl,
+          uploaded,
+        );
+        mapping.tables = mapping.tables.map((config, index) => ({
+          tabId: config.tabId,
+          title: snapshot.tables[index].title,
+          purpose: snapshot.tables[index].purpose,
+          headerRow: config.headerRow ?? 0,
+          types: config.types,
+          dateFormat: config.dateFormat,
+          ...(config.endRow === undefined ? {} : { endRow: config.endRow }),
+        }));
+        mapping.relationships = mapping.relationships.map(
+          ({ from, to, fromColumn, toColumn }) => ({
+            from,
+            to,
+            fromColumn,
+            toColumn,
+          }),
+        );
+        await db.rpc("sheet_configure", {
+          p_actor: user.id,
+          p_company: company,
+          p_config: {
+            spreadsheet,
+            public_url: publicUrl,
+            tab_id: 0,
+            tab_title: snapshot.tables
+              .map((t) => t.title)
+              .join(" · ")
+              .slice(0, 150),
+            mapping,
+          },
+          p_reset: true,
+        });
+        const claim = await db.rpc("sheet_claim", {
+          p_actor: user.id,
+          p_company: company,
+        });
+        if (claim.spreadsheet !== spreadsheet)
+          fail(409, "Source changed. Review it and retry.");
+        const saved = await db.rpc("sheet_publish", {
+          p_actor: user.id,
+          p_company: company,
+          p_generation: claim.generation,
+          p_lease: claim.lease_id,
+          p_data: snapshot,
+        });
+        if (!saved)
+          fail(
+            409,
+            "Source changed during import. Retry with the current connection.",
+          );
+        return send(await status(company, user.id));
+      }
       if (action === "upload" && method === "POST") {
         const { name, tabTitle, values, mapping } = body;
         if (
@@ -304,7 +528,10 @@ export function createServerlessSheets({
           });
         if (
           typeof mapping !== "object" ||
-          Object.keys(mapping).sort().join(",") !== "date,expenses,revenue" ||
+          Object.keys(mapping)
+            .filter((k) => !["_headerRow", "_dateFormat"].includes(k))
+            .sort()
+            .join(",") !== "date,expenses,revenue" ||
           Object.values(mapping).some((value) => typeof value !== "string")
         )
           fail(400, "Choose date, revenue and expenses columns.");
@@ -415,7 +642,7 @@ export function createServerlessSheets({
         let headers, rows;
         try {
           rows = await google.publicRows(canonical);
-          headers = columns(rows);
+          headers = columns(rows.slice(body.headerRow ?? suggestHeader(rows)));
         } catch (error) {
           fail(error.status || 422, error.message);
         }
@@ -442,7 +669,16 @@ export function createServerlessSheets({
           tabId: 0,
           tabTitle: "Published report",
           headers,
-          preview: rows.slice(1, 6),
+          headerRow: body.headerRow ?? suggestHeader(rows),
+          rawPreview: rows.slice(0, 100),
+          profiles: profileColumns(
+            headers,
+            rows.slice((body.headerRow ?? suggestHeader(rows)) + 1, 101),
+          ),
+          preview: rows.slice(
+            (body.headerRow ?? suggestHeader(rows)) + 1,
+            (body.headerRow ?? suggestHeader(rows)) + 6,
+          ),
         });
       }
       if (action === "inspect" && method === "POST") {
@@ -459,17 +695,20 @@ export function createServerlessSheets({
             /* sheetId also accepts a bare spreadsheet ID. */
           }
         }
-        return send(await inspect(company, body.url, tabId));
+        return send(await inspect(company, body.url, tabId, body.headerRow));
       }
       if (action === "mapping" && method === "PUT") {
         const mapping = body.mapping;
         if (
           !mapping ||
-          Object.keys(mapping).sort().join(",") !== "date,expenses,revenue" ||
+          Object.keys(mapping)
+            .filter((k) => !["_headerRow", "_dateFormat"].includes(k))
+            .sort()
+            .join(",") !== "date,expenses,revenue" ||
           Object.values(mapping).some(
             (v) => typeof v !== "string" || !v.trim() || v.length > 150,
           ) ||
-          new Set(Object.values(mapping)).size !== 3
+          new Set([mapping.date, mapping.revenue, mapping.expenses]).size !== 3
         )
           fail(
             400,
@@ -516,7 +755,26 @@ export function createServerlessSheets({
             tabId: 0,
             tabTitle: "Published report",
           };
-        } else tab = await inspect(company, body.spreadsheetId, body.tabId);
+        } else
+          tab = await inspect(
+            company,
+            body.spreadsheetId,
+            body.tabId,
+            Number(mapping._headerRow || 0),
+          );
+        const financialValues = c.public_url
+          ? await google.publicRows(c.public_url)
+          : (
+              await google.read(
+                company,
+                `${tab.spreadsheetId}/values/${encodeURIComponent("'" + tab.tabTitle.replaceAll("'", "''") + "'!A1:BA10101")}?valueRenderOption=FORMATTED_VALUE`,
+              )
+            ).values || [];
+        try {
+          validateRows(financialValues, mapping);
+        } catch (error) {
+          fail(422, error.message);
+        }
         await db.rpc("sheet_configure", {
           p_actor: user.id,
           p_company: company,
@@ -542,10 +800,13 @@ export function createServerlessSheets({
         let data = null;
         if (snapshot)
           try {
-            data = aggregate(
-              snapshot.data,
-              url.searchParams.get("period") || "quarter",
-            );
+            data =
+              snapshot.data.kind === "tables"
+                ? tableSummary(snapshot.data)
+                : aggregate(
+                    snapshot.data,
+                    url.searchParams.get("period") || "quarter",
+                  );
           } catch (error) {
             fail(400, error.message);
           }

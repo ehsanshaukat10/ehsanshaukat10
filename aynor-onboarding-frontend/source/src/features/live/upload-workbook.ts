@@ -1,3 +1,4 @@
+import { suggestHeader } from "../../../shared/table-data.mjs";
 export type UploadCell = string | number | boolean | null;
 export type UploadSheet = { name: string; rows: UploadCell[][] };
 export type UploadWorkbook = { name: string; sheets: UploadSheet[] };
@@ -47,12 +48,5 @@ export async function readWorkbook(file: File): Promise<UploadWorkbook> {
 }
 
 export function suggestHeaderRow(rows: UploadCell[][]): number {
-  const index = rows
-    .slice(0, 20)
-    .findIndex(
-      (row) =>
-        row.filter((cell) => typeof cell === "string" && cell.trim()).length >=
-        2,
-    );
-  return Math.max(0, index);
+  return suggestHeader(rows);
 }

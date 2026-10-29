@@ -1,3 +1,5 @@
+import { profileColumns, type Profile } from "../../../shared/table-data.mjs";
+import { TableReview, DateFormat, type TableChoice } from "./TableReview";
 import { Select } from "./LiveSelect";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -24,6 +26,7 @@ import {
 import "./sheet-upload.css";
 import { ColumnMatches, type ColumnMapping } from "./ColumnMatches";
 export type SourceStatus = {
+  dataKind?: "tables" | "financial";
   configured: boolean;
   googleSetup?: GoogleSetup;
   connected: boolean;
@@ -49,6 +52,9 @@ type Inspection = {
   tabs: { sheetId: number; title: string }[];
   tabId: number;
   tabTitle: string;
+  headerRow?: number;
+  rawPreview?: UploadCell[][];
+  profiles?: Profile[];
   headers: string[];
   preview?: string[][];
   rowCount?: number;
@@ -152,6 +158,22 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
       revenue: "",
       expenses: "",
     }),
+    [reportType, setReportType] = useState("table"),
+    [dateFormat, setDateFormat] = useState("ymd"),
+    [tableChoice, setTableChoice] = useState<TableChoice>({
+      tabId: 0,
+      title: "",
+      headerRow: 0,
+      purpose: "Other",
+      types: [],
+      dateFormat: "ymd",
+    }),
+    [queued, setQueued] = useState<
+      { choice: TableChoice; headers: string[]; values?: UploadCell[][] }[]
+    >([]),
+    [relationships, setRelationships] = useState<
+      { from: number; to: number; fromColumn: string; toColumn: string }[]
+    >([]),
     [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
     [message, setMessage] = useState(() => {
@@ -168,6 +190,7 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
   const root = `/companies/${companyId}/sheets`;
   const resumed = useRef(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const sourceControls = useRef<HTMLDetailsElement>(null);
   async function connect(autoRead = false) {
     await perform("authorize", async () => {
       const current = await serverRequest<SourceStatus>(root);
@@ -232,7 +255,7 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
       window.dispatchEvent(new Event("aynor:sheet-change"));
     }
   }
-  async function inspect(tabId?: number) {
+  async function inspect(tabId?: number, selectedHeader?: number) {
     await perform("inspect", async () => {
       const value = await serverRequest<Inspection>(
         root + (mode === "public" ? "/public" : "/inspect"),
@@ -241,6 +264,9 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
           url,
           ...(mode === "public" ? { previewOnly: true } : {}),
           ...(tabId === undefined ? {} : { tabId }),
+          ...(selectedHeader === undefined
+            ? {}
+            : { headerRow: selectedHeader }),
         },
       );
       applyInspection(value);
@@ -257,6 +283,19 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
     };
     setMapping(suggested);
     setSuggestions(suggested);
+    setReportType(
+      Object.values(suggested).every(Boolean) ? "financial" : "table",
+    );
+    const profiles =
+      value.profiles || profileColumns(value.headers, value.preview || []);
+    setTableChoice({
+      tabId: value.tabId,
+      title: value.tabTitle,
+      headerRow: value.headerRow || 0,
+      purpose: "Other",
+      types: profiles.map((p) => p.type),
+      dateFormat: "ymd",
+    });
   }
   async function inspectUpload(
     book: UploadWorkbook,
@@ -280,10 +319,17 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
       data,
     );
     setUploadData(data);
-    applyInspection(value);
+    applyInspection({
+      ...value,
+      tabId: index,
+      tabTitle: book.sheets[index].name,
+      headerRow: header,
+    });
   }
   async function chooseFile(file?: File) {
     if (!file || busy) return;
+    setQueued([]);
+    setRelationships([]);
     setInspection(null);
     setUploadData(null);
     await perform("file", async () => {
@@ -323,6 +369,8 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
               disabled={!!busy}
               aria-pressed={mode === value}
               onClick={() => {
+                setQueued([]);
+                setRelationships([]);
                 setMode(value);
                 setInspection(null);
                 setUploadData(null);
@@ -334,7 +382,11 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
             </button>
           ))}
         </div>
-        <details className="sheet-source-controls" open={!inspection}>
+        <details
+          ref={sourceControls}
+          className="sheet-source-controls"
+          open={!inspection}
+        >
           <summary hidden={!inspection}>
             <FileSpreadsheet size={15} />
             <span>{inspection?.title || "Your sheet"}</span>
@@ -523,6 +575,8 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
                 value={url}
                 onChange={(event) => {
                   setUrl(event.target.value);
+                  setQueued([]);
+                  setRelationships([]);
                   setInspection(null);
                   setError("");
                 }}
@@ -553,27 +607,69 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
               event.preventDefault();
               void perform("mapping", async () => {
                 let updated: SourceStatus;
-                if (mode === "upload") {
+                if (reportType === "table") {
+                  const current = {
+                    choice: tableChoice,
+                    headers: inspection.headers,
+                    values:
+                      mode === "upload"
+                        ? workbook?.sheets[worksheet].rows
+                        : undefined,
+                  };
+                  const all = [
+                    ...queued.filter(
+                      (item) => item.choice.tabId !== current.choice.tabId,
+                    ),
+                    current,
+                  ];
+                  updated = await serverRequest(root + "/tables", "POST", {
+                    mode,
+                    url,
+                    name: workbook?.name,
+                    tables: all.map((item) => item.choice),
+                    relationships: relationships.filter(
+                      (link) =>
+                        all.some((item) => item.choice.tabId === link.from) &&
+                        all.some((item) => item.choice.tabId === link.to),
+                    ),
+                    ...(mode === "upload"
+                      ? {
+                          uploaded: all.map((item) => ({
+                            tabId: item.choice.tabId,
+                            values: item.values,
+                          })),
+                        }
+                      : {}),
+                  });
+                  setQueued([]);
+                  setRelationships([]);
+                } else if (mode === "upload") {
                   if (!uploadData)
                     throw Error("Choose your file and read its columns first.");
                   updated = await serverRequest(root + "/upload", "POST", {
                     ...uploadData,
-                    mapping,
+                    mapping: { ...mapping, _dateFormat: dateFormat },
                   });
                 } else
                   updated = await serverRequest(root + "/mapping", "PUT", {
                     spreadsheetId: inspection.spreadsheetId,
                     tabId: inspection.tabId,
-                    mapping,
+                    mapping: {
+                      ...mapping,
+                      _headerRow: String(inspection.headerRow || 0),
+                      _dateFormat: dateFormat,
+                    },
                     ...(mode === "public" ? { publicUrl: url } : {}),
                   });
                 announceSource(companyId, updated);
                 setMessage(
-                  mode === "upload"
-                    ? "File imported. Your dashboard now uses these records."
-                    : source?.syncMode === "manual"
-                      ? "Mapping saved and first sync completed."
-                      : "Mapping saved. Validation and first sync are running.",
+                  reportType === "table"
+                    ? "Tables imported. Open your dashboard to explore your records."
+                    : mode === "upload"
+                      ? "File imported. Your dashboard now uses these records."
+                      : source?.syncMode === "manual"
+                        ? "Mapping saved and first sync completed."
+                        : "Mapping saved. Validation and first sync are running.",
                 );
                 setInspection(null);
               });
@@ -593,14 +689,223 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
                 ))}
               </Select>
             )}
-            <ColumnMatches
-              headers={inspection.headers}
-              preview={inspection.preview}
-              mapping={mapping}
-              suggestions={suggestions}
+            {mode !== "upload" && (
+              <Select
+                label="Column names are on"
+                value={String(inspection.headerRow || 0)}
+                disabled={!!busy}
+                onChange={(e) =>
+                  void inspect(inspection.tabId, Number(e.target.value))
+                }
+              >
+                {Array.from(
+                  { length: inspection.rawPreview?.length || 1 },
+                  (_, i) => (
+                    <option key={i} value={i}>
+                      Row {i + 1} ·{" "}
+                      {(inspection.rawPreview?.[i] || [])
+                        .slice(0, 3)
+                        .join(" · ")
+                        .slice(0, 75)}
+                    </option>
+                  ),
+                )}
+              </Select>
+            )}
+            {!inspection.headers.length && (
+              <p role="status">
+                This worksheet is empty. Choose another sheet above, or add a
+                table in Google Sheets and read it again.
+              </p>
+            )}
+            <Select
+              label="How would you like to use this data?"
+              value={reportType}
               disabled={!!busy}
-              onChange={setMapping}
-            />
+              onChange={(e) => setReportType(e.target.value)}
+            >
+              <option value="table">Explore my table · any kind of data</option>
+              <option value="financial">
+                Build a financial report · dates, revenue & expenses
+              </option>
+            </Select>
+            {reportType === "table" ? (
+              <>
+                <TableReview
+                  profiles={
+                    inspection.profiles ||
+                    profileColumns(inspection.headers, inspection.preview || [])
+                  }
+                  choice={tableChoice}
+                  disabled={!!busy}
+                  onChange={setTableChoice}
+                />
+                {queued.length > 0 && (
+                  <div
+                    className="table-queue"
+                    aria-label="Tables ready to import"
+                  >
+                    {queued.map((item) => (
+                      <button
+                        type="button"
+                        key={item.choice.tabId}
+                        disabled={!!busy}
+                        onClick={() =>
+                          setQueued(
+                            queued.filter(
+                              (t) => t.choice.tabId !== item.choice.tabId,
+                            ),
+                          )
+                        }
+                      >
+                        {item.choice.title} · Remove
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {queued.some(
+                  (item) => item.choice.tabId !== tableChoice.tabId,
+                ) && (
+                  <details className="mapping-detail">
+                    <summary>Connect related tables · optional</summary>
+                    <p>
+                      Only connect a shared ID, code or email when it identifies
+                      the same thing in both tables. The reference column must
+                      be unique. We won’t combine totals.
+                    </p>
+                    {queued
+                      .filter((item) => item.choice.tabId !== tableChoice.tabId)
+                      .flatMap((item) =>
+                        item.headers
+                          .filter(
+                            (header) =>
+                              /(?:id|code|email)$/i.test(header.trim()) &&
+                              inspection.headers.includes(header),
+                          )
+                          .map((header) => {
+                            const checked = relationships.some(
+                              (link) =>
+                                link.from === tableChoice.tabId &&
+                                link.to === item.choice.tabId &&
+                                link.fromColumn === header &&
+                                link.toColumn === header,
+                            );
+                            return (
+                              <label
+                                key={`${item.choice.tabId}:${header}`}
+                                style={{
+                                  display: "flex",
+                                  gap: 10,
+                                  alignItems: "center",
+                                  fontSize: 13,
+                                  padding: "10px 0",
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  disabled={!!busy}
+                                  onChange={(e) =>
+                                    setRelationships(
+                                      e.target.checked
+                                        ? [
+                                            ...relationships,
+                                            {
+                                              from: tableChoice.tabId,
+                                              to: item.choice.tabId,
+                                              fromColumn: header,
+                                              toColumn: header,
+                                            },
+                                          ]
+                                        : relationships.filter(
+                                            (link) =>
+                                              !(
+                                                link.from ===
+                                                  tableChoice.tabId &&
+                                                link.to === item.choice.tabId &&
+                                                link.fromColumn === header
+                                              ),
+                                          ),
+                                    )
+                                  }
+                                />
+                                {tableChoice.title} → {item.choice.title} ·{" "}
+                                {header}
+                              </label>
+                            );
+                          }),
+                      )}
+                    <small>
+                      No shared identifier shown? You can still import the
+                      tables separately.
+                    </small>
+                  </details>
+                )}
+                {mode !== "public" && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={
+                      !!busy ||
+                      queued.length >= 9 ||
+                      !tableChoice.types.some((t) => t !== "ignore")
+                    }
+                    onClick={() => {
+                      const choice =
+                        mode === "upload"
+                          ? {
+                              ...tableChoice,
+                              tabId: worksheet,
+                              title: workbook!.sheets[worksheet].name,
+                            }
+                          : tableChoice;
+                      setQueued([
+                        ...queued.filter(
+                          (t) => t.choice.tabId !== choice.tabId,
+                        ),
+                        {
+                          choice,
+                          headers: inspection.headers,
+                          values:
+                            mode === "upload"
+                              ? workbook?.sheets[worksheet].rows
+                              : undefined,
+                        },
+                      ]);
+                      if (sourceControls.current && mode === "upload") {
+                        sourceControls.current.open = true;
+                        sourceControls.current
+                          .querySelector<HTMLSelectElement>(
+                            'select[aria-label="Worksheet"]',
+                          )
+                          ?.focus();
+                      }
+                      setMessage(
+                        "Table added. Choose another worksheet above, or import your selection below.",
+                      );
+                    }}
+                  >
+                    Keep this table & add another
+                  </Button>
+                )}
+              </>
+            ) : (
+              <>
+                <ColumnMatches
+                  headers={inspection.headers}
+                  preview={inspection.preview}
+                  mapping={mapping}
+                  suggestions={suggestions}
+                  disabled={!!busy}
+                  onChange={setMapping}
+                />
+                <DateFormat
+                  value={dateFormat}
+                  disabled={!!busy}
+                  onChange={setDateFormat}
+                />
+              </>
+            )}
             {inspection.preview?.length ? (
               <details className="mapping-detail">
                 <summary>
@@ -657,31 +962,40 @@ function SheetsConnectionContent({ companyId }: { companyId: string }) {
                 </div>
               </details>
             ) : null}
-            <details className="mapping-detail">
-              <summary>Need help choosing?</summary>
-              <p>
-                Pick the date of each entry, the money your business earned, and
-                the money it spent. Each needs a different column. If one is
-                missing, add it to your sheet first.
-              </p>
-              <p>
-                Dates can look like 2026-10-01 or 2026/10/1. Amounts should use
-                your workspace’s currency. We don’t convert currencies.
-              </p>
-            </details>
+            {reportType === "financial" && (
+              <details className="mapping-detail">
+                <summary>Need help choosing?</summary>
+                <p>
+                  Pick the date of each entry, the money your business earned,
+                  and the money it spent. Each needs a different column. If one
+                  is missing, add it to your sheet first.
+                </p>
+                <p>
+                  Dates can look like 2026-10-01 or 2026/10/1. Amounts should
+                  use your workspace’s currency. We don’t convert currencies.
+                </p>
+              </details>
+            )}
             <Button
               disabled={
                 !!busy ||
-                Object.values(mapping).some((v) => !v) ||
-                new Set(Object.values(mapping)).size !== 3
+                (reportType === "financial"
+                  ? Object.values(mapping).some((v) => !v) ||
+                    new Set(Object.values(mapping)).size !== 3
+                  : !tableChoice.types.some((t) => t !== "ignore"))
               }
               busy={busy === "mapping"}
             >
-              {mode === "upload" ? "Import my sheet" : "Use these columns"}
+              {reportType === "table"
+                ? `Import ${new Set([...queued.map((t) => t.choice.tabId), tableChoice.tabId]).size} ${queued.filter((t) => t.choice.tabId !== tableChoice.tabId).length ? "tables" : "table"}`
+                : mode === "upload"
+                  ? "Import my sheet"
+                  : "Use these columns"}
             </Button>
             <p className="mapping-submit-note">
-              Aynor will read these columns and build your dashboard. Your
-              original sheet stays unchanged.
+              {reportType === "table"
+                ? "Explore records, column completeness and category counts. Tables stay separate; no automatic joins or invented financial metrics."
+                : "Aynor will validate every row before building financial charts. Your original sheet stays unchanged."}
             </p>
           </form>
         )}

@@ -510,25 +510,31 @@ export function SevenStepOnboarding({
           <Badge tone="success">Data imported</Badge>
           <h2>{liveSource.tabTitle || "Your spreadsheet"}</h2>
           <p>
-            These three columns are ready to use. Your original sheet stays
-            unchanged.
+            {liveSource.dataKind === "tables"
+              ? "Your tables are ready to explore, with their original column names."
+              : "Your financial columns are ready to use."}{" "}
+            Your original sheet stays unchanged.
           </p>
           <dl>
-            {Object.entries(liveSource.mapping).map(([field, column]) => (
-              <div key={field}>
-                <dt>
-                  {field === "expenses"
-                    ? "Money out"
-                    : field === "date"
-                      ? "Date"
-                      : "Money in"}
-                </dt>
-                <dd>
-                  <Check size={14} />
-                  {column}
-                </dd>
-              </div>
-            ))}
+            {Object.entries(liveSource.mapping)
+              .filter(([field]) => !field.startsWith("_"))
+              .map(([field, column]) => (
+                <div key={field}>
+                  <dt>
+                    {liveSource.dataKind === "tables"
+                      ? field
+                      : field === "expenses"
+                        ? "Money out"
+                        : field === "date"
+                          ? "Date"
+                          : "Money in"}
+                  </dt>
+                  <dd>
+                    <Check size={14} />
+                    {column}
+                  </dd>
+                </div>
+              ))}
           </dl>
           <Link
             className="button secondary"
@@ -1077,7 +1083,9 @@ export function SevenStepOnboarding({
               title: "Field mapping",
               subtitle: serverMode
                 ? liveSource?.mapping
-                  ? "3 fields mapped"
+                  ? liveSource.dataKind === "tables"
+                    ? "Tables confirmed"
+                    : "Financial fields mapped"
                   : "Mapping not configured"
                 : data.steps.mapping === "skipped"
                   ? "Skipped · you can return later"
@@ -1086,6 +1094,7 @@ export function SevenStepOnboarding({
                 <p>
                   {serverMode
                     ? Object.entries(liveSource?.mapping || {})
+                        .filter(([field]) => !field.startsWith("_"))
                         .map(([field, column]) => `${field}: ${column}`)
                         .join(" · ") || "No fields confirmed yet."
                     : data.mappings

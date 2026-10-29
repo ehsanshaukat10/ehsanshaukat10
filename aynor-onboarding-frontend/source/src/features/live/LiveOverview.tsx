@@ -1,3 +1,4 @@
+import { TableOverview, type TableReport } from "./TableOverview";
 import { Select } from "./LiveSelect";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -11,6 +12,7 @@ import "../dashboard/dashboard.css";
 import "../intelligence/intelligence.css";
 type Point = { date: string; revenue: number; costs: number };
 type Overview = {
+  tableReport?: TableReport;
   data: {
     points: Point[];
     totals: {
@@ -46,7 +48,14 @@ export function LiveOverview({ company }: { company: Company }) {
     serverRequest<Overview>(base + "/sheets/overview?period=" + period)
       .then((value) => {
         if (active) {
-          setReport(value);
+          setReport(
+            (value.data as unknown as TableReport)?.kind === "tables"
+              ? {
+                  data: null,
+                  tableReport: value.data as unknown as TableReport,
+                }
+              : value,
+          );
           setError("");
           setSelected(0);
         }
@@ -99,18 +108,25 @@ export function LiveOverview({ company }: { company: Company }) {
         <div>
           <span className="exec-eyebrow">Executive perspective</span>
           <h1>Overview.</h1>
-          <p>{company.name} · Connected business performance</p>
+          <p>
+            {company.name} ·{" "}
+            {report?.tableReport
+              ? "Imported business data"
+              : "Connected business performance"}
+          </p>
         </div>
-        <Select
-          label="Reporting period"
-          value={period}
-          onChange={(event) => setPeriod(event.target.value)}
-        >
-          <option value="all">All available records</option>
-          <option value="month">Last complete month</option>
-          <option value="quarter">Last 3 complete months</option>
-          <option value="year">Last 12 complete months</option>
-        </Select>
+        {!report?.tableReport && (
+          <Select
+            label="Reporting period"
+            value={period}
+            onChange={(event) => setPeriod(event.target.value)}
+          >
+            <option value="all">All available records</option>
+            <option value="month">Last complete month</option>
+            <option value="quarter">Last 3 complete months</option>
+            <option value="year">Last 12 complete months</option>
+          </Select>
+        )}
       </div>
       <ErrorBox>{error || streamError}</ErrorBox>
       {error && (
@@ -137,7 +153,13 @@ export function LiveOverview({ company }: { company: Company }) {
         </Link>
       </div>
       {source?.error && <ErrorBox>{source.error}</ErrorBox>}
-      {!data || !points.length ? (
+      {report?.tableReport ? (
+        <TableOverview
+          key={source?.revision}
+          report={report.tableReport}
+          companyId={company.id}
+        />
+      ) : !data || !points.length ? (
         <Panel
           title={
             data

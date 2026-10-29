@@ -51,3 +51,39 @@ export function excelFixture(date) {
     ),
   );
 }
+
+export function tableWorkbookFixture() {
+  const { unzipSync } = requireSource("fflate");
+  const files = unzipSync(excelFixture("2026-10-29"));
+  files["xl/workbook.xml"] = strToU8(
+    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="QA" sheetId="1" r:id="rId1"/><sheet name="Reference" sheetId="2" r:id="rId2"/></sheets></workbook>',
+  );
+  const sheet = (rows) =>
+    strToU8(
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' +
+        rows
+          .map(
+            (row, r) =>
+              `<row r="${r + 1}">${row.map((value, c) => `<c r="${String.fromCharCode(65 + c)}${r + 1}" t="inlineStr"><is><t>${value}</t></is></c>`).join("")}</row>`,
+          )
+          .join("") +
+        "</sheetData></worksheet>",
+    );
+  files["xl/worksheets/sheet1.xml"] = sheet([
+    ["ORCA test suite"],
+    ["Case ID", "Status", "Run date"],
+    ...Array.from({ length: 30 }, (_, i) => [
+      `CASE-${i + 1}`,
+      i % 2 ? "Failed" : "Passed",
+      "29/10/2026",
+    ]),
+  ]);
+  files["xl/worksheets/sheet2.xml"] = sheet([
+    ["Case ID", "Owner"],
+    ...Array.from({ length: 30 }, (_, i) => [
+      `CASE-${i + 1}`,
+      "Team " + ((i % 3) + 1),
+    ]),
+  ]);
+  return Buffer.from(zipSync(files));
+}

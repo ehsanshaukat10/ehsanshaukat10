@@ -1,3 +1,4 @@
+import { parseDate } from "../shared/table-data.mjs";
 export function sheetId(input) {
   if (typeof input !== "string")
     throw Error("Enter a Google Sheets URL or spreadsheet ID.");
@@ -61,18 +62,23 @@ function amount(value, row, field) {
   return Math.round(number * 100) / 100;
 }
 export function validateRows(values, mapping) {
+  const offset = Number(mapping._headerRow || 0);
+  if (!Number.isInteger(offset) || offset < 0 || offset > 99)
+    throw Error("Choose a valid header row.");
+  values = values.slice(offset);
   const headers = columns(values);
+  const fields = ["date", "revenue", "expenses"];
   for (const field of ["date", "revenue", "expenses"])
     if (!headers.includes(mapping[field]))
       throw Error(`The mapped ${field} column is missing. Review mapping.`);
-  if (new Set(Object.values(mapping)).size !== 3)
+  if (new Set(fields.map((key) => mapping[key])).size !== 3)
     throw Error("Map each measure to a different column.");
   if (values.length > 10001)
     throw Error(
       "This tab exceeds 10,000 records. Split the workbook before syncing.",
     );
   const indices = Object.fromEntries(
-    Object.entries(mapping).map(([k, v]) => [k, headers.indexOf(v)]),
+    fields.map((k) => [k, headers.indexOf(mapping[k])]),
   );
   const days = new Map();
   let count = 0,
@@ -85,18 +91,10 @@ export function validateRows(values, mapping) {
       row.slice(headers.length).some((v) => String(v ?? "").trim())
     )
       throw Error(`Row ${i + 1}: values exist without column headers.`);
-    let date = String(row[indices.date] ?? "").trim();
-    // Year-first formats are unambiguous across spreadsheet locales.
-    const parts = date.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
-    if (parts)
-      date = `${parts[1]}-${parts[2].padStart(2, "0")}-${parts[3].padStart(2, "0")}`;
-    if (
-      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-      !Number.isFinite(Date.parse(date)) ||
-      new Date(date).toISOString().slice(0, 10) !== date
-    )
+    const date = parseDate(row[indices.date], mapping._dateFormat || "ymd");
+    if (!date)
       throw Error(
-        `Row ${i + 1}: date must be a valid YYYY-MM-DD value. Format the source date column as plain ISO dates.`,
+        `Row ${i + offset + 1}: choose the correct date column and date format. Use year-month-day, day-month-year or month-day-year to match your sheet.`,
       );
     const revenue = amount(row[indices.revenue], i + 1, "revenue"),
       costs = amount(row[indices.expenses], i + 1, "expenses");

@@ -59,6 +59,9 @@ try {
   const uploadCheck = start(["tests/upload-sheets.browser.mjs"]);
   if ((await new Promise((r) => uploadCheck.on("exit", r))) !== 0)
     throw Error("Upload Sheets browser check failed.");
+  const tableCheck = start(["tests/tables.browser.mjs"]);
+  if ((await new Promise((r) => tableCheck.on("exit", r))) !== 0)
+    throw Error("Flexible tables browser check failed.");
   const accountCheck = start(["tests/accounts.browser.mjs"]);
   if ((await new Promise((r) => accountCheck.on("exit", r))) !== 0)
     throw Error("Account browser check failed.");

@@ -56,7 +56,7 @@ export function ColumnMatches({
         </div>
         <span className="column-match-count" role="status">
           {count === 3 && <Check size={13} />}
-          {count} of 3 matched
+          {count} of 3 selected
         </span>
       </div>
       <div className="column-match-list">
@@ -134,7 +134,7 @@ export function ColumnMatches({
       </div>
       {count < 3 && (
         <p className="column-match-next">
-          Choose a column for each item to continue. Each one needs a different
+          Choose a column for each item. Every row is checked when you import. Each one needs a different
           column.
         </p>
       )}

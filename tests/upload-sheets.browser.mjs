@@ -67,7 +67,7 @@ try {
   await expect(page.locator(".column-matches")).toContainText("Money in");
   await expect(page.locator(".column-matches")).toContainText("Money out");
   await expect(page.locator(".column-match-count")).toHaveText(
-    "3 of 3 matched",
+    "3 of 3 selected",
   );
   await expect(
     page
@@ -87,6 +87,9 @@ try {
   await page.locator(".sheet-source-controls > summary").click();
   await page.getByLabel("Worksheet", { exact: true }).selectOption("2");
   await expect(page.getByLabel("Header row", { exact: true })).toHaveValue("0");
+  await page
+    .getByLabel("How would you like to use this data?", { exact: true })
+    .selectOption("financial");
   await page
     .getByLabel("Date column", { exact: true })
     .selectOption("Recorded");
