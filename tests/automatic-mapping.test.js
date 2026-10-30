@@ -545,6 +545,74 @@ test("live AI reports credential and budget rejection safely instead of pretendi
       metadata: { tabs: [] },
     });
     assert.equal(result.status, expected);
+    assert.equal(result.stage, "inference");
+    assert.equal(result.inferenceAttempted, true);
+    assert.equal(result.httpStatus, code);
     assert.ok(!JSON.stringify(result).includes("private-provider-detail"));
   }
+});
+test("pasted configuration whitespace is normalized and diagnostics distinguish discovery from real inference", async () => {
+  const env = {
+    AYNOR_AI_ENABLED: " TRUE \n",
+    OPENROUTER_API_KEY: " fixture-only \n",
+  };
+  let calls = 0;
+  const ai = createFreeAi({
+    env,
+    db: { rpc: async () => true },
+    fetchImpl: async (url, options) => {
+      assert.equal(options.headers.Authorization, "Bearer fixture-only");
+      calls++;
+      return String(url).endsWith("/models")
+        ? Response.json({
+            data: [
+              {
+                id: "fixture/model:free",
+                pricing: { prompt: "0", completion: "0" },
+              },
+            ],
+          })
+        : Response.json({
+            model: "fixture/model:free",
+            choices: [{ message: { content: '{"tabs":[]}' } }],
+          });
+    },
+  });
+  assert.equal(ai.configured(), true);
+  const result = await ai.classify({
+    company: "diagnostic",
+    metadata: { tabs: [] },
+  });
+  assert.equal(result.status, "used");
+  assert.equal(result.stage, "complete");
+  assert.equal(result.inferenceAttempted, true);
+  assert.equal(result.httpStatus, 200);
+  assert.equal(calls, 2);
+  const blocked = createFreeAi({
+    env,
+    db: { rpc: async () => true },
+    fetchImpl: async () => Response.json({ data: [] }),
+  });
+  const noModel = await blocked.classify({
+    company: "diagnostic",
+    metadata: { tabs: [] },
+  });
+  assert.equal(noModel.status, "no_free_model");
+  assert.equal(noModel.stage, "model_catalog");
+  assert.equal(noModel.inferenceAttempted, false);
+  const missing = createFreeAi({
+    env: {},
+    db: { rpc: async () => true },
+    fetchImpl: async () => {
+      throw Error("must not fetch");
+    },
+  });
+  const absent = await missing.classify({
+    company: "diagnostic",
+    metadata: { tabs: [] },
+  });
+  assert.equal(absent.stage, "configuration");
+  assert.equal(absent.keyPresent, false);
+  assert.equal(absent.enabled, false);
+  assert.equal(absent.inferenceAttempted, false);
 });

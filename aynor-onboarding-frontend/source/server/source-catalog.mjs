@@ -564,7 +564,14 @@ export function createSourceCatalog({
             ],
           },
         });
-        return { status: result.status };
+        return {
+          status: result.status,
+          stage: result.stage,
+          inferenceAttempted: result.inferenceAttempted,
+          keyPresent: result.keyPresent,
+          enabled: result.enabled,
+          httpStatus: result.httpStatus,
+        };
       }
       if (action === "sources" && method === "GET") return list(company, actor);
       if (action === "sources" && method === "POST") {

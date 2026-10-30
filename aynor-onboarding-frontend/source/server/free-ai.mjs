@@ -9,13 +9,14 @@ function cap(value, fallback, max) {
 }
 export function createFreeAi({ env = process.env, db, fetchImpl = fetch }) {
   const configured = () =>
-    env.AYNOR_AI_ENABLED === "true" && !!env.OPENROUTER_API_KEY?.trim();
+    env.AYNOR_AI_ENABLED?.trim().toLowerCase() === "true" &&
+    !!env.OPENROUTER_API_KEY?.trim();
   let catalogue = null;
   async function request(path, options = {}) {
     const response = await fetchImpl(base + path, {
       ...options,
       headers: {
-        Authorization: "Bearer " + env.OPENROUTER_API_KEY,
+        Authorization: "Bearer " + env.OPENROUTER_API_KEY?.trim(),
         "Content-Type": "application/json",
         ...options.headers,
       },
@@ -39,8 +40,8 @@ export function createFreeAi({ env = process.env, db, fetchImpl = fetch }) {
       }
       text += decoder.decode();
     } else throw Error("invalid_response");
-    if (!response.ok)
-      throw Error(
+    if (!response.ok) {
+      const error = Error(
         {
           401: "invalid_key",
           402: "credit_limit",
@@ -49,7 +50,16 @@ export function createFreeAi({ env = process.env, db, fetchImpl = fetch }) {
           429: "quota",
         }[response.status] || "unavailable",
       );
-    return JSON.parse(text);
+      error.httpStatus = response.status;
+      throw error;
+    }
+    try {
+      return JSON.parse(text);
+    } catch {
+      const error = Error("invalid_response");
+      error.httpStatus = response.status;
+      throw error;
+    }
   }
   function zeroPriced(model) {
     return (
@@ -92,14 +102,25 @@ export function createFreeAi({ env = process.env, db, fetchImpl = fetch }) {
   return {
     configured,
     async classify({ company, metadata }) {
-      if (!configured()) return { status: "not_configured" };
+      let stage = "configuration",
+        inferenceAttempted = false;
+      const detail = (status) => ({
+        status,
+        stage,
+        inferenceAttempted,
+        keyPresent: !!env.OPENROUTER_API_KEY?.trim(),
+        enabled: env.AYNOR_AI_ENABLED?.trim().toLowerCase() === "true",
+      });
+      if (!configured()) return detail("not_configured");
       const content = JSON.stringify(metadata);
-      if (content.length > 12000) return { status: "sample_limit" };
+      if (content.length > 12000) return detail("sample_limit");
       try {
         const workspaceLimit = cap(env.AYNOR_AI_WORKSPACE_DAILY_LIMIT, 2, 5),
           globalLimit = cap(env.AYNOR_AI_GLOBAL_DAILY_LIMIT, 20, 100);
-        if (!workspaceLimit || !globalLimit) return { status: "daily_limit" };
+        if (!workspaceLimit || !globalLimit) return detail("daily_limit");
+        stage = "model_catalog";
         const model = await chooseModel();
+        stage = "request_limit";
         const day = new Date().toISOString().slice(0, 10);
         if (
           !(await reserve(
@@ -107,11 +128,13 @@ export function createFreeAi({ env = process.env, db, fetchImpl = fetch }) {
             workspaceLimit,
           ))
         )
-          return { status: "daily_limit" };
+          return detail("daily_limit");
         if (!(await reserve(`free-ai:global:${day}`, globalLimit)))
-          return { status: "daily_limit" };
+          return detail("daily_limit");
         // Both the model identity and provider routing must be free. No fallback,
         // plugins, tools, agent actions or arbitrary API endpoints are accepted.
+        stage = "inference";
+        inferenceAttempted = true;
         const response = await request("chat/completions", {
           method: "POST",
           body: JSON.stringify({
@@ -131,6 +154,7 @@ export function createFreeAi({ env = process.env, db, fetchImpl = fetch }) {
             plugins: [],
           }),
         });
+        stage = "validation";
         if (
           response.model &&
           response.model !== model &&
@@ -145,23 +169,28 @@ export function createFreeAi({ env = process.env, db, fetchImpl = fetch }) {
         );
         if (!Array.isArray(result.tabs) || result.tabs.length > 4)
           throw Error("invalid_proposal");
-        return { status: "used", model, tabs: result.tabs };
+        stage = "complete";
+        return { ...detail("used"), httpStatus: 200, model, tabs: result.tabs };
       } catch (error) {
         // Never return provider response text, credentials, prompts or raw metadata.
+        const status = [
+          "quota",
+          "invalid_key",
+          "credit_limit",
+          "access_denied",
+          "no_route",
+          "daily_limit",
+          "paid_model_blocked",
+          "no_free_model",
+          "invalid_proposal",
+        ].includes(error.message)
+          ? error.message
+          : "unavailable";
         return {
-          status: [
-            "quota",
-            "invalid_key",
-            "credit_limit",
-            "access_denied",
-            "no_route",
-            "daily_limit",
-            "paid_model_blocked",
-            "no_free_model",
-            "invalid_proposal",
-          ].includes(error.message)
-            ? error.message
-            : "unavailable",
+          ...detail(status),
+          ...(Number.isInteger(error.httpStatus)
+            ? { httpStatus: error.httpStatus }
+            : {}),
         };
       }
     },

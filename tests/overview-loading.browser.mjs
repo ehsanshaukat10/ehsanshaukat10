@@ -80,6 +80,12 @@ await scenario(
     await expect(page.getByLabel("Live AI status")).toContainText(
       "OpenRouter’s request quota was reached",
     );
+    await expect(page.getByLabel("Live AI status")).toContainText(
+      "AI request attempted: Yes",
+    );
+    await expect(page.getByLabel("Live AI status")).toContainText(
+      "Provider HTTP 429",
+    );
     assert.equal(
       (await (await page.request.get(w.sources)).json()).sources[0].automation
         .aiStatus,

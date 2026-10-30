@@ -207,6 +207,13 @@ export function SourceWorkspace({
     [error, setError] = useState(""),
     [message, setMessage] = useState(""),
     [aiCheck, setAiCheck] = useState(""),
+    [aiDetails, setAiDetails] = useState<{
+      stage?: string;
+      inferenceAttempted?: boolean;
+      keyPresent?: boolean;
+      enabled?: boolean;
+      httpStatus?: number;
+    } | null>(null),
     [drafts, setDrafts] = useState<Draft[]>([]),
     [showPages, setShowPages] = useState(true),
     [allowAi, setAllowAi] = useState(() => {
@@ -652,18 +659,45 @@ export function SourceWorkspace({
                 ? "Credentials are configured. This does not confirm a successful AI request."
                 : aiMessage("not_configured")}
           </p>
+          {aiDetails && (
+            <p role="status">
+              Enable flag: {aiDetails.enabled ? "On" : "Off"} · API key present:{" "}
+              {aiDetails.keyPresent ? "Yes" : "No"}.<br />
+              Check stage:{" "}
+              {(
+                {
+                  configuration: "server configuration",
+                  model_catalog: "free model discovery",
+                  request_limit: "daily request allowance",
+                  inference: "OpenRouter AI request",
+                  validation: "AI response validation",
+                  complete: "completed",
+                } as Record<string, string>
+              )[aiDetails.stage || ""] || "unknown"}{" "}
+              · AI request attempted:{" "}
+              {aiDetails.inferenceAttempted ? "Yes" : "No"}
+              {aiDetails.httpStatus
+                ? ` · Provider HTTP ${aiDetails.httpStatus}`
+                : ""}
+              .
+            </p>
+          )}
           <Button
             variant="secondary"
             busy={busy === "ai-check"}
-            disabled={!!busy || !catalog.aiAvailable}
+            disabled={!!busy}
             onClick={() =>
               void run("ai-check", async () => {
-                const result = await serverRequest<{ status: string }>(
-                  `${root}/ai-check`,
-                  "POST",
-                  {},
-                );
+                const result = await serverRequest<{
+                  status: string;
+                  stage?: string;
+                  inferenceAttempted?: boolean;
+                  keyPresent?: boolean;
+                  enabled?: boolean;
+                  httpStatus?: number;
+                }>(`${root}/ai-check`, "POST", {});
                 setAiCheck(result.status);
+                setAiDetails(result);
               })
             }
           >
