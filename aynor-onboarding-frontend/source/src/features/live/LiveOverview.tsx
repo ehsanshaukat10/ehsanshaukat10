@@ -140,7 +140,7 @@ export function LiveOverview({ company }: { company: Company }) {
       </div>
     );
   return (
-    <div className="intel-page exec-dashboard" aria-busy={busy}>
+    <div className="intel-page exec-dashboard market-overview" aria-busy={busy}>
       <div className="intel-heading">
         <div>
           <span className="exec-eyebrow">Executive perspective</span>

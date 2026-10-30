@@ -1,3 +1,4 @@
+import { ArrowUpRight } from "lucide-react";
 import { OperationalOverview } from "./OperationalOverview";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -129,7 +130,8 @@ export function BusinessOverview({
         }}
       />
       {!summary.groups.length && (
-        <Panel title="Financial reporting">
+        <details className="market-report-note">
+          <summary>Financial reporting setup</summary>
           <p>
             {report.sources?.length || 1} workbook
             {report.sources?.length === 1 ? "" : "s"} · {report.tables.length}{" "}
@@ -144,7 +146,7 @@ export function BusinessOverview({
           <Link to={`/companies/${companyId}/connections?map=1`}>
             Review business column properties
           </Link>
-        </Panel>
+        </details>
       )}
       {summary.financial.length > 0 && (
         <details className="mapping-detail">
@@ -189,20 +191,14 @@ export function BusinessOverview({
           ))}
         </details>
       )}
-      <Panel title="Explore your imported data">
-        <p>
-          Open worksheet records, column checks and individual page reports
-          separately from your combined business KPIs.
-        </p>
-        <div className="intel-inline-links">
-          <Button variant="secondary" onClick={() => setExploring(!exploring)}>
-            {exploring ? "Close imported records" : "Explore imported records"}
-          </Button>
-          <Link to={`/companies/${companyId}/connections`}>
-            Data connections
-          </Link>
-        </div>
-      </Panel>
+      <div className="market-data-tools" aria-label="Data tools">
+        <Button variant="secondary" onClick={() => setExploring(!exploring)}>
+          {exploring ? "Close imported records" : "Explore imported records"}
+        </Button>
+        <Link to={`/companies/${companyId}/connections`}>
+          Data connections <ArrowUpRight size={12} />
+        </Link>
+      </div>
       {exploring && (
         <TableOverview
           key={exploreIndex}

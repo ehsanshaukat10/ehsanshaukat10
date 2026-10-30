@@ -81,6 +81,20 @@ await scenario(
     await expect(page.locator(".operational-departments")).toContainText("QA");
     await expect(page.locator(".operational-preview tbody tr")).toHaveCount(3);
     await expect(page.locator(".operational-preview")).toContainText("00001");
+    await page.getByRole("button", { name: "Breakdown", exact: true }).click();
+    await expect(page.locator(".ops-status-bars")).toBeVisible();
+    await page
+      .getByRole("button", { name: "Distribution", exact: true })
+      .click();
+    await expect(
+      page.getByRole("img", { name: /Status distribution/ }),
+    ).toBeVisible();
+    await page
+      .getByLabel("Filter preview records", { exact: true })
+      .fill("00002");
+    await expect(page.locator(".operational-preview tbody tr")).toHaveCount(1);
+    await page.getByLabel("Filter preview records", { exact: true }).fill("");
+
     await expect(page.getByLabel("Reporting coverage")).toContainText(
       "9 mapped pages · 27 imported records",
     );
