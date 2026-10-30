@@ -616,3 +616,87 @@ test("pasted configuration whitespace is normalized and diagnostics distinguish 
   assert.equal(absent.enabled, false);
   assert.equal(absent.inferenceAttempted, false);
 });
+test("synthetic connection tests have a separate bounded allowance and never reset or consume exhausted mapping quotas", async () => {
+  const counters = new Map();
+  let chatCalls = 0;
+  const db = {
+    rpc: async (_, { p_key, p_max }) => {
+      const count = (counters.get(p_key) || 0) + 1;
+      counters.set(p_key, count);
+      return count <= p_max;
+    },
+  };
+  const env = {
+    AYNOR_AI_ENABLED: "true",
+    OPENROUTER_API_KEY: "fixture",
+    AYNOR_AI_WORKSPACE_DAILY_LIMIT: "1",
+    AYNOR_AI_GLOBAL_DAILY_LIMIT: "1",
+  };
+  const ai = createFreeAi({
+    env,
+    db,
+    fetchImpl: async (url, options) => {
+      if (String(url).endsWith("/models"))
+        return Response.json({
+          data: [
+            {
+              id: "fixture/model:free",
+              pricing: { prompt: "0", completion: "0" },
+            },
+          ],
+        });
+      chatCalls++;
+      const body = JSON.parse(options.body);
+      assert.equal(body.provider.max_price.prompt, 0);
+      assert.equal(body.provider.max_price.completion, 0);
+      assert.equal(body.provider.allow_fallbacks, false);
+      return Response.json({
+        model: "fixture/model:free",
+        choices: [{ message: { content: '{"tabs":[]}' } }],
+      });
+    },
+  });
+  const input = { company: "one", metadata: { tabs: [] } };
+  assert.equal((await ai.classify(input)).status, "used");
+  const exhausted = await ai.classify(input);
+  assert.equal(exhausted.status, "daily_limit");
+  assert.equal(exhausted.limitScope, "workspace");
+  const diagnostic = { ...input, purpose: "connection_test" };
+  assert.equal((await ai.classify(diagnostic)).status, "used");
+  assert.equal((await ai.classify(diagnostic)).status, "used");
+  const capped = await ai.classify(diagnostic);
+  assert.equal(capped.status, "diagnostic_limit");
+  assert.equal(capped.limitScope, "connection_test_workspace");
+  assert.equal(capped.inferenceAttempted, false);
+  assert.equal(
+    (await ai.classify(input)).status,
+    "daily_limit",
+    "Checking a connection never resets the normal mapping quota",
+  );
+  for (const company of ["two", "two", "three"])
+    assert.equal(
+      (await ai.classify({ ...diagnostic, company })).status,
+      "used",
+    );
+  const globalCap = await ai.classify({ ...diagnostic, company: "four" });
+  assert.equal(globalCap.status, "diagnostic_limit");
+  assert.equal(globalCap.limitScope, "connection_test_global");
+  assert.equal(globalCap.inferenceAttempted, false);
+  assert.equal(
+    chatCalls,
+    6,
+    "One mapping call and at most five separate connection tests",
+  );
+  const disabled = createFreeAi({
+    env: { ...env, AYNOR_AI_GLOBAL_DAILY_LIMIT: "0" },
+    db,
+    fetchImpl: async () => {
+      throw Error("must not fetch");
+    },
+  });
+  assert.equal(
+    (await disabled.classify(diagnostic)).status,
+    "daily_limit",
+    "Explicit inference-disable configuration still applies",
+  );
+});

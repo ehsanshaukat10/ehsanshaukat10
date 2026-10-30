@@ -140,6 +140,8 @@ const aiMessages: Record<string, string> = {
     "No provider route was available under the free-only and privacy settings.",
   quota:
     "OpenRouter’s request quota was reached. Built-in preparation was used.",
+  diagnostic_limit:
+    "The separate connection-test allowance has been reached. No AI request was sent. Mapping and its allowance are unchanged.",
   daily_limit:
     "AYNOR’s daily AI allowance was reached. Built-in preparation was used.",
   no_free_model:
@@ -213,6 +215,7 @@ export function SourceWorkspace({
       keyPresent?: boolean;
       enabled?: boolean;
       httpStatus?: number;
+      limitScope?: string;
     } | null>(null),
     [drafts, setDrafts] = useState<Draft[]>([]),
     [showPages, setShowPages] = useState(true),
@@ -661,6 +664,25 @@ export function SourceWorkspace({
           </p>
           {aiDetails && (
             <p role="status">
+              {aiDetails.limitScope && (
+                <>
+                  <span>
+                    Allowance:{" "}
+                    {(
+                      {
+                        configuration: "AI disabled by configured limits",
+                        workspace: "mapping requests for this company",
+                        global: "mapping requests across AYNOR",
+                        connection_test_workspace:
+                          "connection tests for this company",
+                        connection_test_global: "connection tests across AYNOR",
+                      } as Record<string, string>
+                    )[aiDetails.limitScope] || aiDetails.limitScope}
+                    .
+                  </span>
+                  <br />
+                </>
+              )}
               Enable flag: {aiDetails.enabled ? "On" : "Off"} · API key present:{" "}
               {aiDetails.keyPresent ? "Yes" : "No"}.<br />
               Check stage:{" "}
@@ -695,6 +717,7 @@ export function SourceWorkspace({
                   keyPresent?: boolean;
                   enabled?: boolean;
                   httpStatus?: number;
+                  limitScope?: string;
                 }>(`${root}/ai-check`, "POST", {});
                 setAiCheck(result.status);
                 setAiDetails(result);
@@ -704,8 +727,8 @@ export function SourceWorkspace({
             Test live AI connection
           </Button>
           <small>
-            Uses synthetic labels only, stays free-only, and counts toward the
-            daily AI allowance.
+            Uses synthetic labels only and stays free-only. Connection tests use
+            a separate capped allowance from spreadsheet mapping.
           </small>
         </section>
       )}

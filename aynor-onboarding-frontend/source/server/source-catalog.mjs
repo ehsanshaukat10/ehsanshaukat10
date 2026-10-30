@@ -547,6 +547,7 @@ export function createSourceCatalog({
       if (action === "ai-check" && method === "POST") {
         const result = await ai.classify({
           company,
+          purpose: "connection_test",
           metadata: {
             departments: [],
             tabs: [
@@ -571,6 +572,7 @@ export function createSourceCatalog({
           keyPresent: result.keyPresent,
           enabled: result.enabled,
           httpStatus: result.httpStatus,
+          limitScope: result.limitScope,
         };
       }
       if (action === "sources" && method === "GET") return list(company, actor);

@@ -101,13 +101,16 @@ export function createFreeAi({ env = process.env, db, fetchImpl = fetch }) {
   }
   return {
     configured,
-    async classify({ company, metadata }) {
+    async classify({ company, metadata, purpose = "mapping" }) {
       let stage = "configuration",
-        inferenceAttempted = false;
+        inferenceAttempted = false,
+        limitScope;
+      const diagnostic = purpose === "connection_test";
       const detail = (status) => ({
         status,
         stage,
         inferenceAttempted,
+        ...(limitScope ? { limitScope } : {}),
         keyPresent: !!env.OPENROUTER_API_KEY?.trim(),
         enabled: env.AYNOR_AI_ENABLED?.trim().toLowerCase() === "true",
       });
@@ -117,20 +120,54 @@ export function createFreeAi({ env = process.env, db, fetchImpl = fetch }) {
       try {
         const workspaceLimit = cap(env.AYNOR_AI_WORKSPACE_DAILY_LIMIT, 2, 5),
           globalLimit = cap(env.AYNOR_AI_GLOBAL_DAILY_LIMIT, 20, 100);
-        if (!workspaceLimit || !globalLimit) return detail("daily_limit");
+        if (!workspaceLimit || !globalLimit) {
+          limitScope = "configuration";
+          return detail("daily_limit");
+        }
         stage = "model_catalog";
         const model = await chooseModel();
         stage = "request_limit";
         const day = new Date().toISOString().slice(0, 10);
-        if (
-          !(await reserve(
-            `free-ai:workspace:${company}:${day}`,
-            workspaceLimit,
-          ))
-        )
-          return detail("daily_limit");
-        if (!(await reserve(`free-ai:global:${day}`, globalLimit)))
-          return detail("daily_limit");
+        if (diagnostic) {
+          const perWorkspace = cap(
+            env.AYNOR_AI_DIAGNOSTIC_WORKSPACE_DAILY_LIMIT,
+            2,
+            3,
+          );
+          const acrossApp = cap(
+            env.AYNOR_AI_DIAGNOSTIC_GLOBAL_DAILY_LIMIT,
+            5,
+            10,
+          );
+          limitScope = "connection_test_workspace";
+          if (
+            !perWorkspace ||
+            !(await reserve(
+              `free-ai:diagnostic:workspace:${company}:${day}`,
+              perWorkspace,
+            ))
+          )
+            return detail("diagnostic_limit");
+          limitScope = "connection_test_global";
+          if (
+            !acrossApp ||
+            !(await reserve(`free-ai:diagnostic:global:${day}`, acrossApp))
+          )
+            return detail("diagnostic_limit");
+        } else {
+          limitScope = "workspace";
+          if (
+            !(await reserve(
+              `free-ai:workspace:${company}:${day}`,
+              workspaceLimit,
+            ))
+          )
+            return detail("daily_limit");
+          limitScope = "global";
+          if (!(await reserve(`free-ai:global:${day}`, globalLimit)))
+            return detail("daily_limit");
+        }
+        limitScope = undefined;
         // Both the model identity and provider routing must be free. No fallback,
         // plugins, tools, agent actions or arbitrary API endpoints are accepted.
         stage = "inference";
@@ -144,7 +181,7 @@ export function createFreeAi({ env = process.env, db, fetchImpl = fetch }) {
               { role: "user", content },
             ],
             temperature: 0,
-            max_tokens: 2200,
+            max_tokens: diagnostic ? 512 : 2200,
             stream: false,
             provider: {
               allow_fallbacks: false,

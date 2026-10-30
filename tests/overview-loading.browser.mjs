@@ -73,6 +73,35 @@ await scenario(
     await page.request.post(origin + "/api/__fixture/ai", {
       data: { mode: "quota" },
     });
+    // Spend the normal two-per-company mapping allowance first. Even failed
+    // inference attempts count, so a third mapping call is now blocked.
+    for (let n = 0; n < 3; n++) {
+      const added = await page.request.post(w.sources, {
+        data: {
+          mode: "upload",
+          name: `Unfamiliar-${n}.csv`,
+          sheets: [
+            {
+              name: "Records",
+              rows: [
+                ["Unfamiliar label", "Value"],
+                ["Synthetic record", 5],
+              ],
+            },
+          ],
+        },
+      });
+      assert.ok(added.ok());
+      const id = (await added.json()).selectedId;
+      const prepared = await page.request.post(w.sources + `/${id}/prepare`, {
+        data: { allowAi: true },
+      });
+      assert.ok(prepared.ok());
+      const status = (await prepared.json()).sources.find(
+        (source) => source.id === id,
+      ).automation.aiStatus;
+      assert.equal(status, n < 2 ? "quota" : "daily_limit");
+    }
     await page.reload();
     await page
       .getByRole("button", { name: "Test live AI connection", exact: true })
