@@ -1,3 +1,4 @@
+import { formatSyncTime } from "../../../shared/sync-time.mjs";
 import { useCallback, useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -79,6 +80,7 @@ type Source = {
   mode: string;
   title: string;
   department?: string;
+  lastChecked?: number | null;
   tabs: Tab[];
   lastSuccess: number | null;
   error: string | null;
@@ -193,6 +195,7 @@ export function SourceWorkspace({
       () => catalogCache.get(cacheKey) || null,
     ),
     [departments, setDepartments] = useState<string[]>([]),
+    [timezone, setTimezone] = useState("UTC"),
     [section, setSection] = useState(
       phase === "mapping" ||
         new URLSearchParams(window.location.search).has("map")
@@ -282,7 +285,10 @@ export function SourceWorkspace({
       });
     api<Company>(`/companies/${companyId}`)
       .then((company) => {
-        if (active) setDepartments(company.data.departments);
+        if (active) {
+          setDepartments(company.data.departments);
+          setTimezone(company.timezone || "UTC");
+        }
       })
       .catch((e) => {
         if (active) setError(e.message);
@@ -1089,6 +1095,26 @@ export function SourceWorkspace({
                       · {source.tabs.filter((t) => t.mapped).length}/
                       {source.tabs.length} pages mapped
                     </small>
+                    {source.lastChecked && (
+                      <small>
+                        Last sync check:{" "}
+                        <time
+                          dateTime={new Date(source.lastChecked).toISOString()}
+                        >
+                          {formatSyncTime(source.lastChecked, timezone)}
+                        </time>
+                      </small>
+                    )}
+                    {source.lastSuccess && (
+                      <small>
+                        Last data update:{" "}
+                        <time
+                          dateTime={new Date(source.lastSuccess).toISOString()}
+                        >
+                          {formatSyncTime(source.lastSuccess, timezone)}
+                        </time>
+                      </small>
+                    )}
                   </div>
                   <div className="source-parent-actions">
                     <Button
@@ -1120,7 +1146,7 @@ export function SourceWorkspace({
                             );
                             applyCatalog(value);
                             setMessage(
-                              "Sync checked all mapped pages. See each page for updates or issues.",
+                              `Sync checked all mapped pages at ${formatSyncTime(value.sources.find((s) => s.id === source.id)?.lastChecked, timezone)}. See each page for updates or issues.`,
                             );
                           })
                         }
@@ -1242,7 +1268,13 @@ export function SourceWorkspace({
                           {tab.lastSuccess && (
                             <small>
                               Checked{" "}
-                              {new Date(tab.lastSuccess).toLocaleString()}
+                              <time
+                                dateTime={new Date(
+                                  tab.lastSuccess,
+                                ).toISOString()}
+                              >
+                                {formatSyncTime(tab.lastSuccess, timezone)}
+                              </time>
                             </small>
                           )}
                           {tab.changes && (

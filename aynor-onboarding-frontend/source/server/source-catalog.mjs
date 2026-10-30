@@ -202,7 +202,11 @@ export function createSourceCatalog({
       title: source.title,
       department: source.department || "",
       url: source.url,
-      lastSuccess: source.lastSuccess || null,
+      lastSuccess:
+        Math.max(0, ...source.tabs.map((t) => t.lastSuccess || 0)) ||
+        source.lastSuccess ||
+        null,
+      lastChecked: source.lastChecked || null,
       error: source.error || null,
       changes: source.changes || null,
       automation: source.automation || null,
@@ -1157,7 +1161,8 @@ export function createSourceCatalog({
             source.error = failed
               ? `${failed} worksheet${failed === 1 ? " needs" : "s need"} attention. Previous data is still visible.`
               : null;
-            source.lastSuccess = Date.now();
+            source.lastChecked = Date.now();
+            if (!failed) source.lastSuccess = source.lastChecked;
           },
           true,
         );

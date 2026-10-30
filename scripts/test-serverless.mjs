@@ -77,6 +77,9 @@ try {
   const loadingCheck = start(["tests/overview-loading.browser.mjs"]);
   if ((await new Promise((r) => loadingCheck.on("exit", r))) !== 0)
     throw Error("Overview loading browser check failed.");
+  const populatedCheck = start(["tests/populated-overview.browser.mjs"]);
+  if ((await new Promise((r) => populatedCheck.on("exit", r))) !== 0)
+    throw Error("Populated overview browser check failed.");
 } finally {
   await Promise.all(
     children

@@ -1,3 +1,4 @@
+import { formatSyncTime } from "../../../shared/sync-time.mjs";
 import { useApp } from "../../lib/context";
 import {
   readOverviewCache,
@@ -51,6 +52,15 @@ export function LiveOverview({ company }: { company: Company }) {
     [revision, setRevision] = useState(0),
     [selected, setSelected] = useState(0);
   const base = `/companies/${company.id}`;
+  const lastDataUpdate =
+    source?.lastSuccess ||
+    Math.max(
+      0,
+      ...(report?.tableReport?.tables || []).map(
+        (table) => table.lastSuccess || 0,
+      ),
+    ) ||
+    null;
   useEffect(() => {
     if (source?.hasSnapshot && source.syncMode === "manual") setPeriod("all");
   }, [source?.mode, source?.hasSnapshot]);
@@ -165,15 +175,20 @@ export function LiveOverview({ company }: { company: Company }) {
         <Database size={14} />
         <span>
           {source?.status === "syncing"
-            ? "Syncing source…"
+            ? "Syncing source… · "
             : source?.stale
-              ? "Source needs attention · last valid snapshot"
-              : source?.lastSuccess
-                ? (source.mode === "upload"
-                    ? "File imported "
-                    : "Last synced ") +
-                  new Date(source.lastSuccess).toLocaleString()
-                : "No validated source yet"}
+              ? "Sync needs attention · "
+              : ""}
+          {lastDataUpdate ? (
+            <>
+              Last data update:{" "}
+              <time dateTime={new Date(lastDataUpdate).toISOString()}>
+                {formatSyncTime(lastDataUpdate, company.timezone)}
+              </time>
+            </>
+          ) : (
+            "No validated source yet"
+          )}
         </span>
         <Link to={base + "/connections"}>
           Manage data <ArrowUpRight size={13} />
@@ -185,6 +200,7 @@ export function LiveOverview({ company }: { company: Company }) {
           report={report.tableReport}
           companyId={company.id}
           currency={company.currency || "USD"}
+          timezone={company.timezone || "UTC"}
         />
       ) : busy && !report ? (
         <OverviewSkeleton />

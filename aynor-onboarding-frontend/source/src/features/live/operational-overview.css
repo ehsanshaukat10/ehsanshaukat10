@@ -1,0 +1,53 @@
+.operational-overview {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+.operational-panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+}
+.operational-departments {
+  display: grid;
+  gap: 18px;
+  max-height: 350px;
+  overflow: auto;
+}
+.operational-departments > div {
+  display: grid;
+  gap: 6px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee8f4;
+}
+.operational-departments span,
+.operational-departments small {
+  font-size: 12px;
+  color: #81758e;
+}
+.operational-preview {
+  overflow: auto;
+  max-width: 100%;
+  margin: 18px 0;
+}
+.operational-preview td {
+  max-width: 240px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.operational-preview table {
+  min-width: 540px;
+}
+@media (max-width: 800px) {
+  .operational-panels {
+    grid-template-columns: 1fr;
+  }
+}
+.operational-coverage {
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: #f4effc;
+  font-size: 13px;
+  color: #75658f;
+  overflow-wrap: anywhere;
+}

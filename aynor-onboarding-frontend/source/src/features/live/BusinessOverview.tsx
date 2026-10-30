@@ -1,3 +1,4 @@
+import { OperationalOverview } from "./OperationalOverview";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { businessOverview } from "../../../shared/business-overview.mjs";
@@ -9,10 +10,12 @@ export function BusinessOverview({
   report,
   companyId,
   currency,
+  timezone = "UTC",
 }: {
   report: TableReport;
   companyId: string;
   currency: string;
+  timezone?: string;
 }) {
   const { user } = useApp();
   const key = `aynor.reporting-pages.${user?.id}.${companyId}`;
@@ -27,6 +30,7 @@ export function BusinessOverview({
     }
   });
   const [exploring, setExploring] = useState(false);
+  const [exploreIndex, setExploreIndex] = useState(0);
   const summary = businessOverview(report.tables, currency, selection);
   const money = (n: number | null, unit: string) =>
     n === null
@@ -116,8 +120,16 @@ export function BusinessOverview({
           </Panel>
         </section>
       ))}
+      <OperationalOverview
+        report={report}
+        timezone={timezone}
+        onExplore={(index) => {
+          setExploreIndex(index);
+          setExploring(true);
+        }}
+      />
       {!summary.groups.length && (
-        <Panel title="Your business data is connected">
+        <Panel title="Financial reporting">
           <p>
             {report.sources?.length || 1} workbook
             {report.sources?.length === 1 ? "" : "s"} · {report.tables.length}{" "}
@@ -127,7 +139,7 @@ export function BusinessOverview({
           <p>
             {summary.conflicts.length
               ? "Some financial pages contain matching totals. Choose the pages to include below before combining them."
-              : "Financial KPIs appear when Date, Money in and Money out columns are confirmed. Your other records are available in Explore imported records."}
+              : "Financial totals need confirmed Date, Money in and Money out fields. Your activity summaries and records are already shown above."}
           </p>
           <Link to={`/companies/${companyId}/connections?map=1`}>
             Review business column properties
@@ -193,9 +205,12 @@ export function BusinessOverview({
       </Panel>
       {exploring && (
         <TableOverview
+          key={exploreIndex}
           report={report}
           companyId={companyId}
           currency={currency}
+          initialSelected={exploreIndex}
+          timezone={timezone}
         />
       )}
     </section>

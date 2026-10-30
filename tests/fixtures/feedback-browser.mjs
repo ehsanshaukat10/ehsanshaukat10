@@ -26,14 +26,18 @@ export async function scenario(name, task) {
     await browser.close();
   }
 }
-export async function workspace(page, name) {
+export async function workspace(
+  page,
+  name,
+  credentials = {
+    email: "owner@example.test",
+    password: "a-long-test-password-only",
+  },
+) {
   assert.ok(
     (
       await page.request.post(origin + "/api/auth/login", {
-        data: {
-          email: "owner@example.test",
-          password: "a-long-test-password-only",
-        },
+        data: credentials,
       })
     ).ok(),
   );

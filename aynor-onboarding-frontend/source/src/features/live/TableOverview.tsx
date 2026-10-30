@@ -1,3 +1,4 @@
+import { formatSyncTime } from "../../../shared/sync-time.mjs";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Database, Table2, Search, ArrowLeft, ArrowRight } from "lucide-react";
@@ -53,12 +54,16 @@ export function TableOverview({
   report,
   companyId,
   currency = "USD",
+  timezone = "UTC",
+  initialSelected = 0,
 }: {
   report: TableReport;
   companyId: string;
   currency?: string;
+  timezone?: string;
+  initialSelected?: number;
 }) {
-  const [selected, setSelected] = useState(0),
+  const [selected, setSelected] = useState(initialSelected),
     [query, setQuery] = useState(""),
     [page, setPage] = useState(0),
     [related, setRelated] = useState<{ column: string; value: unknown } | null>(
@@ -121,6 +126,14 @@ export function TableOverview({
       {table.error && (
         <p className="source-page-error">
           {table.error} Your last saved data is still shown.
+        </p>
+      )}
+      {table.lastSuccess && (
+        <p className="mapping-submit-note">
+          Last data update:{" "}
+          <time dateTime={new Date(table.lastSuccess).toISOString()}>
+            {formatSyncTime(table.lastSuccess, timezone)}
+          </time>
         </p>
       )}
       {table.changes && (
