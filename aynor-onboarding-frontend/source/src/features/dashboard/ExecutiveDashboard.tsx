@@ -1507,7 +1507,7 @@ export function ExecutiveDashboard({
                               : detail.title === "Shared delivery dependency"
                                 ? "dependencies"
                                 : detail.title === "Data details"
-                                  ? "settings/connections"
+                                  ? "connections"
                                   : null;
                 return (
                   path && (

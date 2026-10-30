@@ -91,7 +91,11 @@ export function validateRows(values, mapping) {
       row.slice(headers.length).some((v) => String(v ?? "").trim())
     )
       throw Error(`Row ${i + 1}: values exist without column headers.`);
-    const date = parseDate(row[indices.date], mapping._dateFormat || "ymd");
+    const date = parseDate(
+      row[indices.date],
+      mapping._dateFormat || "ymd",
+      mapping._dateYear,
+    );
     if (!date)
       throw Error(
         `Row ${i + offset + 1}: choose the correct date column and date format. Use year-month-day, day-month-year or month-day-year to match your sheet.`,

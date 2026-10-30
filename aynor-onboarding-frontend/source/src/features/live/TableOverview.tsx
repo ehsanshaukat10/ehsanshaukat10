@@ -4,7 +4,8 @@ import { Database, Table2, Search, ArrowLeft, ArrowRight } from "lucide-react";
 import { Button, Field } from "../../components/ui";
 import { Panel } from "../intelligence/shared";
 import "./table-review.css";
-type Table = {
+export type Table = {
+  currency?: string;
   parentTitle?: string;
   department?: string;
   sourceId?: string;
@@ -105,7 +106,7 @@ export function TableOverview({
             {totalPages - unmapped} of {totalPages} worksheet pages mapped
           </span>
           {unmapped > 0 && (
-            <Link to={`/companies/${companyId}/settings/connections?map=1`}>
+            <Link to={`/companies/${companyId}/connections?map=1`}>
               Map {unmapped} remaining page{unmapped === 1 ? "" : "s"}
             </Link>
           )}
@@ -446,7 +447,7 @@ export function TableOverview({
       <p className="mapping-submit-note">
         Tables are reported separately. Financial charts require an explicitly
         mapped financial source.{" "}
-        <Link to={`/companies/${companyId}/settings/connections`}>
+        <Link to={`/companies/${companyId}/connections`}>
           Manage imported data
         </Link>
       </p>

@@ -46,6 +46,9 @@ await scenario(
     await expect(
       page.locator(".intel-kpi").filter({ hasText: "Revenue" }),
     ).toContainText("3,000");
+    await page
+      .getByRole("button", { name: "Explore imported records", exact: true })
+      .click();
     await expect(page.getByLabel("Imported table dashboard")).toContainText(
       "Sales workbook",
     );

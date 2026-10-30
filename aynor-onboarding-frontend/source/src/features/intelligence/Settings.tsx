@@ -1,7 +1,7 @@
 import { serverMode } from "../../lib/runtime";
 import { SheetsConnection } from "../live/SheetsConnection";
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import { ArrowUpRight, Check, RefreshCw } from "lucide-react";
 import { Button, ErrorBox, Field, Modal, Select } from "../../components/ui";
 import { api, type Company } from "../../lib/api";
@@ -32,14 +32,16 @@ import {
 } from "./shared";
 export function Settings(props: ModuleProps) {
   const e = useExecutive(props.company),
-    panel = useLocation().pathname.split("/")[4] || "profile";
+    location = useLocation(),
+    panel = location.pathname.split("/")[4] || "profile";
   const tabs = [
     ["profile", "Company profile"],
     ["departments", "Departments"],
-    ["connections", "Data connections"],
     ["members", "Team & permissions"],
     ["preferences", "Dashboard preferences"],
   ];
+  if (panel === "connections")
+    return <Navigate to={e.base + "/connections" + location.search} replace />;
   return (
     <ModulePage
       title="Company settings"
@@ -108,12 +110,6 @@ export function Settings(props: ModuleProps) {
             Configure departments <ArrowUpRight size={13} />
           </Link>
         </Panel>
-      ) : panel === "connections" ? (
-        serverMode ? (
-          <SheetsConnection companyId={props.company.id} />
-        ) : (
-          <Connections {...props} />
-        )
       ) : panel === "preferences" ? (
         <PreferenceSettings {...props} />
       ) : (
@@ -126,6 +122,29 @@ export function Settings(props: ModuleProps) {
             </Link>
           }
         />
+      )}
+    </ModulePage>
+  );
+}
+export function DataConnections(props: ModuleProps) {
+  const e = useExecutive(props.company);
+  return (
+    <ModulePage
+      title="Data connections"
+      showPeriod={false}
+      description="Manage your workbooks, worksheet pages and column mapping."
+      exec={e}
+      back={e.link(e.base + "/overview")}
+    >
+      {!e.editable ? (
+        <Blank
+          title="Administrator access required"
+          text="An Owner or Admin manages connected data."
+        />
+      ) : serverMode ? (
+        <SheetsConnection companyId={props.company.id} />
+      ) : (
+        <Connections {...props} />
       )}
     </ModulePage>
   );

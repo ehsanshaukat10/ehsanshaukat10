@@ -71,6 +71,9 @@ try {
   const automaticCheck = start(["tests/automatic.browser.mjs"]);
   if ((await new Promise((r) => automaticCheck.on("exit", r))) !== 0)
     throw Error("Automatic mapping browser check failed.");
+  const feedbackCheck = start(["tests/import-feedback.browser.mjs"]);
+  if ((await new Promise((r) => feedbackCheck.on("exit", r))) !== 0)
+    throw Error("Import feedback regression browser check failed.");
 } finally {
   await Promise.all(
     children

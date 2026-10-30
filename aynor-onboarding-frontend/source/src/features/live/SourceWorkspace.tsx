@@ -18,6 +18,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Button, ErrorBox, Field, Modal } from "../../components/ui";
+import { useApp } from "../../lib/context";
 import { api, type Company } from "../../lib/api";
 import { serverRequest } from "../../lib/runtime";
 import { Select } from "./LiveSelect";
@@ -39,6 +40,9 @@ type Config = {
   headers?: string[];
   headerRow: number;
   dateFormat: string;
+  dateYear?: number;
+  dateYears?: Record<number, number>;
+  dateFormats?: Record<number, string>;
   properties?: string[];
   types?: string[];
   department?: string;
@@ -74,6 +78,7 @@ type Source = {
   id: string;
   mode: string;
   title: string;
+  department?: string;
   tabs: Tab[];
   lastSuccess: number | null;
   error: string | null;
@@ -113,25 +118,51 @@ type Draft = {
   properties: string[];
   department: string;
   dateFormat: string;
+  dateYear?: number;
+  dateYears?: Record<number, number>;
+  dateFormats?: Record<number, string>;
+};
+const catalogCache = new Map<string, Catalog>();
+type ConflictCheck = {
+  total: number;
+  issues: {
+    row: number;
+    column: number;
+    name: string;
+    value: string;
+    message: string;
+  }[];
+  error: string;
 };
 export function SourceWorkspace({
   companyId,
   phase = "manage",
   onBusyChange,
+  onEditingChange,
+  backRequest = 0,
 }: {
   companyId: string;
   phase?: "connect" | "mapping" | "manage";
   onBusyChange?: (busy: boolean) => void;
+  onEditingChange?: (editing: boolean) => void;
+  backRequest?: number;
 }) {
   const root = `/companies/${companyId}/sources`,
     nav = useNavigate();
-  const [catalog, setCatalog] = useState<Catalog | null>(null),
+  const { user, toast } = useApp();
+  const cacheKey = `${user?.id}:${companyId}`;
+  const [catalog, setCatalog] = useState<Catalog | null>(
+      () => catalogCache.get(cacheKey) || null,
+    ),
     [departments, setDepartments] = useState<string[]>([]),
     [section, setSection] = useState(
       phase === "mapping" ||
         new URLSearchParams(window.location.search).has("map")
         ? "mapping"
-        : "connect",
+        : phase === "manage" &&
+            !new URLSearchParams(window.location.search).has("google")
+          ? "inventory"
+          : "connect",
     ),
     [mode, setMode] = useState("oauth"),
     [url, setUrl] = useState(""),
@@ -141,7 +172,16 @@ export function SourceWorkspace({
     [message, setMessage] = useState(""),
     [drafts, setDrafts] = useState<Draft[]>([]),
     [showPages, setShowPages] = useState(true),
-    [allowAi, setAllowAi] = useState(false),
+    [allowAi, setAllowAi] = useState(() => {
+      try {
+        return localStorage.getItem(`aynor.ai.${cacheKey}`) !== "false";
+      } catch {
+        return true;
+      }
+    }),
+    [expanded, setExpanded] = useState<string[]>([]),
+    [conflicts, setConflicts] = useState<ConflictCheck | null>(null),
+    [checking, setChecking] = useState(false),
     [question, setQuestion] = useState<{
       sourceId: string;
       tabId: number;
@@ -158,9 +198,12 @@ export function SourceWorkspace({
     phase === "manage" ? section : phase === "mapping" ? "mapping" : "connect";
   const uploadInput = useRef<HTMLInputElement>(null);
   function applyCatalog(value: Catalog) {
-    setCatalog((current) =>
-      !current || value.revision >= current.revision ? value : current,
-    );
+    setCatalog((current) => {
+      const next =
+        !current || value.revision >= current.revision ? value : current;
+      catalogCache.set(cacheKey, next);
+      return next;
+    });
   }
   useEffect(
     () =>
@@ -169,7 +212,10 @@ export function SourceWorkspace({
           (phase === "manage" &&
             new URLSearchParams(window.location.search).has("map"))
           ? "mapping"
-          : "connect",
+          : phase === "manage" &&
+              !new URLSearchParams(window.location.search).has("google")
+            ? "inventory"
+            : "connect",
       ),
     [phase],
   );
@@ -282,14 +328,27 @@ export function SourceWorkspace({
     );
   }
   async function add(input: unknown) {
-    const result = await serverRequest<Catalog & { selectedId: string }>(
-      root,
-      "POST",
-      input,
-    );
+    const result = await serverRequest<
+      Catalog & { selectedId: string; duplicate?: boolean; unchanged?: boolean }
+    >(root, "POST", input);
     applyCatalog(result);
     setUrl("");
+    setExpanded((ids) => [...new Set([...ids, result.selectedId])]);
+    const source = result.sources.find((s) => s.id === result.selectedId);
+    if (result.duplicate && result.unchanged) {
+      setMessage(
+        `“${source?.title}” is already connected. No duplicate was added; your mappings are unchanged.`,
+      );
+      toast("This workbook is already connected.");
+      return;
+    }
+    toast(
+      result.duplicate
+        ? "Workbook updated successfully."
+        : "Workbook added successfully. Preparing your data…",
+    );
     await prepareSource(result.selectedId);
+    if (result.duplicate) setMessage((m) => `Existing workbook updated. ${m}`);
   }
   const activeDraft =
     drafts.find(
@@ -326,8 +385,11 @@ export function SourceWorkspace({
       const draft = {
         inspection,
         properties,
-        department: tab.department || "",
+        department: tab.department ?? source.department ?? "",
         dateFormat: inspection.config?.dateFormat || "ymd",
+        dateYear: inspection.config?.dateYear,
+        dateYears: inspection.config?.dateYears,
+        dateFormats: inspection.config?.dateFormats,
       };
       setDrafts((existing) => [
         ...existing.filter(
@@ -340,9 +402,57 @@ export function SourceWorkspace({
         draft,
       ]);
       setSelected(`${source.id}:${tab.tabId}`);
+      setSection("mapping");
       setShowPages(false);
     });
   }
+  useEffect(() => {
+    onEditingChange?.(!!activeDraft && viewSection === "mapping");
+  }, [!!activeDraft, viewSection, onEditingChange]);
+  useEffect(() => {
+    if (backRequest) {
+      setDrafts([]);
+      setSelected("");
+      setShowPages(true);
+    }
+  }, [backRequest]);
+  useEffect(() => {
+    if (!activeDraft) {
+      setConflicts(null);
+      return;
+    }
+    let active = true;
+    setConflicts(null);
+    setChecking(true);
+    const timer = setTimeout(() => {
+      serverRequest<ConflictCheck>(
+        `${root}/${activeDraft.inspection.sourceId}/check`,
+        "POST",
+        {
+          tabId: activeDraft.inspection.tabId,
+          headerRow: activeDraft.inspection.headerRow,
+          properties: activeDraft.properties,
+          dateFormat: activeDraft.dateFormat,
+          dateYear: activeDraft.dateYear,
+          dateYears: activeDraft.dateYears,
+          dateFormats: activeDraft.dateFormats,
+        },
+      )
+        .then((value) => {
+          if (active) setConflicts(value);
+        })
+        .catch((e) => {
+          if (active) setConflicts({ total: 0, issues: [], error: e.message });
+        })
+        .finally(() => {
+          if (active) setChecking(false);
+        });
+    }, 600);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [activeDraft, root]);
   async function saveMappings() {
     await run("mapping", async () => {
       const bySource = new Map<string, Draft[]>();
@@ -364,6 +474,9 @@ export function SourceWorkspace({
                 headerRow: d.inspection.headerRow,
                 properties: d.properties,
                 dateFormat: d.dateFormat,
+                dateYear: d.dateYear,
+                dateYears: d.dateYears,
+                dateFormats: d.dateFormats,
                 department: d.department,
               })),
             },
@@ -393,17 +506,61 @@ export function SourceWorkspace({
     total = sources.reduce((n, s) => n + s.tabs.length, 0);
   const questions = sources.flatMap((source) =>
     source.tabs.flatMap((tab) =>
-      (tab.automatic?.questions || []).map((question) => ({
-        sourceId: source.id,
-        tabId: tab.tabId,
-        question,
-      })),
+      (tab.automatic?.questions || [])
+        .filter((q) => q.kind !== "department")
+        .map((question) => ({
+          sourceId: source.id,
+          tabId: tab.tabId,
+          question,
+        })),
     ),
   );
-  const automaticallyPrepared = sources.some((source) => source.automation);
-  const reviewPages = sources
+  const visibleSources =
+    viewSection === "connect"
+      ? sources.filter((source) => source.mode === mode)
+      : sources;
+  const automaticallyPrepared = visibleSources.some(
+    (source) => source.automation,
+  );
+  const deepLinkOpened = useRef(false);
+  useEffect(() => {
+    if (!catalog || viewSection !== "mapping") return;
+    setExpanded(catalog.sources.map((s) => s.id));
+    const params = new URLSearchParams(window.location.search);
+    const source = catalog.sources.find((s) => s.id === params.get("source"));
+    const tab = source?.tabs.find((t) => String(t.tabId) === params.get("tab"));
+    if (source && tab && !deepLinkOpened.current) {
+      deepLinkOpened.current = true;
+      void openTab(source, tab);
+    }
+  }, [phase, viewSection, !!catalog]);
+  const cardMapped = visibleSources.reduce(
+    (n, s) => n + s.tabs.filter((t) => t.mapped).length,
+    0,
+  );
+  const cardTotal = visibleSources.reduce((n, s) => n + s.tabs.length, 0);
+  const cardQuestions = questions.filter((q) =>
+    visibleSources.some((s) => s.id === q.sourceId),
+  );
+  const reviewPages = visibleSources
     .flatMap((s) => s.tabs)
     .filter((t) => t.automatic?.status === "needs_review").length;
+  if (!catalog)
+    return (
+      <section className="source-workspace" aria-busy={!error}>
+        <ErrorBox>{error}</ErrorBox>
+        {error ? (
+          <Button
+            variant="secondary"
+            onClick={() => void refresh().catch((e) => setError(e.message))}
+          >
+            Retry loading sources
+          </Button>
+        ) : (
+          <p role="status">Loading your connected sources…</p>
+        )}
+      </section>
+    );
   return (
     <section className="source-workspace" aria-busy={!!busy}>
       {phase === "manage" && (
@@ -412,14 +569,34 @@ export function SourceWorkspace({
           aria-label="Data connection sections"
         >
           <Button
-            variant={viewSection === "connect" ? "primary" : "secondary"}
-            onClick={() => setSection("connect")}
+            variant={viewSection === "inventory" ? "primary" : "secondary"}
+            disabled={!!busy}
+            onClick={() => {
+              setSection("inventory");
+              setDrafts([]);
+              setShowPages(true);
+            }}
           >
             Connected sources
           </Button>
           <Button
+            variant={viewSection === "connect" ? "primary" : "secondary"}
+            disabled={!!busy}
+            onClick={() => {
+              setSection("connect");
+              setDrafts([]);
+              setShowPages(true);
+            }}
+          >
+            Add workbook
+          </Button>
+          <Button
             variant={viewSection === "mapping" ? "primary" : "secondary"}
-            onClick={() => setSection("mapping")}
+            disabled={!!busy}
+            onClick={() => {
+              setSection("mapping");
+              setExpanded(sources.map((s) => s.id));
+            }}
           >
             Map worksheet pages{" "}
             <span>
@@ -435,7 +612,6 @@ export function SourceWorkspace({
           {message}
         </p>
       )}
-      {!catalog && <p role="status">Loading your connected sources…</p>}
       {automaticallyPrepared && !activeDraft && (
         <section className="auto-ready-card" aria-label="Automatic preparation">
           <span className="auto-ready-icon">
@@ -443,21 +619,21 @@ export function SourceWorkspace({
           </span>
           <div>
             <h3>
-              {mapped && !reviewPages
+              {cardMapped && !reviewPages
                 ? "Your data is ready."
                 : "A quick check before you continue."}
             </h3>
             <p>
-              {mapped} of {total} worksheet pages prepared.{" "}
+              {cardMapped} of {cardTotal} worksheet pages prepared.{" "}
               {reviewPages
                 ? `${reviewPages} page${reviewPages === 1 ? "" : "s"} need a manual check. Previously saved data remains available.`
-                : questions.length
-                  ? `${questions.length} quick check${questions.length === 1 ? "" : "s"} available. Your other data is already ready to explore.`
+                : cardQuestions.length
+                  ? `${cardQuestions.length} quick check${cardQuestions.length === 1 ? "" : "s"} available. Your other data is already ready to explore.`
                   : "Your original files stay unchanged. You can review any column later."}
             </p>
           </div>
           <div className="auto-ready-actions">
-            {mapped > 0 && (
+            {cardMapped > 0 && (
               <Button
                 disabled={!!busy}
                 onClick={() => nav(`/companies/${companyId}/overview`)}
@@ -466,27 +642,29 @@ export function SourceWorkspace({
                 <ArrowRight size={14} />
               </Button>
             )}
-            {questions.length > 0 && (
+            {cardQuestions.length > 0 && (
               <Button
                 variant="secondary"
                 disabled={!!busy}
-                onClick={() => setQuestion(questions[0])}
+                onClick={() => setQuestion(cardQuestions[0])}
               >
-                Review {questions.length} quick check
-                {questions.length === 1 ? "" : "s"}
+                Review {cardQuestions.length} quick check
+                {cardQuestions.length === 1 ? "" : "s"}
               </Button>
             )}
-            <Button
-              variant="text"
-              disabled={!!busy}
-              onClick={() =>
-                phase === "manage"
-                  ? setSection("mapping")
-                  : nav(`/companies/${companyId}/onboarding/mapping`)
-              }
-            >
-              Review mapping
-            </Button>
+            {viewSection !== "mapping" && (
+              <Button
+                variant="text"
+                disabled={!!busy}
+                onClick={() => {
+                  setExpanded(sources.map((s) => s.id));
+                  if (phase === "manage") setSection("mapping");
+                  else nav(`/companies/${companyId}/onboarding/mapping`);
+                }}
+              >
+                Review mapping
+              </Button>
+            )}
           </div>
         </section>
       )}
@@ -505,7 +683,15 @@ export function SourceWorkspace({
                 type="checkbox"
                 checked={allowAi}
                 disabled={!!busy}
-                onChange={(e) => setAllowAi(e.target.checked)}
+                onChange={(e) => {
+                  setAllowAi(e.target.checked);
+                  try {
+                    localStorage.setItem(
+                      `aynor.ai.${cacheKey}`,
+                      String(e.target.checked),
+                    );
+                  } catch {}
+                }}
               />
               <span>
                 Use optional AI for unfamiliar labels
@@ -622,10 +808,12 @@ export function SourceWorkspace({
                   >
                     <Field
                       label="Google spreadsheet link"
-                      type="url"
-                      required
+                      type="text"
                       value={url}
-                      onChange={(e) => setUrl(e.target.value)}
+                      onChange={(e) => {
+                        setUrl(e.target.value);
+                        setError("");
+                      }}
                       placeholder="https://docs.google.com/spreadsheets/d/…"
                     />
                     <Button
@@ -703,10 +891,12 @@ export function SourceWorkspace({
               />
               <Field
                 label="Sheet URL"
-                type="url"
-                required
+                type="text"
                 value={url}
-                onChange={(e) => setUrl(e.target.value)}
+                onChange={(e) => {
+                  setUrl(e.target.value);
+                  setError("");
+                }}
               />
               <Button disabled={!!busy || !url.trim()} busy={busy === "add"}>
                 Add shared sheet
@@ -723,8 +913,8 @@ export function SourceWorkspace({
             : "Choose another worksheet page"}
         </Button>
       )}
-      {sources.length > 0 &&
-        (viewSection === "connect" || !activeDraft || showPages) && (
+      {visibleSources.length > 0 &&
+        (viewSection !== "mapping" || !activeDraft || showPages) && (
           <div className="source-inventory">
             <div className="source-inventory-heading">
               <h3>
@@ -736,12 +926,33 @@ export function SourceWorkspace({
                 {mapped} of {total} pages mapped
               </span>
             </div>
-            {sources.map((source) => (
+            {visibleSources.map((source) => (
               <article className="source-parent" key={source.id}>
                 <header>
                   <FileSpreadsheet size={20} />
                   <div>
-                    <h4>{source.title}</h4>
+                    <button
+                      type="button"
+                      className="source-parent-toggle"
+                      aria-expanded={expanded.includes(source.id)}
+                      onClick={() =>
+                        setExpanded((ids) =>
+                          ids.includes(source.id)
+                            ? ids.filter((id) => id !== source.id)
+                            : [...ids, source.id],
+                        )
+                      }
+                    >
+                      <ChevronRight
+                        size={16}
+                        style={{
+                          transform: expanded.includes(source.id)
+                            ? "rotate(90deg)"
+                            : undefined,
+                        }}
+                      />
+                      <h4>{source.title}</h4>
+                    </button>
                     <small>
                       {source.mode === "oauth"
                         ? "Google Sheets"
@@ -791,10 +1002,11 @@ export function SourceWorkspace({
                         Sync now
                       </Button>
                     ) : (
-                      viewSection === "connect" && (
+                      viewSection !== "mapping" && (
                         <Button
                           variant="text"
                           onClick={() => {
+                            setSection("connect");
                             setMode("upload");
                             setMessage(
                               "Choose the updated file with the same name to refresh this workbook. Other sources will stay connected.",
@@ -821,119 +1033,177 @@ export function SourceWorkspace({
                     {source.error}
                   </p>
                 )}
-                <div className="source-pages">
-                  {source.tabs.map((tab) => (
-                    <div
-                      className={`source-page ${tab.mapped ? "is-mapped" : ""}`}
-                      key={tab.tabId}
-                    >
-                      <span className="source-page-icon">
-                        {tab.error ? (
-                          <AlertCircle size={15} />
-                        ) : tab.mapped ? (
-                          <CheckCircle2 size={15} />
-                        ) : (
-                          <FileSpreadsheet size={15} />
-                        )}
-                      </span>
-                      <div>
-                        <strong>{tab.title}</strong>
-                        <small>
-                          {tab.mapped
-                            ? `${tab.department || "Department not assigned"} · ${tab.rowCount.toLocaleString()} records`
-                            : tab.skipped
-                              ? "Skipped · available to map later"
-                              : "Not mapped yet"}
-                        </small>
-                        {tab.automatic && (
-                          <small className="auto-page-status">
-                            {tab.automatic.status === "needs_review"
-                              ? "Needs a manual check · saved data retained"
-                              : tab.automatic.origin === "ai"
-                                ? "AI-assisted · validated"
-                                : tab.automatic.origin === "manual"
-                                  ? "Manually reviewed"
-                                  : tab.automatic.status === "empty"
-                                    ? "No table records found"
-                                    : tab.mapped
-                                      ? "Automatically prepared · validated"
-                                      : "Needs a manual check"}
-                            {tab.automatic.questions?.length
-                              ? ` · ${tab.automatic.questions.length} quick check${tab.automatic.questions.length === 1 ? "" : "s"}`
-                              : ""}
-                          </small>
-                        )}
-                        {tab.automatic?.notes?.map((note, index) => (
-                          <small key={index}>{note}</small>
-                        ))}
-                        {tab.lastSuccess && (
+                <Select
+                  label={`Department for ${source.title}`}
+                  value={source.department || ""}
+                  disabled={!!busy}
+                  onChange={(e) => {
+                    const department = e.target.value;
+                    void run("department", async () => {
+                      applyCatalog(
+                        await serverRequest<Catalog>(
+                          `${root}/${source.id}/department`,
+                          "POST",
+                          { department },
+                        ),
+                      );
+                      setMessage(
+                        "Department applied to all pages in this workbook. You can override individual pages in Edit mapping.",
+                      );
+                    });
+                  }}
+                >
+                  <option value="">Unassigned · assign individual pages</option>
+                  {departments.map((d) => (
+                    <option key={d}>{d}</option>
+                  ))}
+                </Select>
+                {expanded.includes(source.id) && (
+                  <div className="source-pages">
+                    {source.tabs.map((tab) => (
+                      <div
+                        className={`source-page ${tab.mapped ? "is-mapped" : ""}`}
+                        key={tab.tabId}
+                      >
+                        <span className="source-page-icon">
+                          {tab.error ? (
+                            <AlertCircle size={15} />
+                          ) : tab.mapped ? (
+                            <CheckCircle2 size={15} />
+                          ) : (
+                            <FileSpreadsheet size={15} />
+                          )}
+                        </span>
+                        <div>
+                          <strong>{tab.title}</strong>
                           <small>
-                            Checked {new Date(tab.lastSuccess).toLocaleString()}
+                            {tab.mapped
+                              ? `${tab.department || "Department not assigned"} · ${tab.rowCount.toLocaleString()} records`
+                              : tab.skipped
+                                ? "Skipped · available to map later"
+                                : "Not mapped yet"}
                           </small>
-                        )}
-                        {tab.changes && (
-                          <small className="source-change">
-                            <RefreshCw size={11} />
-                            {tab.changes.added ||
-                            tab.changes.removed ||
-                            tab.changes.updated
-                              ? `${tab.changes.added} added · ${tab.changes.updated} changed · ${tab.changes.removed} removed`
-                              : "No data changes"}
-                          </small>
-                        )}
-                        {tab.error && (
-                          <p className="source-page-error">{tab.error}</p>
-                        )}
-                      </div>
-                      {viewSection === "mapping" ? (
-                        <div className="source-page-actions">
-                          <Button
-                            variant="secondary"
-                            disabled={!!busy}
-                            onClick={() => void openTab(source, tab)}
-                          >
-                            {tab.mapped ? "Edit mapping" : "Map columns"}
-                            <ChevronRight size={13} />
-                          </Button>
-                          {!tab.mapped && (
-                            <Button
-                              variant="text"
-                              disabled={!!busy}
-                              onClick={() =>
-                                void run("skip", async () =>
-                                  applyCatalog(
-                                    await serverRequest(
-                                      `${root}/${source.id}/skip`,
-                                      "POST",
-                                      {
-                                        tabId: tab.tabId,
-                                        skipped: !tab.skipped,
-                                      },
-                                    ),
-                                  ),
-                                )
-                              }
-                            >
-                              {tab.skipped ? "Undo skip" : "Skip for now"}
-                            </Button>
+                          {tab.automatic && (
+                            <small className="auto-page-status">
+                              {tab.automatic.status === "needs_review"
+                                ? "Needs a manual check · saved data retained"
+                                : tab.automatic.origin === "ai"
+                                  ? "AI-assisted · validated"
+                                  : tab.automatic.origin === "manual"
+                                    ? "Manually reviewed"
+                                    : tab.automatic.status === "empty"
+                                      ? "No table records found"
+                                      : tab.mapped
+                                        ? "Automatically prepared · validated"
+                                        : "Needs a manual check"}
+                              {tab.automatic.questions?.length
+                                ? ` · ${tab.automatic.questions.length} quick check${tab.automatic.questions.length === 1 ? "" : "s"}`
+                                : ""}
+                            </small>
+                          )}
+                          {tab.automatic?.notes?.map((note, index) => (
+                            <small key={index}>{note}</small>
+                          ))}
+                          {tab.lastSuccess && (
+                            <small>
+                              Checked{" "}
+                              {new Date(tab.lastSuccess).toLocaleString()}
+                            </small>
+                          )}
+                          {tab.changes && (
+                            <small className="source-change">
+                              <RefreshCw size={11} />
+                              {tab.changes.added ||
+                              tab.changes.removed ||
+                              tab.changes.updated
+                                ? `${tab.changes.added} added · ${tab.changes.updated} changed · ${tab.changes.removed} removed`
+                                : "No data changes"}
+                            </small>
+                          )}
+                          {tab.error && (
+                            <p className="source-page-error">{tab.error}</p>
                           )}
                         </div>
-                      ) : (
-                        <span className="source-page-status">
-                          {tab.mapped
-                            ? "Mapped"
-                            : tab.skipped
-                              ? "Skipped"
-                              : "Pending mapping"}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                        {viewSection === "mapping" || phase === "manage" ? (
+                          <div className="source-page-actions">
+                            <Button
+                              variant="secondary"
+                              disabled={!!busy}
+                              onClick={() => void openTab(source, tab)}
+                            >
+                              {tab.mapped ? "Edit mapping" : "Map columns"}
+                              <ChevronRight size={13} />
+                            </Button>
+                            {!tab.mapped && (
+                              <Button
+                                variant="text"
+                                disabled={!!busy}
+                                onClick={() =>
+                                  void run("skip", async () =>
+                                    applyCatalog(
+                                      await serverRequest(
+                                        `${root}/${source.id}/skip`,
+                                        "POST",
+                                        {
+                                          tabId: tab.tabId,
+                                          skipped: !tab.skipped,
+                                        },
+                                      ),
+                                    ),
+                                  )
+                                }
+                              >
+                                {tab.skipped ? "Undo skip" : "Skip for now"}
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="source-page-status">
+                            {tab.mapped
+                              ? "Mapped"
+                              : tab.skipped
+                                ? "Skipped"
+                                : "Pending mapping"}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </article>
             ))}
           </div>
         )}
+      {viewSection === "inventory" && sources.length === 0 && (
+        <div className="source-empty">
+          <FileSpreadsheet size={24} />
+          <h3>No workbooks connected yet.</h3>
+          <p>
+            Connect Google, upload an Excel or CSV workbook, or paste a shared
+            link.
+          </p>
+          <Button onClick={() => setSection("connect")}>
+            Add your first workbook
+          </Button>
+        </div>
+      )}
+      {viewSection === "connect" && visibleSources.length === 0 && (
+        <div className="source-empty" role="status">
+          <FileSpreadsheet size={24} />
+          <h3>
+            {mode === "upload"
+              ? "No uploaded workbooks yet."
+              : mode === "oauth"
+                ? "No Google spreadsheets added yet."
+                : "No URL sources added yet."}
+          </h3>
+          <p>
+            {mode === "upload"
+              ? "Choose an Excel or CSV file above to get started."
+              : "Add a workbook above. Sources added with other methods stay connected."}
+          </p>
+        </div>
+      )}
       {viewSection === "mapping" && sources.length === 0 && (
         <div className="source-empty">
           <Link2 size={25} />
@@ -997,11 +1267,43 @@ export function SourceWorkspace({
             disabled={!!busy}
             onChange={(e) => changeDraft({ department: e.target.value })}
           >
-            <option value="">Choose a department</option>
+            <option value="">Unassigned · choose later</option>
             {departments.map((d) => (
               <option key={d}>{d}</option>
             ))}
           </Select>
+          <div className="source-field-checks" aria-live="polite">
+            {checking ? (
+              <p role="status">
+                Checking all rows against your column choices…
+              </p>
+            ) : conflicts?.total ? (
+              <>
+                <strong>
+                  {conflicts.total} conflicting cell
+                  {conflicts.total === 1 ? "" : "s"} to review
+                </strong>
+                <ul>
+                  {conflicts.issues.map((issue, index) => (
+                    <li key={index}>
+                      Row {issue.row} · {issue.name}: “{issue.value}” —{" "}
+                      {issue.message}
+                    </li>
+                  ))}
+                </ul>
+                <p>
+                  Choose the correct type or date settings below. Text preserves
+                  every original value.
+                </p>
+              </>
+            ) : conflicts?.error ? (
+              <ErrorBox>{conflicts.error}</ErrorBox>
+            ) : conflicts ? (
+              <p>
+                <CheckCircle2 size={14} /> All rows match your column choices.
+              </p>
+            ) : null}
+          </div>
           <p className="source-muted">
             Assign a property to each column. Your column names stay the same.
           </p>
@@ -1012,7 +1314,10 @@ export function SourceWorkspace({
           ) : (
             <div className="source-property-list">
               {activeDraft.inspection.headers.map((name, index) => (
-                <div className="source-property" key={name}>
+                <div
+                  className={`source-property ${conflicts?.issues.some((i) => i.column === index) ? "has-conflict" : ""}`}
+                  key={name}
+                >
                   <div>
                     <strong>{name}</strong>
                     <small>
@@ -1057,7 +1362,26 @@ export function SourceWorkspace({
             <DateFormat
               value={activeDraft.dateFormat}
               disabled={!!busy}
-              onChange={(dateFormat) => changeDraft({ dateFormat })}
+              onChange={(dateFormat) =>
+                changeDraft({ dateFormat, dateFormats: undefined })
+              }
+            />
+          )}
+          {activeDraft.properties.includes("date") && (
+            <Field
+              label="Year for dates without a year"
+              type="number"
+              min={1900}
+              max={9999}
+              value={activeDraft.dateYear ?? ""}
+              hint="For example, Oct 2 needs an explicit year. Dates that already include a year keep their own year."
+              onChange={(e) =>
+                changeDraft({
+                  dateYear: e.target.value ? Number(e.target.value) : undefined,
+                  dateYears: undefined,
+                })
+              }
+              disabled={!!busy}
             />
           )}
           <div className="source-map-actions">
@@ -1067,7 +1391,8 @@ export function SourceWorkspace({
                 !!busy ||
                 drafts.some(
                   (d) =>
-                    !d.department || !d.properties.some((p) => p !== "ignore"),
+                    !d.inspection.headers.length ||
+                    !d.properties.some((p) => p !== "ignore"),
                 )
               }
               onClick={() => void saveMappings()}
@@ -1090,9 +1415,36 @@ export function SourceWorkspace({
         </section>
       )}
       {question && (
-        <Modal title="One quick check" onClose={() => setQuestion(null)}>
+        <Modal
+          title="Review a mapping choice"
+          onClose={() => setQuestion(null)}
+        >
           <ErrorBox>{error}</ErrorBox>
+          <p className="source-muted">
+            {sources.find((s) => s.id === question.sourceId)?.title} /{" "}
+            {
+              sources
+                .find((s) => s.id === question.sourceId)
+                ?.tabs.find((t) => t.tabId === question.tabId)?.title
+            }
+          </p>
           <p>{question.question.message}</p>
+          <Button
+            variant="text"
+            disabled={!!busy}
+            onClick={() => {
+              const source = sources.find((s) => s.id === question.sourceId)!;
+              const tab = source.tabs.find((t) => t.tabId === question.tabId)!;
+              setQuestion(null);
+              if (phase === "connect")
+                nav(
+                  `/companies/${companyId}/onboarding/mapping?source=${source.id}&tab=${tab.tabId}`,
+                );
+              else void openTab(source, tab);
+            }}
+          >
+            Edit this page’s columns
+          </Button>
           <div className="auto-question-options">
             {question.question.choices.map((choice) => (
               <Button

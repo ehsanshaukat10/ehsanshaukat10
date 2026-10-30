@@ -31,7 +31,7 @@ function answerQuestion(question: string, context: string, e: Executive) {
       "There are no validated performance records for this workspace. Configure a source, confirm its field mapping, then investigate a supported metric. Your configured departments and goals are retained.";
     links.push({
       label: "Review data connections",
-      path: e.base + "/settings/connections",
+      path: e.base + "/connections",
     });
     evidence.push(
       `${e.company.data.departments.length} configured departments; ${e.company.data.goals.length} configured goals. These are setup records, not measured performance.`,
@@ -107,7 +107,7 @@ function answerQuestion(question: string, context: string, e: Executive) {
       "The required financial fields are not available in the covered department scope. Reconnect or remap an authorized source before interpreting a change.";
     links.push({
       label: "Review data coverage",
-      path: e.base + "/settings/connections",
+      path: e.base + "/connections",
     });
   } else if (/goal|target|objective/.test(text)) {
     answer = e.company.data.goals.length
@@ -243,7 +243,7 @@ export function Ask({ company }: ModuleProps) {
             links: [
               {
                 label: "Recover data source",
-                path: e.base + "/settings/connections",
+                path: e.base + "/connections",
               },
             ],
           }

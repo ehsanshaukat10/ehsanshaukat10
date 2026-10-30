@@ -165,7 +165,7 @@ export function Goals(props: ModuleProps) {
               }
               action={
                 m.tracking === "Connected" ? (
-                  <Link to={e.link(e.base + "/settings/connections", e.origin)}>
+                  <Link to={e.link(e.base + "/connections", e.origin)}>
                     Review metric mapping <ArrowUpRight size={12} />
                   </Link>
                 ) : undefined

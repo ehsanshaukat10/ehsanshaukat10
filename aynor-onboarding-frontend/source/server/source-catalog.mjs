@@ -21,6 +21,10 @@ import {
   profileColumns,
   validateTable,
   tableSummary,
+  mappingConflicts,
+  financialCurrency,
+  isYearlessDate,
+  parseDate,
 } from "../shared/table-data.mjs";
 const digest = (value) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -196,6 +200,7 @@ export function createSourceCatalog({
       id: source.id,
       mode: source.mode,
       title: source.title,
+      department: source.department || "",
       url: source.url,
       lastSuccess: source.lastSuccess || null,
       error: source.error || null,
@@ -204,7 +209,7 @@ export function createSourceCatalog({
       tabs: source.tabs.map((tab) => ({
         tabId: tab.tabId,
         title: tab.title,
-        department: tab.department || "",
+        department: tab.department ?? source.department ?? "",
         mapped: !!(tab.table || tab.financial),
         skipped: !!tab.skipped,
         rowCount: tab.table?.rowCount || tab.financial?.rowCount || 0,
@@ -212,7 +217,14 @@ export function createSourceCatalog({
         error: tab.error || null,
         lastSuccess: tab.lastSuccess || null,
         changes: tab.changes || null,
-        automatic: tab.automatic || null,
+        automatic: tab.automatic
+          ? {
+              ...tab.automatic,
+              questions: (tab.automatic.questions || []).filter(
+                (q) => q.kind !== "department",
+              ),
+            }
+          : null,
       })),
     };
   }
@@ -284,7 +296,7 @@ export function createSourceCatalog({
         tabs.every((t) => t.table || t.financial || t.skipped),
       needsReviewCount: tabs.filter(
         (t) =>
-          t.automatic?.questions?.length ||
+          t.automatic?.questions?.some((q) => q.kind !== "department") ||
           t.automatic?.status === "needs_review" ||
           (!t.table && !t.financial && !t.skipped),
       ).length,
@@ -325,14 +337,55 @@ export function createSourceCatalog({
       return values;
     }
     if (source.mode === "public") return google.publicRows(source.url);
-    return (
+    const range =
+      "'" + tab.title.replaceAll("'", "''") + `'!A1:BA${preview ? 101 : 10101}`;
+    const values =
       (
         await google.read(
           company,
-          `${source.spreadsheet}/values/${encodeURIComponent("'" + tab.title.replaceAll("'", "''") + `'!A1:BA${preview ? 101 : 10101}`)}?valueRenderOption=FORMATTED_VALUE`,
+          `${source.spreadsheet}/values/${encodeURIComponent(range)}?valueRenderOption=FORMATTED_VALUE`,
         )
-      ).values || []
-    );
+      ).values || [];
+    // A Google date can display "Oct 2" while its stored value includes a year.
+    // Read typed date cells instead of inventing that missing display information.
+    if (
+      values.some((row) =>
+        row.some(
+          (value) =>
+            isYearlessDate(value) ||
+            /^\d{1,2}[-/.]\d{1,2}[-/.]\d{4}(?: |$)/.test(String(value).trim()),
+        ),
+      )
+    ) {
+      const grid = await google
+        .read(
+          company,
+          `${source.spreadsheet}?ranges=${encodeURIComponent(range)}&includeGridData=true&fields=sheets(data(startRow,startColumn,rowData(values(effectiveValue(numberValue),effectiveFormat(numberFormat(type))))))`,
+        )
+        .catch(() => null);
+      // Metadata is optional. If unavailable, preserve the authenticated values
+      // and ask for the missing year/order instead of failing the whole import.
+      for (const sheet of grid?.sheets || [])
+        for (const block of sheet.data || []) {
+          (block.rowData || []).forEach((row, i) =>
+            (row.values || []).forEach((cell, j) => {
+              if (
+                !["DATE", "DATE_TIME"].includes(
+                  cell.effectiveFormat?.numberFormat?.type,
+                ) ||
+                typeof cell.effectiveValue?.numberValue !== "number"
+              )
+                return;
+              const value = parseDate(cell.effectiveValue.numberValue, "excel");
+              const rowIndex = (block.startRow || 0) + i,
+                column = (block.startColumn || 0) + j;
+              if (value && values[rowIndex] && column < 52)
+                values[rowIndex][column] = value;
+            }),
+          );
+        }
+    }
+    return values;
   }
   function getSource(catalog, id) {
     const s = catalog.sources.find((s) => s.id === id);
@@ -378,17 +431,27 @@ export function createSourceCatalog({
       throw Error(
         "Column names or their order changed. Review this page’s mapping before syncing. Your previous data is retained.",
       );
-    if (props.includes("money_in") && props.includes("money_out"))
+    if (props.includes("money_in") && props.includes("money_out")) {
+      table.currency = financialCurrency(
+        values,
+        headers,
+        props,
+        config.headerRow,
+      );
       table.financial = aggregate(
         validateRows(values, {
           date: headers[props.indexOf("date")],
           revenue: headers[props.indexOf("money_in")],
           expenses: headers[props.indexOf("money_out")],
           _headerRow: String(config.headerRow),
-          _dateFormat: config.dateFormat,
+          _dateFormat:
+            config.dateFormats?.[props.indexOf("date")] || config.dateFormat,
+          _dateYear:
+            config.dateYears?.[props.indexOf("date")] || config.dateYear,
         }),
         "all",
       );
+    }
     return table;
   }
   async function overview(company, actor, period) {
@@ -423,9 +486,26 @@ export function createSourceCatalog({
     }
     for (const source of state.catalog.sources)
       for (const tab of source.tabs) {
-        if (tab.table)
+        if (tab.table) {
+          let currency = tab.table.currency,
+            financial = tab.table.financial,
+            financialWarning;
+          if (financial && !currency)
+            try {
+              currency = financialCurrency(
+                [tab.table.headers, ...tab.table.rows],
+                tab.table.headers,
+                [],
+              );
+            } catch (error) {
+              financial = undefined;
+              financialWarning = error.message;
+            }
           tables.push({
             ...tab.table,
+            financial,
+            currency,
+            financialWarning,
             parentTitle: source.title,
             department: tab.department || "",
             sourceId: source.id,
@@ -434,7 +514,7 @@ export function createSourceCatalog({
             changes: tab.changes,
             error: tab.error,
           });
-        else if (tab.financial) {
+        } else if (tab.financial) {
           const data = aggregate(tab.financial, period || "all");
           tables.push({
             title: tab.title,
@@ -527,7 +607,9 @@ export function createSourceCatalog({
             workbook: body.sheets.map((s, i) => ({ tabId: i, values: s.rows })),
           };
         } else fail(400, "Choose a connection method.");
-        let selectedId = source.id;
+        let selectedId = source.id,
+          duplicate = false,
+          unchanged = false;
         await mutate(company, actor, async (catalog) => {
           const existing = catalog.sources.find(
             (s) =>
@@ -539,7 +621,12 @@ export function createSourceCatalog({
                   : s.title === source.title),
           );
           if (existing) {
+            duplicate = true;
+            unchanged =
+              !source.workbook ||
+              digest(existing.workbook) === digest(source.workbook);
             selectedId = existing.id;
+            if (unchanged) return;
             const old = new Map(existing.tabs.map((t) => [t.tabId, t]));
             existing.tabs = source.tabs.map((t) => ({
               ...t,
@@ -574,7 +661,12 @@ export function createSourceCatalog({
             catalog.sources.push(source);
           }
         });
-        return { ...(await list(company, actor)), selectedId };
+        return {
+          ...(await list(company, actor)),
+          selectedId,
+          duplicate,
+          unchanged,
+        };
       }
       if (action === "prepare" && method === "POST") {
         const membership = await member(company, actor, true),
@@ -634,6 +726,7 @@ export function createSourceCatalog({
                 title: tab.title,
                 tabId: tab.tabId,
                 departments,
+                parentTitle: source.title,
               });
               if (plan.status === "empty") {
                 tab.skipped = true;
@@ -664,7 +757,7 @@ export function createSourceCatalog({
           const uncertain = candidates
             .filter(
               (c) =>
-                c.plan.questions.some((q) => q.kind === "department") ||
+                (!c.plan.department && departments.length > 0) ||
                 (!c.plan.properties.includes("money_in") &&
                   c.plan.headers.some((h) =>
                     /receipts|outflow|turnover|gross|net|amount|cost/i.test(h),
@@ -701,7 +794,9 @@ export function createSourceCatalog({
               tab.changes = changes(tab.table, prepared.table);
               tab.table = prepared.table;
               tab.config = prepared.config;
-              tab.department = prepared.config.department;
+              tab.department = source.department ?? prepared.config.department;
+              prepared.config.department = tab.department;
+              prepared.plan.department = tab.department;
               tab.skipped = false;
               tab.error = null;
               tab.lastSuccess = Date.now();
@@ -775,6 +870,62 @@ export function createSourceCatalog({
         });
         return list(company, actor);
       }
+      if (action === "department" && method === "POST") {
+        const membership = await member(company, actor, true);
+        const department = body.department || "";
+        if (
+          department &&
+          !membership.company.data.departments.includes(department)
+        )
+          fail(422, "Choose one of your workspace departments.");
+        await mutate(company, actor, async (catalog) => {
+          const source = getSource(catalog, id);
+          source.department = department;
+          for (const tab of source.tabs) {
+            tab.department = department;
+            if (tab.config) tab.config.department = department;
+            if (tab.automatic) {
+              tab.automatic.department = department;
+              tab.automatic.questions = (tab.automatic.questions || []).filter(
+                (q) => q.kind !== "department",
+              );
+            }
+          }
+        });
+        return list(company, actor);
+      }
+      if (action === "check" && method === "POST") {
+        const state = await read(company, actor),
+          source = getSource(state.catalog, id);
+        const tab = source.tabs.find((t) => t.tabId === body.tabId);
+        if (!tab) fail(404, "Worksheet not found.");
+        const values = await rows(company, source, tab);
+        const config = { ...body, headerRow: body.headerRow ?? 0 };
+        if (
+          !Number.isInteger(config.headerRow) ||
+          config.headerRow < 0 ||
+          config.headerRow > 99
+        )
+          fail(422, "Choose a valid header row.");
+        const result = mappingConflicts(values, config, columns);
+        let error = "";
+        if (!result.total)
+          try {
+            validateTable(
+              values,
+              {
+                ...config,
+                types: (body.properties || []).map((p) =>
+                  ["money_in", "money_out"].includes(p) ? "currency" : p,
+                ),
+              },
+              columns,
+            );
+          } catch (e) {
+            error = e.message;
+          }
+        return { ...result, error };
+      }
       if (action === "inspect" && method === "POST")
         return inspect(company, actor, id, body.tabId, body.headerRow);
       if (action === "skip" && method === "POST") {
@@ -807,7 +958,7 @@ export function createSourceCatalog({
               continue;
             }
             try {
-              if (!departments.includes(config.department))
+              if (config.department && !departments.includes(config.department))
                 throw Error("Choose one of your workspace departments.");
               const values = await rows(company, source, tab);
               const props = config.properties;
@@ -820,9 +971,36 @@ export function createSourceCatalog({
                 title: tab.title,
                 headerRow: config.headerRow ?? 0,
                 dateFormat: config.dateFormat || "ymd",
+                dateYear: config.dateYear,
+                dateYears: config.dateYears,
+                dateFormats: config.dateFormats,
                 types,
                 headers: columns(values.slice(config.headerRow ?? 0)),
               };
+              if (
+                config.dateYear !== undefined &&
+                (!Number.isInteger(config.dateYear) ||
+                  config.dateYear < 1900 ||
+                  config.dateYear > 9999)
+              )
+                throw Error("Choose a year between 1900 and 9999.");
+              const conflicts = mappingConflicts(
+                values,
+                { ...clean, properties: props },
+                columns,
+              );
+              if (conflicts.total)
+                throw Error(
+                  conflicts.issues
+                    .map(
+                      (i) =>
+                        `Row ${i.row}, “${i.name}”: “${i.value}” — ${i.message}`,
+                    )
+                    .join("\n") +
+                    (conflicts.total > 50
+                      ? `\n${conflicts.total} conflicting cells in total.`
+                      : ""),
+                );
               const table = validateTable(values, clean, columns);
               let financial;
               const headers = columns(values.slice(clean.headerRow));
@@ -841,13 +1019,21 @@ export function createSourceCatalog({
                   throw Error(
                     "For financial charts, assign Date, Money in and Money out once each. Otherwise choose Currency or Number.",
                   );
+                table.currency = financialCurrency(
+                  values,
+                  headers,
+                  props,
+                  clean.headerRow,
+                );
                 financial = aggregate(
                   validateRows(values, {
                     date: headers[dateIndex],
                     revenue: headers[revenueIndex],
                     expenses: headers[expenseIndex],
                     _headerRow: String(clean.headerRow),
-                    _dateFormat: clean.dateFormat,
+                    _dateFormat:
+                      clean.dateFormats?.[dateIndex] || clean.dateFormat,
+                    _dateYear: clean.dateYears?.[dateIndex] || clean.dateYear,
                   }),
                   "all",
                 );
@@ -859,7 +1045,7 @@ export function createSourceCatalog({
                 config: {
                   ...clean,
                   properties: props,
-                  department: config.department,
+                  department: config.department || "",
                 },
               });
             } catch (e) {

@@ -30,6 +30,7 @@ import {
   Sparkles,
   Users,
   Settings2,
+  Database,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useEffect, useState, type FocusEvent, type MouseEvent } from "react";
@@ -223,7 +224,7 @@ export function Workspace({
           {
             title: "Field mappings need review",
             detail: `${company.data.mappings.filter((m) => !m.confirmed && !m.ignored).length} fields awaiting confirmation.`,
-            path: `/companies/${id}/settings/connections`,
+            path: `/companies/${id}/connections`,
           },
         ]
       : []),
@@ -472,6 +473,7 @@ export function Workspace({
             ["goals", "Goals", Target],
             ["risks", "Actions", CircleAlert],
             ["ask", "Ask Aynor", MessageSquare],
+            ["connections", "Data connections", Database],
           ].map(([section, label, Icon]) => {
             const I = Icon as typeof Building2;
             return (

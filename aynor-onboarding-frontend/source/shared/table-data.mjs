@@ -19,33 +19,103 @@ export function parseNumber(value) {
   const n = Number(raw.replaceAll(",", ""));
   return Number.isFinite(n) && Math.abs(n) <= 1e12 ? n : null;
 }
-export function parseDate(value, format = "ymd") {
+const months = [
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+];
+function namedDate(raw) {
+  const text = raw
+    .toLowerCase()
+    .replace(/(\d)(st|nd|rd|th)\b/g, "$1")
+    .replace(/,/g, "")
+    .replace(/([a-z])\./g, "$1")
+    .replace(/[-/]/g, " ")
+    .replace(/\s+/g, " ");
+  const match =
+    text.match(/^([a-z]+) (\d{1,2})(?: (\d{4}))?$/) ||
+    text.match(/^(\d{1,2}) ([a-z]+)(?: (\d{4}))?$/);
+  if (!match) return null;
+  const month = /^\d/.test(match[1]) ? match[2] : match[1];
+  const index = months.findIndex(
+    (m) =>
+      m === month ||
+      m.slice(0, 3) === month ||
+      (m === "september" && month === "sept"),
+  );
+  return index < 0
+    ? null
+    : {
+        m: index + 1,
+        d: Number(/^\d/.test(match[1]) ? match[1] : match[2]),
+        y: match[3],
+      };
+}
+export function isYearlessDate(value) {
+  const raw = String(value ?? "").trim();
+  const named = namedDate(raw);
+  return !!(named && !named.y) || /^\d{1,2}[-/.]\d{1,2}$/.test(raw);
+}
+export function parseDate(value, format = "ymd", year) {
   const raw = String(value ?? "")
     .trim()
     .replace(/[\u200e\u200f]/g, "");
-  if (format === "excel") {
+  if (format === "excel" && /^\d+(?:\.\d+)?$/.test(raw)) {
     const n = Number(raw);
-    if (!raw || !Number.isFinite(n) || n < 1 || n > 2958465) return null;
-    if (Math.floor(n) === 60) return null; // Excel's fictional 1900-02-29 is not a real date.
+    if (
+      !raw ||
+      !Number.isFinite(n) ||
+      n < 1 ||
+      n > 2958465 ||
+      Math.floor(n) === 60
+    )
+      return null;
     return new Date(
       Date.UTC(1899, 11, 30) + (Math.floor(n) + (n < 60 ? 1 : 0)) * 86400000,
     )
       .toISOString()
       .slice(0, 10);
   }
+  const clock = raw.match(
+    /[T ](\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?: ?([AP]M))?/i,
+  );
+  if (
+    clock &&
+    (Number(clock[1]) > (clock[4] ? 12 : 23) ||
+      (clock[4] && Number(clock[1]) < 1) ||
+      Number(clock[2]) > 59 ||
+      Number(clock[3] || 0) > 59)
+  )
+    return null;
   if (raw.includes("T") && !Number.isFinite(Date.parse(raw))) return null;
   let y, m, d;
   const iso = raw.match(
-    /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))?$/,
+    /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/,
   );
+  const named = namedDate(raw);
   if (iso) [, y, m, d] = iso;
+  else if (named) ({ y, m, d } = named);
   else {
-    const parts = raw.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+    const parts = raw.match(
+      /^(\d{1,2})[-/.](\d{1,2})(?:[-/.](\d{4}))?(?: \d{1,2}:\d{2}(?::\d{2})?(?: ?[AP]M)?)?$/i,
+    );
     if (!parts || !["dmy", "mdy"].includes(format)) return null;
     y = parts[3];
     m = parts[format === "dmy" ? 2 : 1];
     d = parts[format === "dmy" ? 1 : 2];
   }
+  y ||= year;
+  if (!/^\d{4}$/.test(String(y)) || Number(y) < 1900 || Number(y) > 9999)
+    return null;
   const result = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
   return Number.isFinite(Date.parse(result)) &&
     new Date(result).toISOString().slice(0, 10) === result
@@ -167,12 +237,16 @@ export function validateTable(values, config, columns) {
       } else {
         const result =
           c.type === "date"
-            ? parseDate(value, config.dateFormat)
+            ? parseDate(
+                value,
+                config.dateFormats?.[c.index] || config.dateFormat,
+                config.dateYears?.[c.index] || config.dateYear,
+              )
             : parseNumber(value);
         if (result !== null) return result;
       }
       throw Error(
-        `Row ${rowNumber}, “${c.name}”: “${String(value).slice(0, 60)}” is not ${c.type === "date" ? "a date in your chosen format" : "a valid " + c.type + " value"}. Change its type or date format; your existing report is unchanged.`,
+        `Row ${rowNumber}, “${c.name}”: “${String(value).slice(0, 60)}” is not ${c.type === "date" ? (isYearlessDate(value) && !config.dateYear ? "a complete date: choose the year for dates without a year" : "a date in your chosen format") : "a valid " + c.type + " value"}. Change its type or date format; your existing report is unchanged.`,
       );
     }),
   );
@@ -194,6 +268,49 @@ export function validateTable(values, config, columns) {
     rows: normalized,
     rowCount: normalized.length,
   };
+}
+// Inspect every row and every field, rather than reporting only the first failure.
+export function mappingConflicts(values, config, columns) {
+  const headers = columns(values.slice(config.headerRow ?? 0));
+  const issues = [];
+  let total = 0;
+  values.slice((config.headerRow ?? 0) + 1).forEach((row, offset) => {
+    headers.forEach((name, column) => {
+      const type =
+        config.properties?.[column] || config.types?.[column] || "text";
+      const value = row[column];
+      if (!String(value ?? "").trim() || ["ignore", "text"].includes(type))
+        return;
+      const valid =
+        type === "date"
+          ? parseDate(
+              value,
+              config.dateFormats?.[column] || config.dateFormat,
+              config.dateYears?.[column] || config.dateYear,
+            ) !== null
+          : type === "boolean"
+            ? /^(true|false|yes|no)$/i.test(String(value))
+            : parseNumber(value) !== null;
+      if (!valid) {
+        total++;
+        if (issues.length < 50)
+          issues.push({
+            row: offset + (config.headerRow ?? 0) + 2,
+            column,
+            name,
+            value: String(value).slice(0, 100),
+            message:
+              type === "date" &&
+              isYearlessDate(value) &&
+              !config.dateYear &&
+              !config.dateYears?.[column]
+                ? "Choose the year for dates without a year."
+                : `Does not match ${type === "date" ? "the selected date format" : type}.`,
+          });
+      }
+    });
+  });
+  return { issues, total };
 }
 export function validateRelationships(tables, configs, relationships = []) {
   if (!Array.isArray(relationships) || relationships.length > 20)
@@ -267,4 +384,41 @@ export function tableSummary(snapshot) {
       }),
     })),
   };
+}
+export function financialCurrency(values, headers, properties, headerRow = 0) {
+  const index = headers.findIndex((h) =>
+    /^currency(?: code)?$/i.test(h.trim()),
+  );
+  const currencies = new Set();
+  const financialColumns = properties
+    .map((p, i) => (["money_in", "money_out"].includes(p) ? i : -1))
+    .filter((i) => i >= 0);
+  for (const row of values.slice(headerRow + 1)) {
+    if (!row.some((v) => String(v ?? "").trim())) continue;
+    if (index >= 0) {
+      const value = String(row[index] ?? "")
+        .trim()
+        .toUpperCase();
+      if (!/^[A-Z]{3}$/.test(value))
+        throw Error(
+          "A financial row has a missing or invalid currency code. Keep these amounts as ordinary Currency values until each row has a currency.",
+        );
+      currencies.add(value);
+    }
+    for (const i of financialColumns) {
+      const raw = String(row[i] ?? "").trim();
+      const code = raw
+        .match(/^(USD|EUR|GBP|PKR|INR|AED)\b/i)?.[1]
+        ?.toUpperCase();
+      const symbol = raw.match(/[$€£₹₨]/)?.[0];
+      if (code) currencies.add(code);
+      else if (symbol && ["€", "£", "₹"].includes(symbol))
+        currencies.add({ "€": "EUR", "£": "GBP", "₹": "INR" }[symbol]);
+    }
+  }
+  if (currencies.size > 1)
+    throw Error(
+      "Financial totals are withheld because this table contains multiple currencies. Keep these columns as Currency, or split the currencies into separate pages. No conversion was assumed.",
+    );
+  return [...currencies][0];
 }

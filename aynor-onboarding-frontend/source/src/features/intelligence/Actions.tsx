@@ -148,7 +148,7 @@ export function Actions({ company }: ModuleProps) {
                     ? "This recommendation is no longer flagged by current records. Your decision and historical evidence are retained."
                     : "Supporting source records are unavailable. The saved decision and historical evidence are retained."
                   : "Evidence has changed or become stale. Recheck it before acting; your previous decision has not been overwritten."}
-                <Link to={e.link(e.base + "/settings/connections", e.origin)}>
+                <Link to={e.link(e.base + "/connections", e.origin)}>
                   Review source <ArrowUpRight size={12} />
                 </Link>
               </div>
@@ -441,7 +441,7 @@ export function Actions({ company }: ModuleProps) {
               ) : (
                 <Link
                   className="button secondary"
-                  to={e.link(e.base + "/settings/connections", e.origin)}
+                  to={e.link(e.base + "/connections", e.origin)}
                 >
                   Review source data
                 </Link>

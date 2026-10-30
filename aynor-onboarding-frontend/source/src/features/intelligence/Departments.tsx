@@ -70,7 +70,7 @@ export function Departments(props: ModuleProps) {
             title="No mapped measure"
             text="This measure is not available in the selected department."
             action={
-              <Link to={e.link(e.base + "/settings/connections", e.origin)}>
+              <Link to={e.link(e.base + "/connections", e.origin)}>
                 Review mapping <ArrowUpRight size={12} />
               </Link>
             }
@@ -105,7 +105,7 @@ export function Departments(props: ModuleProps) {
               action={
                 <Link
                   className="button secondary"
-                  to={e.link(e.base + "/settings/connections", e.origin)}
+                  to={e.link(e.base + "/connections", e.origin)}
                 >
                   Review data
                 </Link>
@@ -242,7 +242,7 @@ export function Departments(props: ModuleProps) {
             action={
               <Link
                 className="button secondary"
-                to={e.link(e.base + "/settings/connections", e.origin)}
+                to={e.link(e.base + "/connections", e.origin)}
               >
                 Review mapping
               </Link>
@@ -278,7 +278,7 @@ export function Departments(props: ModuleProps) {
               title="No related records"
               text="No validated project relationships are available for this department."
               action={
-                <Link to={e.link(e.base + "/settings/connections", e.origin)}>
+                <Link to={e.link(e.base + "/connections", e.origin)}>
                   Review data <ArrowUpRight size={12} />
                 </Link>
               }

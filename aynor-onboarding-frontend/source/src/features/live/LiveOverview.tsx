@@ -1,4 +1,5 @@
-import { TableOverview, type TableReport } from "./TableOverview";
+import { type TableReport } from "./TableOverview";
+import { BusinessOverview } from "./BusinessOverview";
 import { Select } from "./LiveSelect";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -34,7 +35,7 @@ export function LiveOverview({ company }: { company: Company }) {
     [period, setPeriod] = useState("quarter"),
     [report, setReport] = useState<Overview | null>(null),
     [error, setError] = useState(""),
-    [busy, setBusy] = useState(false),
+    [busy, setBusy] = useState(true),
     [revision, setRevision] = useState(0),
     [selected, setSelected] = useState(0);
   const base = `/companies/${company.id}`;
@@ -47,17 +48,16 @@ export function LiveOverview({ company }: { company: Company }) {
     setBusy(true);
     serverRequest<Overview>(base + "/sheets/overview?period=" + period)
       .then((value) => {
-        if (
-          active &&
-          !(source?.status === "syncing" && !value.data && report)
-        ) {
-          setReport(
-            (value.data as unknown as TableReport)?.kind === "tables"
-              ? {
-                  data: null,
-                  tableReport: value.data as unknown as TableReport,
-                }
-              : value,
+        if (active) {
+          setReport((previous) =>
+            source?.status === "syncing" && !value.data && previous
+              ? previous
+              : (value.data as unknown as TableReport)?.kind === "tables"
+                ? {
+                    data: null,
+                    tableReport: value.data as unknown as TableReport,
+                  }
+                : value,
           );
           setError("");
           setSelected(0);
@@ -151,17 +151,21 @@ export function LiveOverview({ company }: { company: Company }) {
                   new Date(source.lastSuccess).toLocaleString()
                 : "No validated source yet"}
         </span>
-        <Link to={base + "/settings/connections"}>
+        <Link to={base + "/connections"}>
           Manage data <ArrowUpRight size={13} />
         </Link>
       </div>
       {source?.error && <ErrorBox>{source.error}</ErrorBox>}
       {report?.tableReport ? (
-        <TableOverview
+        <BusinessOverview
           report={report.tableReport}
           companyId={company.id}
           currency={company.currency || "USD"}
         />
+      ) : busy && !report ? (
+        <Panel title="Loading your business overview">
+          <p role="status">Reading your last saved report…</p>
+        </Panel>
       ) : !data || !points.length ? (
         <Panel
           title={
@@ -175,10 +179,7 @@ export function LiveOverview({ company }: { company: Company }) {
               ? `The source contains ${data.recordsAvailable} records, but none fall between ${data.start} and ${data.endExclusive} (exclusive). Choose a different period or update the source dates.`
               : "Connect Google, upload an Excel or CSV file, or paste a shared sheet URL. Map your columns to see your real metrics here."}
           </p>
-          <Link
-            className="button secondary"
-            to={base + "/settings/connections"}
-          >
+          <Link className="button secondary" to={base + "/connections"}>
             Connect data <ArrowUpRight size={14} />
           </Link>
         </Panel>

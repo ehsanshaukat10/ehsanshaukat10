@@ -135,6 +135,8 @@ export function SevenStepOnboarding({
     [url, setUrl] = useState(""),
     [working, setWorking] = useState(false),
     [sourceWorking, setSourceWorking] = useState(false),
+    [sourceEditing, setSourceEditing] = useState(false),
+    [sourceBack, setSourceBack] = useState(0),
     [consent, setConsent] = useState(false),
     [pending, setPending] = useState("");
   const [goal, setGoal] = useState(freshGoal),
@@ -147,7 +149,7 @@ export function SevenStepOnboarding({
     returnKind === "overview"
       ? `/companies/${company.id}/overview`
       : returnKind === "settings-connections"
-        ? `/companies/${company.id}/settings/connections`
+        ? `/companies/${company.id}/connections`
         : returnKind === "settings-departments"
           ? `/companies/${company.id}/settings/departments`
           : returnKind === "settings-profile"
@@ -532,6 +534,8 @@ export function SevenStepOnboarding({
         <SourceWorkspace
           companyId={company.id}
           onBusyChange={setSourceWorking}
+          onEditingChange={setSourceEditing}
+          backRequest={sourceBack}
           phase={step === "integrations" ? "connect" : "mapping"}
         />
       )}
@@ -1202,6 +1206,10 @@ export function SevenStepOnboarding({
               variant="text"
               disabled={busy || working || sourceWorking}
               onClick={async () => {
+                if (sourceEditing) {
+                  setSourceBack((v) => v + 1);
+                  return;
+                }
                 if (overviewEdit) {
                   nav(returnRoute!);
                   return;

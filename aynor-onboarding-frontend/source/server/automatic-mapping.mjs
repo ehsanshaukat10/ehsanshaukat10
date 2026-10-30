@@ -3,10 +3,12 @@ import {
   suggestHeader,
   profileColumns,
   parseDate,
+  isYearlessDate,
+  financialCurrency,
   parseNumber,
   validateTable,
 } from "../shared/table-data.mjs";
-export const AUTO_VERSION = 1;
+export const AUTO_VERSION = 2;
 const idColumn =
   /\b(id|identifier|code|phone|telephone|zip|postcode|account number|sku)\b/i;
 const dateColumn =
@@ -57,7 +59,7 @@ function dateOrder(values) {
   for (const value of values) {
     const m = String(value)
       .trim()
-      .match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+      .match(/^(\d{1,2})[-/.](\d{1,2})(?:[-/.](\d{4}))?$/);
     if (!m) continue;
     if (Number(m[1]) > 12) day = true;
     else if (Number(m[2]) > 12) month = true;
@@ -73,7 +75,10 @@ function dateOrder(values) {
           ? "ambiguous"
           : "ymd";
 }
-export function detectTable(values, { title, tabId, departments = [] }) {
+export function detectTable(
+  values,
+  { title, tabId, departments = [], parentTitle = "" },
+) {
   const headerRow = suggestHeader(values),
     sliced = values.slice(headerRow);
   if (
@@ -134,6 +139,34 @@ export function detectTable(values, { title, tabId, departments = [] }) {
       return "text";
     }
     if (dateColumn.test(p.name) && values.length) {
+      if (values.some(isYearlessDate)) {
+        const explicitYear = Number(
+          (parentTitle + " " + title).match(/\b(20\d{2})\b/)?.[1],
+        );
+        const year = explicitYear || new Date().getUTCFullYear();
+        questions.push({
+          id: `year:${index}`,
+          kind: "date_year",
+          column: index,
+          message: `“${p.name}” has dates without a year. Which year should these dates use? Original values stay as text until you choose.`,
+          choices: [...new Set([year, year - 1, year + 1])]
+            .map((n) => ({ value: String(n), label: String(n) }))
+            .concat([{ value: "text", label: "Keep original text" }]),
+        });
+        if (orders[index] === "ambiguous")
+          questions.push({
+            id: `date:${index}`,
+            kind: "date_order",
+            column: index,
+            message: `Which date order does “${p.name}” use?`,
+            choices: [
+              { value: "dmy", label: "Day / month / year" },
+              { value: "mdy", label: "Month / day / year" },
+              { value: "text", label: "Keep the original text" },
+            ],
+          });
+        return "text";
+      }
       if (orders[index] === "ambiguous") {
         questions.push({
           id: `date:${index}`,
@@ -153,6 +186,16 @@ export function detectTable(values, { title, tabId, departments = [] }) {
         return "text";
       }
       if (values.every((v) => parseDate(v, dateFormat) !== null)) return "date";
+      if (values.some((v) => parseDate(v, dateFormat) !== null)) {
+        questions.push({
+          id: `invalid-date:${index}`,
+          kind: "column_type",
+          column: index,
+          message: `“${p.name}” mixes dates with values that cannot be read as dates. Review this column in Edit mapping, or keep every value as text.`,
+          choices: [{ value: "text", label: "Keep original text" }],
+        });
+        return "text";
+      }
     }
     let type = p.type;
     if (
@@ -175,16 +218,6 @@ export function detectTable(values, { title, tabId, departments = [] }) {
     return type;
   });
   const department = departmentFor(title, headers, departments);
-  if (!department && departments.length)
-    questions.push({
-      id: "department",
-      kind: "department",
-      message: `Which team owns “${title}”?`,
-      choices: [
-        ...departments.map((value) => ({ value, label: value })),
-        { value: "", label: "Leave unassigned for now" },
-      ],
-    });
   const ambiguousSales = headers.some((h) =>
     /payment status|paid|tax|currency|refund|invoice (?:amount|total)|invoiced/i.test(
       h,
@@ -273,6 +306,9 @@ export function finalizePlan(values, proposal, departments) {
     department: plan.department || "",
     properties: plan.properties,
     dateFormat: plan.dateFormat,
+    dateYear: plan.dateYear,
+    dateYears: plan.dateYears,
+    dateFormats: plan.dateFormats,
     types: plan.properties.map((p) =>
       ["money_in", "money_out"].includes(p) ? "currency" : p,
     ),
@@ -293,13 +329,23 @@ export function finalizePlan(values, proposal, departments) {
         "Financial roles need one date, one revenue and one expense column.",
       );
     try {
+      table.currency = financialCurrency(
+        values,
+        headers,
+        plan.properties,
+        plan.headerRow,
+      );
       table.financial = aggregate(
         validateRows(values, {
           date: headers[plan.properties.indexOf("date")],
           revenue: headers[plan.properties.indexOf("money_in")],
           expenses: headers[plan.properties.indexOf("money_out")],
           _headerRow: String(plan.headerRow),
-          _dateFormat: plan.dateFormat,
+          _dateFormat:
+            plan.dateFormats?.[plan.properties.indexOf("date")] ||
+            plan.dateFormat,
+          _dateYear:
+            plan.dateYears?.[plan.properties.indexOf("date")] || plan.dateYear,
         }),
         "all",
       );
@@ -324,23 +370,30 @@ export function applyAnswer(plan, id, value, values, departments) {
   if (!question || !question.choices.some((c) => c.value === value))
     throw Error("Choose one of the available answers.");
   if (question.kind === "department") result.department = value;
-  else if (question.kind === "date_order") {
+  else if (question.kind === "date_year") {
     if (value !== "text") {
-      const incompatible = result.properties.some(
-        (p, i) =>
-          p === "date" &&
-          i !== question.column &&
-          result.dateFormat !== value &&
-          values.slice(result.headerRow + 1).some((row) => {
-            const v = row[i];
-            return String(v ?? "").trim() && !parseDate(v, value);
-          }),
-      );
-      if (incompatible)
-        throw Error(
-          "These date columns use different orders. Use manual editing to keep the conflicting column as text.",
-        );
-      result.properties[question.column] = "date";
+      result.dateYears = {
+        ...result.dateYears,
+        [question.column]: Number(value),
+      };
+      if (
+        !result.questions.some(
+          (q) => q.kind === "date_order" && q.column === question.column,
+        )
+      )
+        result.properties[question.column] = "date";
+    }
+  } else if (question.kind === "column_type") {
+    result.properties[question.column] = "text";
+  } else if (question.kind === "date_order") {
+    if (value !== "text") {
+      if (
+        !result.questions.some(
+          (q) => q.kind === "date_year" && q.column === question.column,
+        )
+      )
+        result.properties[question.column] = "date";
+      result.dateFormats = { ...result.dateFormats, [question.column]: value };
       result.dateFormat = value;
     }
   } else if (question.kind === "financial" && value === "recorded") {
@@ -363,7 +416,17 @@ export function applyAnswer(plan, id, value, values, departments) {
     result.properties[ri] = "money_in";
     result.properties[ei] = "money_out";
   }
-  result.questions = result.questions.filter((q) => q.id !== id);
+  result.questions = result.questions.filter(
+    (q) =>
+      q.id !== id &&
+      !(
+        value === "text" &&
+        q.column === question.column &&
+        ["date_year", "date_order"].includes(q.kind)
+      ),
+  );
+  if (value === "text" && question.column !== undefined)
+    result.properties[question.column] = "text";
   if (
     question.kind === "date_order" &&
     value !== "text" &&
@@ -448,7 +511,11 @@ export function mergeAiSuggestion(base, suggestion, values, departments) {
     )
       return "text";
     if (
-      base.questions.some((q) => q.kind === "date_order" && q.column === index)
+      base.questions.some(
+        (q) =>
+          ["date_order", "date_year", "column_type"].includes(q.kind) &&
+          q.column === index,
+      )
     )
       return "text";
     // Excluding user data or assigning financial roles requires a manual choice.

@@ -318,7 +318,7 @@ export function createServerlessSheets({
           pending.company_id +
           (["integrations", "mapping"].includes(destination)
             ? "/onboarding/" + destination
-            : "/settings/connections");
+            : "/connections");
         if (url.searchParams.has("error"))
           return redirect(back + "?google=cancelled");
         try {
@@ -370,7 +370,7 @@ export function createServerlessSheets({
         }
       }
       const catalogRoute = path.match(
-        /^\/companies\/([a-f0-9-]{36})\/sources(?:\/([a-z0-9-]+)(?:\/(inspect|map|sync|skip|prepare|answer))?)?$/i,
+        /^\/companies\/([a-f0-9-]{36})\/sources(?:\/([a-z0-9-]+)(?:\/(inspect|map|sync|skip|prepare|answer|check|department))?)?$/i,
       );
       if (catalogRoute) {
         const [, company, id, action] = catalogRoute;

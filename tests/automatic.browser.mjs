@@ -54,6 +54,9 @@ await scenario(
       data: { mode: "valid" },
     });
     await page.reload();
+    await page
+      .getByRole("button", { name: "Add workbook", exact: true })
+      .click();
     await expect(page.locator(".auto-ai-consent")).toBeVisible();
     await page.locator(".auto-ai-consent input").check();
     await upload(
@@ -144,6 +147,9 @@ await scenario(
     });
     const financial = await workspace(page, "AI financial proposal");
     await page.goto(financial.base + "/settings/connections");
+    await page
+      .getByRole("button", { name: "Add workbook", exact: true })
+      .click();
     await page.locator(".auto-ai-consent input").check();
     await upload(
       page,

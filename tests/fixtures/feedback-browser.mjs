@@ -69,6 +69,21 @@ export async function workspace(page, name) {
   };
 }
 export async function upload(page, name, buffer) {
+  await expect(
+    page
+      .getByRole("button", { name: "Upload sheet", exact: true })
+      .or(page.getByRole("button", { name: "Add workbook", exact: true }))
+      .first(),
+  ).toBeVisible();
+  if (
+    !(await page
+      .getByRole("button", { name: "Upload sheet", exact: true })
+      .count())
+  ) {
+    await page
+      .getByRole("button", { name: "Add workbook", exact: true })
+      .click();
+  }
   await page.getByRole("button", { name: "Upload sheet", exact: true }).click();
   await page
     .getByLabel("Upload Excel or CSV file", { exact: true })
@@ -80,7 +95,9 @@ export async function upload(page, name, buffer) {
       buffer,
     });
   await expect(
-    page.getByRole("status").filter({ hasText: "Your data is ready" }),
+    page
+      .locator(".source-notice")
+      .filter({ hasText: /Your data is ready|already connected/ }),
   ).toBeVisible();
 }
 export async function map(page, title, department = "Finance") {

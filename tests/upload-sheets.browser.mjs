@@ -26,6 +26,9 @@ await scenario(
     await page
       .getByRole("button", { name: "Connected sources", exact: true })
       .click();
+    await page
+      .getByRole("button", { name: "Add workbook", exact: true })
+      .click();
     await page.getByRole("button", { name: "Paste URL", exact: true }).click();
     await page
       .getByLabel("Sheet URL", { exact: true })
@@ -35,12 +38,16 @@ await scenario(
     await page
       .getByRole("button", { name: "Add shared sheet", exact: true })
       .click();
-    await expect(page.locator(".source-parent")).toHaveCount(2);
+    await expect(page.locator(".source-parent")).toHaveCount(1);
     await page
       .getByRole("button", { name: "Connect Google", exact: true })
       .click();
     await privateConnect(page, w.base);
-    await expect(page.locator(".source-parent")).toHaveCount(3);
+    await expect(page.locator(".source-parent")).toHaveCount(1);
+    assert.equal(
+      (await (await page.request.get(w.sources)).json()).sources.length,
+      3,
+    );
     await page
       .getByRole("button", { name: "Upload sheet", exact: true })
       .click();
@@ -64,7 +71,14 @@ await scenario(
       .getByRole("dialog")
       .getByRole("button", { name: "Remove source", exact: true })
       .click();
-    await expect(page.locator(".source-parent")).toHaveCount(2);
+    await expect(
+      page.getByText("No uploaded workbooks yet.", { exact: true }),
+    ).toBeVisible();
+    assert.equal(
+      (await (await page.request.get(w.sources)).json()).sources.length,
+      2,
+    );
+    await page.getByRole("button", { name: "Paste URL", exact: true }).click();
     await expect(page.locator(".source-inventory")).toContainText(
       "Shared spreadsheet",
     );

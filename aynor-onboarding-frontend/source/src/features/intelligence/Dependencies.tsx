@@ -382,7 +382,7 @@ export function Dependencies({ company }: ModuleProps) {
               ) : (
                 <Link
                   className="button secondary"
-                  to={e.link(e.base + "/settings/connections", e.origin)}
+                  to={e.link(e.base + "/connections", e.origin)}
                 >
                   Review data connections
                 </Link>

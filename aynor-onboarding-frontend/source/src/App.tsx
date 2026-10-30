@@ -181,6 +181,7 @@ export default function App() {
           "actions",
           "ask",
           "settings",
+          "connections",
         ].map((module) => (
           <Route
             key={module}

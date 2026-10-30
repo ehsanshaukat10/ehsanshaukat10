@@ -305,6 +305,7 @@ export function ModulePage({
   back,
   actions,
   children,
+  showPeriod = true,
 }: {
   title: string;
   description?: string;
@@ -312,6 +313,7 @@ export function ModulePage({
   back?: string;
   actions?: ReactNode;
   children: ReactNode;
+  showPeriod?: boolean;
 }) {
   const location = useLocation();
   useLayoutEffect(() => {
@@ -347,17 +349,19 @@ export function ModulePage({
           {description && <p>{description}</p>}
         </div>
         <div className="intel-heading-actions">
-          <select
-            aria-label="Reporting period"
-            value={exec.period}
-            onChange={(e) => exec.changePeriod(e.target.value as Period)}
-          >
-            {Object.entries(periods).map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-          </select>
+          {showPeriod && (
+            <select
+              aria-label="Reporting period"
+              value={exec.period}
+              onChange={(e) => exec.changePeriod(e.target.value as Period)}
+            >
+              {Object.entries(periods).map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          )}
           {actions}
         </div>
       </div>
@@ -375,7 +379,8 @@ export function ModulePage({
 export function DataNotice({ exec }: { exec: Executive }) {
   const location = useLocation();
   if (serverMode)
-    return location.pathname.includes("/settings/") ? null : (
+    return location.pathname.includes("/settings/") ||
+      location.pathname.endsWith("/connections") ? null : (
       <div className="intel-notice">
         <Database size={14} />
         <span>
@@ -391,7 +396,7 @@ export function DataNotice({ exec }: { exec: Executive }) {
     <div className="intel-notice">
       <Database size={14} />
       <span>No validated performance records.</span>
-      <Link to={exec.link(exec.base + "/settings/connections", exec.origin)}>
+      <Link to={exec.link(exec.base + "/connections", exec.origin)}>
         Set up data <ArrowUpRight size={12} />
       </Link>
     </div>
@@ -407,7 +412,7 @@ export function DataNotice({ exec }: { exec: Executive }) {
             ? "Sync failed; showing cached example records."
             : `Partial coverage: ${exec.sample?.covered.length}/${exec.company.data.departments.length} departments.`}
       </span>
-      <Link to={exec.link(exec.base + "/settings/connections", exec.origin)}>
+      <Link to={exec.link(exec.base + "/connections", exec.origin)}>
         Review source <ArrowUpRight size={12} />
       </Link>
     </div>
