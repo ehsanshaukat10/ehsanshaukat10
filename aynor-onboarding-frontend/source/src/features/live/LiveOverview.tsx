@@ -1,3 +1,10 @@
+import { useApp } from "../../lib/context";
+import {
+  readOverviewCache,
+  writeOverviewCache,
+  clearOverviewCache,
+} from "./overview-cache";
+import { OverviewSkeleton } from "./OverviewSkeleton";
 import { type TableReport } from "./TableOverview";
 import { BusinessOverview } from "./BusinessOverview";
 import { Select } from "./LiveSelect";
@@ -6,7 +13,7 @@ import { Link } from "react-router-dom";
 import { ArrowUpRight, Database, RefreshCw } from "lucide-react";
 import { Button, ErrorBox } from "../../components/ui";
 import type { Company } from "../../lib/api";
-import { serverRequest } from "../../lib/runtime";
+import { ApiError, serverRequest } from "../../lib/runtime";
 import { useSheetStatus } from "./SheetsConnection";
 import { Panel } from "../intelligence/shared";
 import "../dashboard/dashboard.css";
@@ -28,12 +35,17 @@ type Overview = {
   } | null;
 };
 export function LiveOverview({ company }: { company: Company }) {
+  const { user } = useApp();
+  const scope = `${user?.id}:${company.id}:${company.role}:${company.currency || "USD"}`;
+  const cached = readOverviewCache(scope);
   const { source, error: streamError } = useSheetStatus(
       company.id,
       ["Owner", "Admin"].includes(company.role),
     ),
-    [period, setPeriod] = useState("quarter"),
-    [report, setReport] = useState<Overview | null>(null),
+    [period, setPeriod] = useState(cached?.period || "all"),
+    [report, setReport] = useState<Overview | null>(
+      () => (cached?.report as Overview) || null,
+    ),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(true),
     [revision, setRevision] = useState(0),
@@ -49,22 +61,34 @@ export function LiveOverview({ company }: { company: Company }) {
     serverRequest<Overview>(base + "/sheets/overview?period=" + period)
       .then((value) => {
         if (active) {
+          const next: Overview =
+            (value.data as unknown as TableReport)?.kind === "tables"
+              ? {
+                  data: null,
+                  tableReport: value.data as unknown as TableReport,
+                }
+              : value;
+          const emptyDuringSync = source?.status === "syncing" && !value.data;
           setReport((previous) =>
-            source?.status === "syncing" && !value.data && previous
-              ? previous
-              : (value.data as unknown as TableReport)?.kind === "tables"
-                ? {
-                    data: null,
-                    tableReport: value.data as unknown as TableReport,
-                  }
-                : value,
+            emptyDuringSync && previous ? previous : next,
           );
+          if (!emptyDuringSync) {
+            if (next.tableReport?.tables.length || next.data?.points.length)
+              writeOverviewCache(scope, period, next);
+            else clearOverviewCache(scope);
+          }
           setError("");
           setSelected(0);
         }
       })
       .catch((e) => {
-        if (active) setError(e.message);
+        if (active) {
+          if (e instanceof ApiError && [401, 403, 404].includes(e.status)) {
+            clearOverviewCache(scope);
+            setReport(null);
+          }
+          setError(e.message);
+        }
       })
       .finally(() => {
         if (active) setBusy(false);
@@ -72,7 +96,7 @@ export function LiveOverview({ company }: { company: Company }) {
     return () => {
       active = false;
     };
-  }, [company.id, period, source?.revision, source?.status, revision]);
+  }, [scope, period, source?.revision, source?.status, revision]);
   const money = (value: number) =>
     new Intl.NumberFormat("en", {
       style: "currency",
@@ -163,9 +187,7 @@ export function LiveOverview({ company }: { company: Company }) {
           currency={company.currency || "USD"}
         />
       ) : busy && !report ? (
-        <Panel title="Loading your business overview">
-          <p role="status">Reading your last saved report…</p>
-        </Panel>
+        <OverviewSkeleton />
       ) : !data || !points.length ? (
         <Panel
           title={

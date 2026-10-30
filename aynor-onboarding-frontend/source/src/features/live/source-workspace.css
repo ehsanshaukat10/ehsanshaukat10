@@ -440,3 +440,18 @@
   z-index: 3;
   box-shadow: 0 4px 20px #30204412;
 }
+.source-ai-status {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #e9e5f1;
+  border-radius: 14px;
+  padding: 18px;
+  background: #faf8fe;
+  justify-items: start;
+}
+.source-ai-result {
+  padding: 12px 17px;
+  color: #756887;
+  background: #faf8fe;
+  border-top: 1px solid #eee8f5;
+}

@@ -122,6 +122,42 @@ type Draft = {
   dateYears?: Record<number, number>;
   dateFormats?: Record<number, string>;
 };
+const aiMessages: Record<string, string> = {
+  used: "OpenRouter returned an AI response. Suggestions are checked before use.",
+  not_needed:
+    "Built-in preparation was sufficient. No AI inference was requested.",
+  not_requested:
+    "AI was switched off for this import. Built-in preparation was used.",
+  not_configured:
+    "Live AI is not configured on the server. Built-in preparation remains available.",
+  invalid_key:
+    "OpenRouter rejected the API key. Check OPENROUTER_API_KEY in Vercel Production.",
+  credit_limit:
+    "OpenRouter rejected the request because of the key budget or available credits. Built-in preparation remains available.",
+  access_denied:
+    "OpenRouter denied access for this key or account. Built-in preparation remains available.",
+  no_route:
+    "No provider route was available under the free-only and privacy settings.",
+  quota:
+    "OpenRouter’s request quota was reached. Built-in preparation was used.",
+  daily_limit:
+    "AYNOR’s daily AI allowance was reached. Built-in preparation was used.",
+  no_free_model:
+    "No eligible free model was available. Built-in preparation was used.",
+  paid_model_blocked:
+    "A paid model was blocked. AYNOR only permits free models.",
+  invalid_proposal:
+    "AI responded, but its suggestions could not be used. Built-in preparation was used.",
+  sample_limit:
+    "Workbook metadata exceeded the AI size limit. Built-in preparation was used.",
+  unavailable: "Live AI was unavailable. Built-in preparation was used.",
+};
+function aiMessage(status: string) {
+  return (
+    aiMessages[status] ||
+    "Built-in preparation was used; live AI has not been confirmed."
+  );
+}
 const catalogCache = new Map<string, Catalog>();
 type ConflictCheck = {
   total: number;
@@ -170,6 +206,7 @@ export function SourceWorkspace({
     [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
     [message, setMessage] = useState(""),
+    [aiCheck, setAiCheck] = useState(""),
     [drafts, setDrafts] = useState<Draft[]>([]),
     [showPages, setShowPages] = useState(true),
     [allowAi, setAllowAi] = useState(() => {
@@ -605,6 +642,39 @@ export function SourceWorkspace({
           </Button>
         </div>
       )}
+      {phase === "manage" && (
+        <section className="source-ai-status" aria-label="Live AI status">
+          <strong>Live AI</strong>
+          <p>
+            {aiCheck
+              ? aiMessage(aiCheck)
+              : catalog.aiAvailable
+                ? "Credentials are configured. This does not confirm a successful AI request."
+                : aiMessage("not_configured")}
+          </p>
+          <Button
+            variant="secondary"
+            busy={busy === "ai-check"}
+            disabled={!!busy || !catalog.aiAvailable}
+            onClick={() =>
+              void run("ai-check", async () => {
+                const result = await serverRequest<{ status: string }>(
+                  `${root}/ai-check`,
+                  "POST",
+                  {},
+                );
+                setAiCheck(result.status);
+              })
+            }
+          >
+            Test live AI connection
+          </Button>
+          <small>
+            Uses synthetic labels only, stays free-only, and counts toward the
+            daily AI allowance.
+          </small>
+        </section>
+      )}
       <ErrorBox>{error}</ErrorBox>
       {message && (
         <p className="source-notice" role="status">
@@ -1027,6 +1097,14 @@ export function SourceWorkspace({
                     </Button>
                   </div>
                 </header>
+                {source.automation && (
+                  <p
+                    className="source-ai-result"
+                    aria-label={`AI preparation status for ${source.title}`}
+                  >
+                    {aiMessage(source.automation.aiStatus)}
+                  </p>
+                )}
                 {source.error && (
                   <p className="source-page-error">
                     <AlertCircle size={14} />

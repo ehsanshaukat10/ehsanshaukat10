@@ -515,3 +515,36 @@ test("real catalog auto preparation imports, persists answers, caches AI interpr
     403,
   );
 });
+
+test("live AI reports credential and budget rejection safely instead of pretending AI ran", async () => {
+  for (const [code, expected] of [
+    [401, "invalid_key"],
+    [402, "credit_limit"],
+    [403, "access_denied"],
+    [404, "no_route"],
+  ]) {
+    const ai = createFreeAi({
+      env: { AYNOR_AI_ENABLED: "true", OPENROUTER_API_KEY: "fixture-only" },
+      db: { rpc: async () => true },
+      fetchImpl: async (url) =>
+        String(url).endsWith("/models")
+          ? Response.json({
+              data: [
+                {
+                  id: "fixture/model:free",
+                  pricing: { prompt: "0", completion: "0" },
+                },
+              ],
+            })
+          : new Response(JSON.stringify({ error: "private-provider-detail" }), {
+              status: code,
+            }),
+    });
+    const result = await ai.classify({
+      company: "fixture-company",
+      metadata: { tabs: [] },
+    });
+    assert.equal(result.status, expected);
+    assert.ok(!JSON.stringify(result).includes("private-provider-detail"));
+  }
+});

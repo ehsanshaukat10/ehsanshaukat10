@@ -544,6 +544,28 @@ export function createSourceCatalog({
     overview,
     async handle({ company, actor, action, id, method, body }) {
       await member(company, actor, true);
+      if (action === "ai-check" && method === "POST") {
+        const result = await ai.classify({
+          company,
+          metadata: {
+            departments: [],
+            tabs: [
+              {
+                tabId: 0,
+                title: "Connection test",
+                headerRow: 0,
+                headers: ["Item", "Value"],
+                properties: ["text", "number"],
+                columnProfiles: [
+                  { type: "text", missing: 0, ambiguousDate: false },
+                  { type: "number", missing: 0, ambiguousDate: false },
+                ],
+              },
+            ],
+          },
+        });
+        return { status: result.status };
+      }
       if (action === "sources" && method === "GET") return list(company, actor);
       if (action === "sources" && method === "POST") {
         let source;

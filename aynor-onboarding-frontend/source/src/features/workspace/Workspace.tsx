@@ -705,7 +705,7 @@ export function Workspace({
               />
             ) : overview ? (
               serverMode ? (
-                <LiveOverview company={company} />
+                <LiveOverview key={company.id} company={company} />
               ) : (
                 <Overview company={company} save={save} />
               )

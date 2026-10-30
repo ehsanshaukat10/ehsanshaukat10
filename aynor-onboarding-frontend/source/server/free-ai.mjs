@@ -40,7 +40,15 @@ export function createFreeAi({ env = process.env, db, fetchImpl = fetch }) {
       text += decoder.decode();
     } else throw Error("invalid_response");
     if (!response.ok)
-      throw Error(response.status === 429 ? "quota" : "unavailable");
+      throw Error(
+        {
+          401: "invalid_key",
+          402: "credit_limit",
+          403: "access_denied",
+          404: "no_route",
+          429: "quota",
+        }[response.status] || "unavailable",
+      );
     return JSON.parse(text);
   }
   function zeroPriced(model) {
@@ -143,6 +151,10 @@ export function createFreeAi({ env = process.env, db, fetchImpl = fetch }) {
         return {
           status: [
             "quota",
+            "invalid_key",
+            "credit_limit",
+            "access_denied",
+            "no_route",
             "daily_limit",
             "paid_model_blocked",
             "no_free_model",

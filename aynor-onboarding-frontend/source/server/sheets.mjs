@@ -377,7 +377,9 @@ export function createServerlessSheets({
         await member(company, user.id, true);
         if (id === "google-files" && method === "GET")
           return send(await google.files(company));
-        const operation = action || (id ? "remove" : "sources");
+        const operation =
+          action ||
+          (id === "ai-check" ? "ai-check" : id ? "remove" : "sources");
         return send(
           await catalog.handle({
             company,

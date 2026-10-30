@@ -1,3 +1,4 @@
+import { clearOverviewCache } from "./features/live/overview-cache";
 import { serverMode } from "./lib/runtime";
 import { Home } from "./features/home/Home";
 import { Entry } from "./features/entry/Entry";
@@ -54,6 +55,7 @@ export default function App() {
       })
       .catch((e) => setError(message(e)));
     const expire = () => {
+      clearOverviewCache();
       setSignedOut(true);
       setUser(null);
       setToast("Your session expired. Sign in to continue.");
@@ -61,6 +63,7 @@ export default function App() {
     };
     window.addEventListener("session-expired", expire);
     const signedOut = () => {
+      clearOverviewCache();
       boot = null;
       setSignedOut(true);
       setUser(null);

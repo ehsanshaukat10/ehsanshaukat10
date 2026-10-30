@@ -74,6 +74,9 @@ try {
   const feedbackCheck = start(["tests/import-feedback.browser.mjs"]);
   if ((await new Promise((r) => feedbackCheck.on("exit", r))) !== 0)
     throw Error("Import feedback regression browser check failed.");
+  const loadingCheck = start(["tests/overview-loading.browser.mjs"]);
+  if ((await new Promise((r) => loadingCheck.on("exit", r))) !== 0)
+    throw Error("Overview loading browser check failed.");
 } finally {
   await Promise.all(
     children

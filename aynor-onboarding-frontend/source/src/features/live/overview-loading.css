@@ -1,0 +1,93 @@
+.overview-skeleton {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+.overview-placeholder {
+  display: block;
+  border-radius: 7px;
+  background: linear-gradient(100deg, #eeeaf5 25%, #f8f6fc 45%, #eeeaf5 65%);
+  background-size: 240% 100%;
+  animation: overview-shimmer 1.6s linear infinite;
+}
+.overview-skeleton .intel-kpi {
+  display: grid;
+  gap: 15px;
+  min-height: 150px;
+}
+.overview-skeleton .skeleton-label {
+  height: 13px;
+  width: 52%;
+}
+.overview-skeleton .skeleton-value {
+  height: 33px;
+  width: 69%;
+}
+.overview-skeleton .skeleton-note {
+  height: 10px;
+  width: 44%;
+}
+.overview-skeleton-chart,
+.overview-skeleton-details > div {
+  padding: 26px;
+  border: 1px solid #e9e4f2;
+  border-radius: 16px;
+  background: #fff;
+  display: grid;
+  gap: 22px;
+}
+.overview-skeleton .skeleton-heading {
+  height: 18px;
+  width: 40%;
+}
+.overview-skeleton-bars {
+  height: 230px;
+  display: flex;
+  align-items: flex-end;
+  gap: 3%;
+  border-bottom: 1px solid #e9e4f2;
+  padding: 15px 10px 0;
+}
+.overview-skeleton-bars i {
+  flex: 1;
+  max-width: 65px;
+  border-radius: 5px 5px 0 0;
+}
+.overview-skeleton-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.overview-skeleton .skeleton-row {
+  height: 13px;
+  width: 100%;
+}
+@keyframes overview-shimmer {
+  to {
+    background-position: -240% 0;
+  }
+}
+@media (max-width: 600px) {
+  .overview-skeleton-details {
+    grid-template-columns: 1fr;
+  }
+  .overview-skeleton-bars {
+    height: 180px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .overview-placeholder {
+    animation: none;
+  }
+}
+.overview-skeleton > .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
