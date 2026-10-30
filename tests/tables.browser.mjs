@@ -16,9 +16,11 @@ await scenario(
     await page.goto(w.base + "/onboarding/integrations");
     await upload(page, "Operations.xlsx", tableWorkbookFixture());
     await expect(page.locator(".source-parent")).toContainText(
-      "0/2 pages mapped",
+      "2/2 pages mapped",
     );
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Review mapping", exact: true })
+      .click();
     await expect(page).toHaveURL(/onboarding\/mapping$/);
     await map(page, "QA", "QA");
     await page.screenshot({
@@ -46,13 +48,11 @@ await scenario(
       .selectOption("dmy");
     await save(page);
     await expect(page.locator(".source-parent")).toContainText(
-      "1/2 pages mapped",
+      "2/2 pages mapped",
     );
     await page.goto(w.base + "/overview");
-    await expect(page.locator(".source-coverage")).toContainText("1 of 2");
-    await page
-      .getByRole("link", { name: "Map 1 remaining page", exact: true })
-      .click();
+    await expect(page.locator(".source-coverage")).toContainText("2 of 2");
+    await page.goto(w.base + "/settings/connections?map=1");
     await map(page, "Reference", "QA");
     await save(page);
     await page.goto(w.base + "/overview");

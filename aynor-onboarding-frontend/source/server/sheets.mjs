@@ -24,7 +24,7 @@ export function createServerlessSheets({
   fetchImpl = fetch,
 }) {
   const google = createGoogle({ db, env, fetchImpl });
-  const catalog = createSourceCatalog({ db, google, member });
+  const catalog = createSourceCatalog({ db, google, member, env, fetchImpl });
   function present(c, snapshot) {
     const interrupted =
       c?.status === "syncing" && Number(c.lease_until || 0) < Date.now();
@@ -370,7 +370,7 @@ export function createServerlessSheets({
         }
       }
       const catalogRoute = path.match(
-        /^\/companies\/([a-f0-9-]{36})\/sources(?:\/([a-z0-9-]+)(?:\/(inspect|map|sync|skip))?)?$/i,
+        /^\/companies\/([a-f0-9-]{36})\/sources(?:\/([a-z0-9-]+)(?:\/(inspect|map|sync|skip|prepare|answer))?)?$/i,
       );
       if (catalogRoute) {
         const [, company, id, action] = catalogRoute;

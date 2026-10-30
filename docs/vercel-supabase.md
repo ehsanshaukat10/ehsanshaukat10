@@ -119,3 +119,7 @@ Validation: `tests/table-data.test.js` covers locale ambiguity, header/range sel
 ### Current customer connection and mapping flow
 
 The current UI uses the additive `/companies/:id/sources` catalog, with connection in onboarding step 3 and department/column mapping in step 4. It replaces the earlier single-active-source UI described in the legacy endpoint section above. Google, file and URL sources coexist. The catalog uses existing tables and lease/publish RPCs without another migration. Existing reports are retained during adoption and sync. See [Customer journey feedback](customer-journey-feedback.md) for the full behaviors, verification, recovery, compatibility and provider requirements.
+
+### Current automatic preparation
+
+Source connection now starts automatic preparation; clear workbooks can continue without manual mapping. Optional OpenRouter assistance is off until explicitly configured and source-authorized, is restricted to zero-price routes with durable usage caps, and falls back to local detection. See [Automatic imports and free-only AI](automatic-import.md) for the two required enablement variables, privacy/validation boundaries, quotas and operator checks. The previous manual mapper remains the editing/recovery path.

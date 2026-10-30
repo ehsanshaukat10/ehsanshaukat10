@@ -1,6 +1,6 @@
 import { chromium, expect } from "@playwright/test";
 import assert from "node:assert/strict";
-import { map, save } from "./fixtures/feedback-browser.mjs";
+
 const browser = await chromium.launch({
   executablePath: "/usr/bin/chromium",
   args: ["--no-sandbox"],
@@ -110,14 +110,8 @@ try {
       buffer: Buffer.from(`Date,Revenue,Expenses\n${date},5000,1700`),
     });
   await expect(
-    page.getByRole("status").filter({ hasText: "Source connected" }),
+    page.getByRole("status").filter({ hasText: "Your data is ready" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page).toHaveURL(/onboarding\/mapping$/);
-  await map(page, "CSV");
-  await save(page);
-  await expect(page).toHaveURL(/onboarding\/mapping$/);
-  await expect(page.locator(".source-page")).toContainText("Finance");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "What matters most?", exact: true }),

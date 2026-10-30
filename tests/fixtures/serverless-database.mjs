@@ -24,6 +24,9 @@ export async function fixtureDatabase() {
     invalidGrant: false,
     tokenLifetime: 3600,
     fail: false,
+    aiCalls: 0,
+    aiMode: "valid",
+    aiMetadata: null,
     authUsers: new Map(),
     authTokens: new Map(),
     recoveryTokens: new Map(),
@@ -83,10 +86,18 @@ export async function fixtureDatabase() {
       }
       const body = JSON.parse(options.body);
       const account = control.authUsers.get(body.email);
-      if(url.pathname.endsWith("/admin/users")) {
-        if(account)return Response.json({code:"email_exists"},{status:422});
-        const created={id:crypto.randomUUID(),email:body.email,password:body.password,user_metadata:body.user_metadata,email_confirmed_at:null};
-        control.authUsers.set(body.email,created);return Response.json(created);
+      if (url.pathname.endsWith("/admin/users")) {
+        if (account)
+          return Response.json({ code: "email_exists" }, { status: 422 });
+        const created = {
+          id: crypto.randomUUID(),
+          email: body.email,
+          password: body.password,
+          user_metadata: body.user_metadata,
+          email_confirmed_at: null,
+        };
+        control.authUsers.set(body.email, created);
+        return Response.json(created);
       }
       if (url.pathname.endsWith("/recover")) {
         control.emailsSent++;
@@ -131,6 +142,46 @@ export async function fixtureDatabase() {
       });
     if (url.hostname === "www.googleapis.com")
       return Response.json({ error: "not authorized" }, { status: 403 });
+    if (url.hostname === "openrouter.ai") {
+      if (url.pathname.endsWith("/models"))
+        return Response.json({
+          data: [
+            {
+              id: "fixture/classifier:free",
+              pricing: { prompt: "0", completion: "0", request: "0" },
+            },
+          ],
+        });
+      control.aiCalls++;
+      const input = JSON.parse(options.body);
+      control.aiMetadata = JSON.parse(input.messages[1].content);
+      if (control.aiMode === "quota")
+        return Response.json({ error: "quota" }, { status: 429 });
+      return Response.json({
+        model: "fixture/classifier:free",
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                tabs: control.aiMetadata.tabs.map((tab) => ({
+                  tabId: tab.tabId,
+                  headerRow: tab.headerRow,
+                  department: control.aiMode === "financial" ? "Finance" : "QA",
+                  properties:
+                    control.aiMode === "financial"
+                      ? ["date", "money_in", "money_out"]
+                      : tab.properties.map((p) =>
+                          ["money_in", "money_out"].includes(p)
+                            ? "currency"
+                            : p,
+                        ),
+                })),
+              }),
+            },
+          },
+        ],
+      });
+    }
     if (url.hostname === "oauth2.googleapis.com") {
       control.tokens++;
       return control.invalidGrant

@@ -1,3 +1,12 @@
+import {
+  AUTO_VERSION,
+  detectTable,
+  finalizePlan,
+  applyAnswer,
+  aiMetadata,
+  mergeAiSuggestion,
+} from "./automatic-mapping.mjs";
+import { createFreeAi } from "./free-ai.mjs";
 import { randomUUID, createHash } from "node:crypto";
 import { fail } from "./database.mjs";
 import {
@@ -15,7 +24,14 @@ import {
 } from "../shared/table-data.mjs";
 const digest = (value) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
-export function createSourceCatalog({ db, google, member }) {
+export function createSourceCatalog({
+  db,
+  google,
+  member,
+  env = process.env,
+  fetchImpl = fetch,
+}) {
+  const ai = createFreeAi({ env, db, fetchImpl });
   async function read(company, actor) {
     const state = await db.rpc("sheet_read", {
       p_actor: actor,
@@ -184,6 +200,7 @@ export function createSourceCatalog({ db, google, member }) {
       lastSuccess: source.lastSuccess || null,
       error: source.error || null,
       changes: source.changes || null,
+      automation: source.automation || null,
       tabs: source.tabs.map((tab) => ({
         tabId: tab.tabId,
         title: tab.title,
@@ -195,6 +212,7 @@ export function createSourceCatalog({ db, google, member }) {
         error: tab.error || null,
         lastSuccess: tab.lastSuccess || null,
         changes: tab.changes || null,
+        automatic: tab.automatic || null,
       })),
     };
   }
@@ -217,6 +235,7 @@ export function createSourceCatalog({ db, google, member }) {
       account: await account(company),
       revision: state.connection?.revision || 0,
       googleSetup: google.configuration(),
+      aiAvailable: ai.configured(),
       syncing: state.connection?.status === "syncing",
       error: state.connection?.error || null,
     };
@@ -260,6 +279,15 @@ export function createSourceCatalog({ db, google, member }) {
       intervalMs: 0,
       mappedCount: mapped.length,
       unmappedCount: tabs.length - mapped.length,
+      automaticReady:
+        sources.length > 0 &&
+        tabs.every((t) => t.table || t.financial || t.skipped),
+      needsReviewCount: tabs.filter(
+        (t) =>
+          t.automatic?.questions?.length ||
+          t.automatic?.status === "needs_review" ||
+          (!t.table && !t.financial && !t.skipped),
+      ).length,
     };
   }
   async function metadata(company, url) {
@@ -548,6 +576,205 @@ export function createSourceCatalog({ db, google, member }) {
         });
         return { ...(await list(company, actor)), selectedId };
       }
+      if (action === "prepare" && method === "POST") {
+        const membership = await member(company, actor, true),
+          departments = membership.company.data.departments || [];
+        const cursor = body.cursor ?? 0;
+        if (!Number.isInteger(cursor) || cursor < 0 || cursor > 50)
+          fail(400, "Invalid preparation page.");
+        let nextCursor = null;
+        await mutate(company, actor, async (catalog) => {
+          const source = getSource(catalog, id),
+            limit = source.mode === "upload" ? 10 : 3;
+          const batch = source.tabs.slice(cursor, cursor + limit);
+          nextCursor =
+            cursor + limit < source.tabs.length ? cursor + limit : null;
+          const loaded = await Promise.allSettled(
+            batch.map(async (tab) => {
+              if (tab.userSkipped || (tab.config && !tab.config.automatic))
+                return { tab, skip: true };
+              return { tab, values: await rows(company, source, tab) };
+            }),
+          );
+          const candidates = [];
+          for (let index = 0; index < loaded.length; index++) {
+            const tab = batch[index],
+              entry = loaded[index];
+            if (entry.status === "rejected") {
+              tab.automatic = {
+                version: AUTO_VERSION,
+                status: "needs_review",
+                origin: "local",
+                questions: [],
+                notes: [
+                  "This page could not be read. Your saved data is unchanged. Try manual mapping or reconnect the source.",
+                ],
+                preparedAt: Date.now(),
+              };
+              continue;
+            }
+            if (entry.value.skip) continue;
+            const { values } = entry.value;
+            try {
+              if (
+                tab.config?.automatic &&
+                tab.automatic?.version === AUTO_VERSION &&
+                JSON.stringify(tab.config.headers) ===
+                  JSON.stringify(columns(values.slice(tab.config.headerRow))) &&
+                (!tab.department || departments.includes(tab.department))
+              ) {
+                const table = refreshTable(values, tab.config, tab.table);
+                tab.changes = changes(tab.table, table);
+                tab.table = table;
+                tab.error = null;
+                tab.lastSuccess = Date.now();
+                continue;
+              }
+              const plan = detectTable(values, {
+                title: tab.title,
+                tabId: tab.tabId,
+                departments,
+              });
+              if (plan.status === "empty") {
+                tab.skipped = true;
+                tab.automatic = {
+                  ...plan,
+                  version: AUTO_VERSION,
+                  preparedAt: Date.now(),
+                };
+                continue;
+              }
+              candidates.push({ tab, values, plan });
+            } catch (error) {
+              tab.automatic = {
+                version: AUTO_VERSION,
+                status: "needs_review",
+                origin: "local",
+                questions: [],
+                notes: [
+                  "This layout needs a manual check. No saved data was replaced.",
+                ],
+                preparedAt: Date.now(),
+              };
+            }
+          }
+          let aiResult = {
+            status: body.allowAi === true ? "not_needed" : "not_requested",
+          };
+          const uncertain = candidates
+            .filter(
+              (c) =>
+                c.plan.questions.some((q) => q.kind === "department") ||
+                (!c.plan.properties.includes("money_in") &&
+                  c.plan.headers.some((h) =>
+                    /receipts|outflow|turnover|gross|net|amount|cost/i.test(h),
+                  ) &&
+                  c.plan.properties.some((p) =>
+                    ["number", "currency"].includes(p),
+                  )),
+            )
+            .slice(0, 4);
+          if (body.allowAi === true && uncertain.length)
+            aiResult = await ai.classify({
+              company,
+              metadata: aiMetadata(uncertain, departments),
+            });
+          for (const candidate of candidates) {
+            const { tab, values } = candidate;
+            try {
+              let prepared;
+              const suggestion = aiResult.tabs?.find(
+                (t) => t?.tabId === tab.tabId,
+              );
+              if (suggestion)
+                try {
+                  prepared = mergeAiSuggestion(
+                    candidate.plan,
+                    suggestion,
+                    values,
+                    departments,
+                  );
+                } catch {
+                  /* Untrusted/invalid proposals fall back to deterministic interpretation. */
+                }
+              prepared ||= finalizePlan(values, candidate.plan, departments);
+              tab.changes = changes(tab.table, prepared.table);
+              tab.table = prepared.table;
+              tab.config = prepared.config;
+              tab.department = prepared.config.department;
+              tab.skipped = false;
+              tab.error = null;
+              tab.lastSuccess = Date.now();
+              tab.automatic = {
+                ...prepared.plan,
+                version: AUTO_VERSION,
+                preparedAt: Date.now(),
+              };
+            } catch (error) {
+              tab.automatic = {
+                ...candidate.plan,
+                version: AUTO_VERSION,
+                status: "needs_review",
+                notes: [
+                  "Some values need a manual check. Your saved data has not been replaced.",
+                ],
+                preparedAt: Date.now(),
+              };
+            }
+          }
+          source.automation = {
+            version: AUTO_VERSION,
+            preparedAt: Date.now(),
+            aiStatus: aiResult.status,
+            allowAi: body.allowAi === true,
+            completed: nextCursor === null,
+          };
+        });
+        return { ...(await list(company, actor)), nextCursor };
+      }
+      if (action === "answer" && method === "POST") {
+        const membership = await member(company, actor, true),
+          departments = membership.company.data.departments || [];
+        await mutate(company, actor, async (catalog) => {
+          const source = getSource(catalog, id),
+            tab = source.tabs.find((t) => t.tabId === body.tabId);
+          if (!tab?.automatic || !Array.isArray(tab.automatic.questions))
+            fail(404, "This page has no pending questions.");
+          const values = await rows(company, source, tab);
+          if (
+            JSON.stringify(columns(values.slice(tab.automatic.headerRow))) !==
+            JSON.stringify(tab.automatic.headers)
+          )
+            fail(
+              409,
+              "The worksheet changed. Prepare it again before answering.",
+            );
+          let prepared;
+          try {
+            prepared = applyAnswer(
+              tab.automatic,
+              body.questionId,
+              body.value,
+              values,
+              departments,
+            );
+          } catch (error) {
+            fail(422, error.message);
+          }
+          tab.changes = changes(tab.table, prepared.table);
+          tab.table = prepared.table;
+          tab.config = prepared.config;
+          tab.department = prepared.config.department;
+          tab.error = null;
+          tab.lastSuccess = Date.now();
+          tab.automatic = {
+            ...prepared.plan,
+            version: AUTO_VERSION,
+            preparedAt: Date.now(),
+          };
+        });
+        return list(company, actor);
+      }
       if (action === "inspect" && method === "POST")
         return inspect(company, actor, id, body.tabId, body.headerRow);
       if (action === "skip" && method === "POST") {
@@ -556,6 +783,7 @@ export function createSourceCatalog({ db, google, member }) {
             tab = source.tabs.find((t) => t.tabId === body.tabId);
           if (!tab) fail(404, "Worksheet not found.");
           tab.skipped = !!body.skipped;
+          tab.userSkipped = !!body.skipped;
         });
         return list(company, actor);
       }
@@ -647,6 +875,14 @@ export function createSourceCatalog({ db, google, member }) {
             tab.skipped = false;
             tab.error = null;
             tab.lastSuccess = Date.now();
+            tab.automatic = {
+              version: AUTO_VERSION,
+              status: "manual",
+              origin: "manual",
+              questions: [],
+              notes: [],
+              preparedAt: Date.now(),
+            };
           }
         });
         return list(company, actor);

@@ -29,6 +29,8 @@ import { ColumnMatches, type ColumnMapping } from "./ColumnMatches";
 export type SourceStatus = {
   dataKind?: "tables" | "financial";
   hasSources?: boolean;
+  automaticReady?: boolean;
+  needsReviewCount?: number;
   sourceCount?: number;
   mappedCount?: number;
   unmappedCount?: number;

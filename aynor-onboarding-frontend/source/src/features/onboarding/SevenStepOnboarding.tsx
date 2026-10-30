@@ -134,6 +134,7 @@ export function SevenStepOnboarding({
     [tab, setTab] = useState("sheets"),
     [url, setUrl] = useState(""),
     [working, setWorking] = useState(false),
+    [sourceWorking, setSourceWorking] = useState(false),
     [consent, setConsent] = useState(false),
     [pending, setPending] = useState("");
   const [goal, setGoal] = useState(freshGoal),
@@ -295,10 +296,17 @@ export function SevenStepOnboarding({
       skip &&
       !liveSource?.hasSources &&
       !liveSource?.hasSnapshot;
+    const automaticMappingComplete =
+      serverMode &&
+      step === "integrations" &&
+      !skip &&
+      checkedSource?.automaticReady &&
+      checkedSource?.hasSnapshot &&
+      !checkedSource?.needsReviewCount;
     const index = steps.indexOf(step),
       target = reviewEdit
         ? "review"
-        : skipDependentMapping
+        : skipDependentMapping || automaticMappingComplete
           ? "priorities"
           : steps[index + 1] || "complete";
     const next = {
@@ -308,6 +316,7 @@ export function SevenStepOnboarding({
         ...data.steps,
         [step]: skip ? "skipped" : "completed",
         ...(skipDependentMapping ? { mapping: "skipped" as const } : {}),
+        ...(automaticMappingComplete ? { mapping: "completed" as const } : {}),
       },
       ...(step === "review" ? { completed: true } : {}),
     };
@@ -522,6 +531,7 @@ export function SevenStepOnboarding({
       {serverMode && ["integrations", "mapping"].includes(step) && (
         <SourceWorkspace
           companyId={company.id}
+          onBusyChange={setSourceWorking}
           phase={step === "integrations" ? "connect" : "mapping"}
         />
       )}
@@ -1190,7 +1200,7 @@ export function SevenStepOnboarding({
           <div className="seven-footer">
             <Button
               variant="text"
-              disabled={busy || working}
+              disabled={busy || working || sourceWorking}
               onClick={async () => {
                 if (overviewEdit) {
                   nav(returnRoute!);
@@ -1218,13 +1228,17 @@ export function SevenStepOnboarding({
                 !overviewEdit && (
                   <Button
                     variant="text"
-                    disabled={busy || working}
+                    disabled={busy || working || sourceWorking}
                     onClick={() => advance(true)}
                   >
                     Skip for now
                   </Button>
                 )}
-              <Button busy={busy} disabled={working} onClick={() => advance()}>
+              <Button
+                busy={busy}
+                disabled={working || sourceWorking}
+                onClick={() => advance()}
+              >
                 {step === "review"
                   ? "Enter Aynor"
                   : overviewEdit
@@ -1240,7 +1254,7 @@ export function SevenStepOnboarding({
           </div>
           <button
             className="seven-finish-later"
-            disabled={busy || working}
+            disabled={busy || working || sourceWorking}
             onClick={async () => {
               if (await save({ ...data, step })) {
                 toast("Your progress is saved.");

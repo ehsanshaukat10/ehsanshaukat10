@@ -25,12 +25,17 @@ await scenario(
       .getByRole("button", { name: "Add shared sheet", exact: true })
       .click();
     await expect(page.locator(".source-parent")).toContainText(
-      "0/1 pages mapped",
+      "1/1 pages mapped",
     );
     await expect(
       page.getByLabel("Property for Date", { exact: true }),
     ).toHaveCount(0);
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Your data is ready" }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Review mapping", exact: true })
+      .click();
     await expect(page).toHaveURL(/onboarding\/mapping$/);
     await map(page, "Shared worksheet");
     await expect(

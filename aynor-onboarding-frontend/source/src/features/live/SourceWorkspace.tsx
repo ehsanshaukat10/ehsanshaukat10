@@ -14,6 +14,8 @@ import {
   AlertCircle,
   Plus,
   Trash2,
+  Sparkles,
+  ArrowRight,
 } from "lucide-react";
 import { Button, ErrorBox, Field, Modal } from "../../components/ui";
 import { api, type Company } from "../../lib/api";
@@ -41,6 +43,20 @@ type Config = {
   types?: string[];
   department?: string;
 };
+type AutoQuestion = {
+  id: string;
+  kind: string;
+  column?: number;
+  message: string;
+  choices: { value: string; label: string }[];
+};
+type Automatic = {
+  status: string;
+  origin: string;
+  questions: AutoQuestion[];
+  notes: string[];
+  preparedAt: number;
+};
 type Tab = {
   tabId: number;
   title: string;
@@ -52,6 +68,7 @@ type Tab = {
   config: Config | null;
   lastSuccess: number | null;
   changes?: Change;
+  automatic?: Automatic;
 };
 type Source = {
   id: string;
@@ -61,6 +78,12 @@ type Source = {
   lastSuccess: number | null;
   error: string | null;
   url?: string;
+  automation?: {
+    aiStatus: string;
+    completed: boolean;
+    allowAi: boolean;
+    preparedAt: number;
+  };
 };
 type Catalog = {
   sources: Source[];
@@ -69,6 +92,8 @@ type Catalog = {
   syncing: boolean;
   revision: number;
   error: string | null;
+  aiAvailable?: boolean;
+  nextCursor?: number | null;
 };
 type Inspection = {
   sourceId: string;
@@ -92,9 +117,11 @@ type Draft = {
 export function SourceWorkspace({
   companyId,
   phase = "manage",
+  onBusyChange,
 }: {
   companyId: string;
   phase?: "connect" | "mapping" | "manage";
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const root = `/companies/${companyId}/sources`,
     nav = useNavigate();
@@ -114,6 +141,12 @@ export function SourceWorkspace({
     [message, setMessage] = useState(""),
     [drafts, setDrafts] = useState<Draft[]>([]),
     [showPages, setShowPages] = useState(true),
+    [allowAi, setAllowAi] = useState(false),
+    [question, setQuestion] = useState<{
+      sourceId: string;
+      tabId: number;
+      question: AutoQuestion;
+    } | null>(null),
     [selected, setSelected] = useState(""),
     [popup, setPopup] = useState<"preview" | "help" | null>(null),
     [setup, setSetup] = useState(false),
@@ -190,6 +223,7 @@ export function SourceWorkspace({
   async function run(name: string, task: () => Promise<void>) {
     if (busy) return;
     setBusy(name);
+    onBusyChange?.(true);
     setError("");
     setMessage("");
     try {
@@ -198,6 +232,7 @@ export function SourceWorkspace({
       setError((e as Error).message);
     } finally {
       setBusy("");
+      onBusyChange?.(false);
       window.dispatchEvent(new Event("aynor:sheet-change"));
     }
   }
@@ -219,13 +254,42 @@ export function SourceWorkspace({
       window.location.assign(result.url);
     });
   }
+  async function prepareSource(id: string) {
+    let cursor: number | null = 0,
+      value: Catalog | null = null;
+    let rounds = 0;
+    do {
+      setMessage("Reading your workbook and preparing its columns…");
+      value = await serverRequest<Catalog>(`${root}/${id}/prepare`, "POST", {
+        cursor,
+        allowAi,
+      });
+      applyCatalog(value);
+      cursor = value.nextCursor ?? null;
+      rounds++;
+    } while (cursor !== null && rounds < 50);
+    const source = value?.sources.find((s) => s.id === id);
+    const ready = source?.tabs.filter((t) => t.mapped).length || 0;
+    const questions =
+      source?.tabs.reduce(
+        (n, t) => n + (t.automatic?.questions.length || 0),
+        0,
+      ) || 0;
+    setMessage(
+      ready
+        ? `Your data is ready. ${ready} worksheet page${ready === 1 ? "" : "s"} prepared${questions ? ` · ${questions} quick check${questions === 1 ? "" : "s"} available` : ""}.`
+        : "Workbook connected. Some pages need a manual check before they can be prepared.",
+    );
+  }
   async function add(input: unknown) {
-    const result = await serverRequest<Catalog>(root, "POST", input);
+    const result = await serverRequest<Catalog & { selectedId: string }>(
+      root,
+      "POST",
+      input,
+    );
     applyCatalog(result);
     setUrl("");
-    setMessage(
-      "Source connected. Continue to Map worksheet pages to assign its columns.",
-    );
+    await prepareSource(result.selectedId);
   }
   const activeDraft =
     drafts.find(
@@ -327,6 +391,19 @@ export function SourceWorkspace({
       0,
     ),
     total = sources.reduce((n, s) => n + s.tabs.length, 0);
+  const questions = sources.flatMap((source) =>
+    source.tabs.flatMap((tab) =>
+      (tab.automatic?.questions || []).map((question) => ({
+        sourceId: source.id,
+        tabId: tab.tabId,
+        question,
+      })),
+    ),
+  );
+  const automaticallyPrepared = sources.some((source) => source.automation);
+  const reviewPages = sources
+    .flatMap((s) => s.tabs)
+    .filter((t) => t.automatic?.status === "needs_review").length;
   return (
     <section className="source-workspace" aria-busy={!!busy}>
       {phase === "manage" && (
@@ -359,8 +436,88 @@ export function SourceWorkspace({
         </p>
       )}
       {!catalog && <p role="status">Loading your connected sources…</p>}
+      {automaticallyPrepared && !activeDraft && (
+        <section className="auto-ready-card" aria-label="Automatic preparation">
+          <span className="auto-ready-icon">
+            <Sparkles size={22} />
+          </span>
+          <div>
+            <h3>
+              {mapped && !reviewPages
+                ? "Your data is ready."
+                : "A quick check before you continue."}
+            </h3>
+            <p>
+              {mapped} of {total} worksheet pages prepared.{" "}
+              {reviewPages
+                ? `${reviewPages} page${reviewPages === 1 ? "" : "s"} need a manual check. Previously saved data remains available.`
+                : questions.length
+                  ? `${questions.length} quick check${questions.length === 1 ? "" : "s"} available. Your other data is already ready to explore.`
+                  : "Your original files stay unchanged. You can review any column later."}
+            </p>
+          </div>
+          <div className="auto-ready-actions">
+            {mapped > 0 && (
+              <Button
+                disabled={!!busy}
+                onClick={() => nav(`/companies/${companyId}/overview`)}
+              >
+                Open dashboard
+                <ArrowRight size={14} />
+              </Button>
+            )}
+            {questions.length > 0 && (
+              <Button
+                variant="secondary"
+                disabled={!!busy}
+                onClick={() => setQuestion(questions[0])}
+              >
+                Review {questions.length} quick check
+                {questions.length === 1 ? "" : "s"}
+              </Button>
+            )}
+            <Button
+              variant="text"
+              disabled={!!busy}
+              onClick={() =>
+                phase === "manage"
+                  ? setSection("mapping")
+                  : nav(`/companies/${companyId}/onboarding/mapping`)
+              }
+            >
+              Review mapping
+            </Button>
+          </div>
+        </section>
+      )}
       {viewSection === "connect" && (
         <>
+          <div className="auto-import-intro">
+            <Sparkles size={17} />
+            <p>
+              Connect your workbook. We’ll prepare its columns automatically.
+              Manual editing stays available.
+            </p>
+          </div>
+          {catalog?.aiAvailable && (
+            <label className="auto-ai-consent">
+              <input
+                type="checkbox"
+                checked={allowAi}
+                disabled={!!busy}
+                onChange={(e) => setAllowAi(e.target.checked)}
+              />
+              <span>
+                Use optional AI for unfamiliar labels
+                <small>
+                  Share workbook labels, column names and type summaries with a
+                  free AI provider. Sheet rows and cell values are not sent. If
+                  unavailable, automatic detection continues locally.
+                </small>
+              </span>
+            </label>
+          )}
+
           <div
             className="sheet-source-tabs intel-tabs"
             aria-label="Spreadsheet source"
@@ -488,8 +645,8 @@ export function SourceWorkspace({
               <div>
                 <h3>Add an Excel or CSV workbook</h3>
                 <p>
-                  All worksheet pages stay available. You’ll map columns in the
-                  next step.
+                  All worksheet pages stay available. We prepare their columns
+                  automatically.
                 </p>
               </div>
               <Button
@@ -596,6 +753,21 @@ export function SourceWorkspace({
                     </small>
                   </div>
                   <div className="source-parent-actions">
+                    <Button
+                      variant="text"
+                      disabled={!!busy}
+                      busy={busy === `prepare:${source.id}`}
+                      onClick={() =>
+                        void run(`prepare:${source.id}`, () =>
+                          prepareSource(source.id),
+                        )
+                      }
+                    >
+                      <Sparkles size={14} />
+                      {source.automation
+                        ? "Prepare again"
+                        : "Prepare automatically"}
+                    </Button>
                     {source.mode !== "upload" ? (
                       <Button
                         variant="text"
@@ -673,6 +845,27 @@ export function SourceWorkspace({
                               ? "Skipped · available to map later"
                               : "Not mapped yet"}
                         </small>
+                        {tab.automatic && (
+                          <small className="auto-page-status">
+                            {tab.automatic.status === "needs_review"
+                              ? "Needs a manual check · saved data retained"
+                              : tab.automatic.origin === "ai"
+                                ? "AI-assisted · validated"
+                                : tab.automatic.origin === "manual"
+                                  ? "Manually reviewed"
+                                  : tab.automatic.status === "empty"
+                                    ? "No table records found"
+                                    : tab.mapped
+                                      ? "Automatically prepared · validated"
+                                      : "Needs a manual check"}
+                            {tab.automatic.questions?.length
+                              ? ` · ${tab.automatic.questions.length} quick check${tab.automatic.questions.length === 1 ? "" : "s"}`
+                              : ""}
+                          </small>
+                        )}
+                        {tab.automatic?.notes?.map((note, index) => (
+                          <small key={index}>{note}</small>
+                        ))}
                         {tab.lastSuccess && (
                           <small>
                             Checked {new Date(tab.lastSuccess).toLocaleString()}
@@ -895,6 +1088,47 @@ export function SourceWorkspace({
             </Button>
           </div>
         </section>
+      )}
+      {question && (
+        <Modal title="One quick check" onClose={() => setQuestion(null)}>
+          <ErrorBox>{error}</ErrorBox>
+          <p>{question.question.message}</p>
+          <div className="auto-question-options">
+            {question.question.choices.map((choice) => (
+              <Button
+                key={choice.value || "unassigned"}
+                variant="secondary"
+                disabled={!!busy}
+                busy={busy === "answer"}
+                onClick={() =>
+                  void run("answer", async () => {
+                    const value = await serverRequest<Catalog>(
+                      `${root}/${question.sourceId}/answer`,
+                      "POST",
+                      {
+                        tabId: question.tabId,
+                        questionId: question.question.id,
+                        value: choice.value,
+                      },
+                    );
+                    applyCatalog(value);
+                    setQuestion(null);
+                    setMessage("Choice saved. Your data is up to date.");
+                  })
+                }
+              >
+                {choice.label}
+              </Button>
+            ))}
+          </div>
+          <Button
+            variant="text"
+            disabled={!!busy}
+            onClick={() => setQuestion(null)}
+          >
+            Decide later · keep available data
+          </Button>
+        </Modal>
       )}
       {popup && activeDraft && (
         <Modal

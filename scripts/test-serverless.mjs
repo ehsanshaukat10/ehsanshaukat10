@@ -68,6 +68,9 @@ try {
   const journeyCheck = start(["tests/customer-journey.browser.mjs"]);
   if ((await new Promise((r) => journeyCheck.on("exit", r))) !== 0)
     throw Error("Full customer journey browser check failed.");
+  const automaticCheck = start(["tests/automatic.browser.mjs"]);
+  if ((await new Promise((r) => automaticCheck.on("exit", r))) !== 0)
+    throw Error("Automatic mapping browser check failed.");
 } finally {
   await Promise.all(
     children

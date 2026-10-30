@@ -13,7 +13,9 @@ await scenario(
     const w = await workspace(page, "Private feedback");
     await page.goto(w.base + "/onboarding/integrations");
     await privateConnect(page, w.base);
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Review mapping", exact: true })
+      .click();
     await expect(page).toHaveURL(/onboarding\/mapping$/);
     await map(page, "Finance");
     await save(page);
