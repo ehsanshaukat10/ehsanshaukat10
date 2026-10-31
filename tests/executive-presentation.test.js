@@ -193,3 +193,62 @@ test("date-as-identity is explicit and duplicate financial dates are never summe
       .every((m) => m.value === null),
   );
 });
+
+test("a company configured for margin alone still gets its validated percentage, never an empty confirmation loop", () => {
+  const { catalog } = fixture();
+  const view = evaluateSemantics({
+    catalog,
+    companyId: "company",
+    now,
+    settings: { enabledMetrics: ["finance.margin"] },
+  });
+  const report = buildExecutiveReport(
+    view,
+    {
+      id: "company",
+      data: { kpis: [{ enabled: true, name: "Operating margin" }] },
+    },
+    catalog,
+  );
+  assert.equal(report.primary.length, 1);
+  assert.equal(report.primary[0].metricId, "finance.margin");
+  assert.equal(report.primary[0].unit, "percent");
+  assert.equal(report.performance, null);
+});
+
+test("an explicitly configured profit metric with missing expense inputs shows a concise correction state", () => {
+  const { catalog, finance, fm } = fixture();
+  delete fm.fields.expense;
+  catalog.sources[0].tabs[0].semantic = confirmSemantics(
+    fm,
+    finance,
+    "owner",
+    now,
+  );
+  const view = evaluateSemantics({ catalog, companyId: "company", now });
+  const report = buildExecutiveReport(
+    view,
+    {
+      id: "company",
+      data: { kpis: [{ name: "Operating profit", enabled: true }] },
+    },
+    catalog,
+    "a:0",
+  );
+  assert.equal(report.dataStatus, "Insufficient data");
+  assert.equal(
+    report.primary.some((m) => m.metricId === "finance.profit"),
+    false,
+  );
+  assert.match(report.reviewHref, /source=a&tab=0/);
+});
+
+test("deliberately excluded reporting is retained without a false mapping warning", () => {
+  const { catalog } = fixture();
+  for (const tab of catalog.sources[0].tabs) tab.semantic.enabled = false;
+  const view = evaluateSemantics({ catalog, companyId: "company", now });
+  const r = buildExecutiveReport(view, { id: "company", data: {} }, catalog);
+  assert.equal(r.state, "not_selected");
+  assert.equal(r.primary.length, 0);
+  assert.equal(r.dataStatus, null);
+});

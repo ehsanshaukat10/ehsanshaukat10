@@ -135,6 +135,14 @@ test("semantic confirmations and settings persist without changing imports; sync
     confirmed.data.metrics.find((m) => m.metricId === "finance.revenue").value,
     300,
   );
+  assert.equal(confirmed.data.metrics[0].timezone, "Asia/Karachi");
+  const evidence = await call(
+    root + `/${id}/evidence?tabId=0&metricId=finance.revenue`,
+  );
+  assert.equal(evidence.status, 200);
+  assert.equal(evidence.data.metric.value, 300);
+  assert.equal(evidence.data.rows.length, 2);
+  assert.ok(evidence.data.rows.flat().includes("T1"));
   const confirmation = confirmed.data.worksheets.find(
     (w) => w.tabId === 0,
   ).confirmation;
@@ -235,6 +243,22 @@ test("semantic confirmations and settings persist without changing imports; sync
     "Transaction ID,Date,Sales total,Expenses\nR1,2026-10-01,125,25";
   assert.equal((await call(root + `/${rid}/sync`, "POST", {})).status, 200);
   assert.equal(find((await call(root + "/intelligence")).data).state, "stale");
+  assert.equal(
+    (
+      await call(
+        root + `/${rid}/evidence?tabId=${tab.tabId}&metricId=finance.revenue`,
+      )
+    ).status,
+    409,
+  );
+  assert.equal(
+    (
+      await call(
+        `/companies/${other.id}/sources/${id}/evidence?tabId=0&metricId=finance.revenue`,
+      )
+    ).status,
+    404,
+  );
   // Invalid confirmations cannot replace the persisted confirmation.
   assert.equal(
     (
@@ -270,6 +294,11 @@ test("semantic confirmations and settings persist without changing imports; sync
     403,
   );
   // Unauthenticated requests cannot read semantic data either.
+  assert.equal(
+    (await call(root + `/${id}/evidence?tabId=0&metricId=finance.revenue`))
+      .status,
+    403,
+  );
   cookie = "";
   assert.equal((await call(root + "/intelligence")).status, 401);
 });

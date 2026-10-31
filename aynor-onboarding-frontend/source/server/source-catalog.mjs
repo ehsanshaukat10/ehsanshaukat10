@@ -482,13 +482,13 @@ export function createSourceCatalog({
       catalog: { ...state.catalog, revision: state.connection?.revision },
       companyId: company,
       settings: state.catalog.semanticSettings || {},
-      timezone: membership.company.timezone || "UTC",
+      timezone: membership.company.profile?.timezone || "UTC",
     });
     return {
       ...view,
       executive: buildExecutiveReport(
         view,
-        { ...membership.company, id: company },
+        { ...membership.company, ...membership.company.profile, id: company },
         state.catalog,
         requestedScope,
       ),

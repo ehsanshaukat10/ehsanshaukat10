@@ -106,16 +106,27 @@ export function buildExecutiveReport(view, company, catalog, requestedScope) {
         : selected?.purpose === "delivery"
           ? ["delivery.active_projects", "delivery.overdue_projects"]
           : ["resources.utilization"];
-  const primary = primaryIds
+  const configuredIds = selectedMetrics
+    .filter(
+      (m) =>
+        configured.includes(m.metricId) ||
+        configured.includes(m.name.toLowerCase()) ||
+        configured.includes((labels[m.metricId] || "").toLowerCase()),
+    )
+    .map((m) => m.metricId);
+  const primary = [...new Set([...configuredIds, ...primaryIds])]
     .map(find)
     .filter(Boolean)
     .map((m) => ({ ...m, label: labels[m.metricId] }))
-    .slice(0, 4);
-  if (!primary.length && find("finance.expenses"))
-    primary.push({ ...find("finance.expenses"), label: "Operating expenses" });
+    .slice(0, selected?.purpose === "finance" ? 2 : 4);
+  if (!primary.length && selectedMetrics.length) {
+    const metric =
+      find("finance.expenses") || find("finance.margin") || selectedMetrics[0];
+    primary.push({ ...metric, label: labels[metric.metricId] });
+  }
   const base = `/companies/${company.id}`;
   const evidenceLink = (m) =>
-    `${base}/overview?scope=${encodeURIComponent(m.scope)}&evidence=${encodeURIComponent(m.metricId)}&source=${encodeURIComponent(m.lineage.sourceId)}&tab=${m.lineage.tabId}`;
+    `${base}/overview?scope=${encodeURIComponent(selected?.id || m.scope)}&evidence=${encodeURIComponent(m.metricId)}&source=${encodeURIComponent(m.lineage.sourceId)}&tab=${m.lineage.tabId}`;
   const issues = [];
   for (const scope of scopes)
     for (const m of scope.metrics) {
@@ -222,22 +233,67 @@ export function buildExecutiveReport(view, company, catalog, requestedScope) {
   const unresolved = view.worksheets.filter(
     (w) =>
       w.confirmation?.enabled !== false &&
-      !["reference", "other"].includes(w.confirmation?.purpose) &&
+      !["reference", "other"].includes(
+        w.confirmation?.purpose || w.proposal?.purpose,
+      ) &&
       !w.executiveEligible,
   );
+  const excludedScopes = new Set(
+    view.worksheets
+      .filter(
+        (sheet) =>
+          sheet.confirmation?.enabled === false ||
+          ["reference", "other"].includes(sheet.confirmation?.purpose),
+      )
+      .map((sheet) => `${sheet.sourceId}:${sheet.tabId}`),
+  );
   const blocked = view.metrics.filter(
-    (m) => m.state !== "validated" && m.state !== "unavailable",
+    (metric) =>
+      !excludedScopes.has(metric.scope) &&
+      metric.state !== "validated" &&
+      (!metric.entity ||
+        view.registry.find((definition) => definition.id === metric.metricId)
+          ?.entity === metric.entity),
+  );
+  const configuredBlocked = blocked.filter(
+    (metric) =>
+      configured.includes(metric.metricId) ||
+      configured.includes(metric.name.toLowerCase()) ||
+      configured.includes((labels[metric.metricId] || "").toLowerCase()),
+  );
+  const needsColumns = catalog.sources.some((source) =>
+    source.tabs.some((tab) => !tab.skipped && !tab.table),
   );
   const state = valid.length
     ? "ready"
-    : view.worksheets.length
-      ? "review"
-      : "empty";
-  const dataStatus = blocked.some((m) => m.state === "stale")
+    : !needsColumns &&
+        view.worksheets.length &&
+        excludedScopes.size === view.worksheets.length
+      ? "not_selected"
+      : catalog.sources.length
+        ? "review"
+        : "empty";
+  const provisional = blocked.some((metric) => metric.state === "provisional");
+  const dataStatus = blocked.some((metric) => metric.state === "stale")
     ? "Data needs refresh"
-    : unresolved.length
-      ? "Review business meanings"
-      : null;
+    : needsColumns
+      ? "Review column mapping"
+      : provisional
+        ? "Review business meanings"
+        : configuredBlocked.length || (!valid.length && blocked.length)
+          ? "Insufficient data"
+          : unresolved.length
+            ? "Review business meanings"
+            : null;
+  const reviewTarget =
+    unresolved[0] ||
+    view.worksheets.find((sheet) =>
+      configuredBlocked.some(
+        (metric) =>
+          metric.lineage.sourceId === sheet.sourceId &&
+          metric.lineage.tabId === sheet.tabId,
+      ),
+    );
   return {
     version: 1,
     state,
@@ -258,14 +314,16 @@ export function buildExecutiveReport(view, company, catalog, requestedScope) {
     dataStatus,
     reviewHref:
       base +
-      "/connections?business=1" +
-      (unresolved[0]
-        ? `&source=${encodeURIComponent(unresolved[0].sourceId)}&tab=${unresolved[0].tabId}`
+      (needsColumns
+        ? "/connections?map=1"
+        : dataStatus === "Data needs refresh"
+          ? "/connections?refresh=1"
+          : "/connections?business=1") +
+      (reviewTarget
+        ? `&source=${encodeURIComponent(reviewTarget.sourceId)}&tab=${reviewTarget.tabId}`
         : ""),
     summary: issues.length
       ? `${issues.length} supported ${issues.length === 1 ? "issue needs" : "issues need"} attention across confirmed reporting scopes.`
-      : selected
-        ? `Confirmed ${purposeLabels[selected.purpose]?.toLowerCase() || "business reporting"} for ${selected.label}.`
-        : null,
+      : null,
   };
 }
