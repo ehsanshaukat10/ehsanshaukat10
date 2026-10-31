@@ -405,7 +405,6 @@ export function SemanticReview({
                         );
                         setConfirmed(false);
                       }}
-                      hint="Includes this date."
                     />
                   </div>
                 )}
@@ -465,7 +464,7 @@ export function SemanticReview({
                   : "These field meanings, units and reporting dates match my data."}
               </span>
             </label>
-            <div className="source-map-actions">
+            <div className="intel-inline-links">
               <Button
                 busy={busy}
                 disabled={!confirmed || !label.trim() || busy}

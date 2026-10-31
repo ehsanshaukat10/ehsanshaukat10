@@ -109,3 +109,8 @@ export function displayPeriod(period: SemanticPeriod) {
     ? `As of ${period.asOf}`
     : `${period.start} – ${new Date(Date.parse(period.endExclusive + "T00:00:00Z") - 86400000).toISOString().slice(0, 10)}`;
 }
+
+export type ExecutiveSnapshot = Pick<
+  SemanticView,
+  "version" | "companyId" | "evaluatedAt" | "executive"
+>;

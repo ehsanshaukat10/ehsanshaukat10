@@ -16,7 +16,15 @@ export function readOverviewCache(scope: string): Entry | null {
         Array.isArray(report.tableReport.tables) &&
         report.tableReport.tables.length
       ) &&
-      !(report?.data && Array.isArray(report.data.points) && report.data.totals)
+      !(
+        report?.data &&
+        Array.isArray(report.data.points) &&
+        report.data.totals
+      ) &&
+      !(
+        report?.executive?.version === 1 &&
+        Array.isArray(report.executive.scopes)
+      )
     )
       return null;
     memory.set(scope, entry);

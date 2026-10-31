@@ -1,103 +1,66 @@
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Database, RefreshCw } from "lucide-react";
 import { formatSyncTime } from "../../../shared/sync-time.mjs";
 import { useApp } from "../../lib/context";
+import { ApiError, serverRequest } from "../../lib/runtime";
+import { Button, ErrorBox } from "../../components/ui";
+import type { Company } from "../../lib/api";
+import { useSheetStatus } from "./SheetsConnection";
+import { Panel } from "../intelligence/shared";
+import { Select } from "./LiveSelect";
+import { OverviewSkeleton } from "./OverviewSkeleton";
 import {
   readOverviewCache,
   writeOverviewCache,
   clearOverviewCache,
 } from "./overview-cache";
-import { OverviewSkeleton } from "./OverviewSkeleton";
-import { type TableReport } from "./TableOverview";
-import { BusinessOverview } from "./BusinessOverview";
-import { Select } from "./LiveSelect";
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { ArrowUpRight, Database, RefreshCw } from "lucide-react";
-import { Button, ErrorBox } from "../../components/ui";
-import type { Company } from "../../lib/api";
-import { ApiError, serverRequest } from "../../lib/runtime";
-import { useSheetStatus } from "./SheetsConnection";
-import { Panel } from "../intelligence/shared";
+import { GovernedOverview } from "./GovernedOverview";
+import { BusinessEvidence } from "./BusinessEvidence";
+import type { ExecutiveSnapshot } from "./semantic-types";
 import "../dashboard/dashboard.css";
 import "../intelligence/intelligence.css";
-type Point = { date: string; revenue: number; costs: number };
-type Overview = {
-  tableReport?: TableReport;
-  data: {
-    points: Point[];
-    totals: {
-      revenue: number;
-      costs: number;
-      profit: number;
-      margin: number | null;
-    };
-    start: string;
-    endExclusive: string;
-    recordsAvailable: number;
-  } | null;
-};
+import "./operational-overview.css";
 export function LiveOverview({ company }: { company: Company }) {
-  const { user } = useApp();
-  const scope = `${user?.id}:${company.id}:${company.role}:${company.currency || "USD"}`;
-  const cached = readOverviewCache(scope);
-  const { source, error: streamError } = useSheetStatus(
-      company.id,
-      ["Owner", "Admin"].includes(company.role),
-    ),
-    [period, setPeriod] = useState(cached?.period || "all"),
-    [report, setReport] = useState<Overview | null>(
-      () => (cached?.report as Overview) || null,
+  const { user } = useApp(),
+    [query, setQuery] = useSearchParams();
+  const cacheScope = `${user?.id}:${company.id}:${company.role}:executive-v1`,
+    cached = readOverviewCache(cacheScope);
+  const [report, setReport] = useState<ExecutiveSnapshot | null>(
+      () => (cached?.report as ExecutiveSnapshot) || null,
     ),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(true),
-    [revision, setRevision] = useState(0),
-    [selected, setSelected] = useState(0);
-  const base = `/companies/${company.id}`;
-  const lastDataUpdate =
-    source?.lastSuccess ||
-    Math.max(
-      0,
-      ...(report?.tableReport?.tables || []).map(
-        (table) => table.lastSuccess || 0,
-      ),
-    ) ||
-    null;
+    [revision, setRevision] = useState(0);
+  const allowed = ["Owner", "Admin"].includes(company.role),
+    { source } = useSheetStatus(company.id, allowed),
+    requested = query.get("scope") || "",
+    evidence = query.get("evidence") || "";
   useEffect(() => {
-    if (source?.hasSnapshot && source.syncMode === "manual") setPeriod("all");
-  }, [source?.mode, source?.hasSnapshot]);
-  useEffect(() => {
-    if (!["Owner", "Admin"].includes(company.role)) return;
+    if (!allowed || evidence) return;
     let active = true;
     setBusy(true);
-    serverRequest<Overview>(base + "/sheets/overview?period=" + period)
-      .then((value) => {
+    serverRequest<ExecutiveSnapshot>(
+      `/companies/${company.id}/sources/intelligence?scope=${encodeURIComponent(requested)}&view=executive`,
+    )
+      .then((view) => {
         if (active) {
-          const next: Overview =
-            (value.data as unknown as TableReport)?.kind === "tables"
-              ? {
-                  data: null,
-                  tableReport: value.data as unknown as TableReport,
-                }
-              : value;
-          const emptyDuringSync = source?.status === "syncing" && !value.data;
-          setReport((previous) =>
-            emptyDuringSync && previous ? previous : next,
-          );
-          if (!emptyDuringSync) {
-            if (next.tableReport?.tables.length || next.data?.points.length)
-              writeOverviewCache(scope, period, next);
-            else clearOverviewCache(scope);
-          }
+          setReport(view);
+          writeOverviewCache(cacheScope, "all", view);
           setError("");
-          setSelected(0);
         }
       })
       .catch((e) => {
         if (active) {
           if (e instanceof ApiError && [401, 403, 404].includes(e.status)) {
-            clearOverviewCache(scope);
+            clearOverviewCache(cacheScope);
             setReport(null);
           }
-          setError(e.message);
+          setError(
+            e instanceof ApiError && [401, 403, 404].includes(e.status)
+              ? "Business reporting is unavailable for your current access."
+              : "Unable to refresh business reporting. Retry.",
+          );
         }
       })
       .finally(() => {
@@ -106,39 +69,45 @@ export function LiveOverview({ company }: { company: Company }) {
     return () => {
       active = false;
     };
-  }, [scope, period, source?.revision, source?.status, revision]);
-  const money = (value: number) =>
-    new Intl.NumberFormat("en", {
-      style: "currency",
-      currency: company.currency || "USD",
-      maximumFractionDigits: 2,
-    }).format(value);
-  const grouped = new Map<string, Point>();
-  for (const point of report?.data?.points || []) {
-    const key = point.date.slice(0, 7),
-      previous = grouped.get(key) || { date: key, revenue: 0, costs: 0 };
-    previous.revenue += point.revenue;
-    previous.costs += point.costs;
-    grouped.set(key, previous);
-  }
-  const points = [...grouped.values()],
-    data = report?.data,
-    active = points[Math.min(selected, points.length - 1)],
-    max = Math.max(1, ...points.flatMap((p) => [p.revenue, p.costs])),
-    min = Math.min(0, ...points.flatMap((p) => [p.revenue, p.costs])),
-    y = (value: number) => 185 - ((value - min) / (max - min)) * 160;
-  if (!["Owner", "Admin"].includes(company.role))
+  }, [
+    company.id,
+    cacheScope,
+    allowed,
+    requested,
+    evidence,
+    source?.revision,
+    source?.status,
+    revision,
+  ]);
+  if (!allowed)
     return (
       <div className="intel-page">
         <h1>Overview.</h1>
         <Panel title="Scoped reporting">
-          <p>
-            The connected financial source is company-wide. An Owner or Admin
-            can access it; department-level reporting is not yet available.
-          </p>
+          <p>An Owner or Admin can access company-wide business reporting.</p>
         </Panel>
       </div>
     );
+  if (evidence)
+    return (
+      <BusinessEvidence
+        key={`${company.id}:${evidence}:${query.get("source")}:${query.get("tab")}`}
+        companyId={company.id}
+        sourceId={query.get("source") || ""}
+        tabId={query.get("tab") || ""}
+        metricId={evidence}
+        scope={requested}
+      />
+    );
+  const executive = report?.executive;
+  const checked = Math.min(
+    ...(executive?.primary || []).map(
+      (m) => m.freshness.lastSuccess || Infinity,
+    ),
+  );
+  function chooseScope(scope: string) {
+    setQuery({ scope });
+  }
   return (
     <div
       className="intel-page exec-dashboard concise-overview"
@@ -150,237 +119,61 @@ export function LiveOverview({ company }: { company: Company }) {
         </div>
         <details className="overview-source-details intel-notice">
           <summary>
-            <Database size={14} /> Data & sync
-            {source?.status === "syncing"
-              ? " · Syncing…"
-              : source?.stale
-                ? " · Needs attention"
-                : ""}
-          </summary>
-          <div className="overview-source-content">
             <Database size={14} />
-            <span>
-              {source?.status === "syncing"
-                ? "Syncing source… · "
-                : source?.stale
-                  ? "Sync needs attention · "
-                  : ""}
-              {lastDataUpdate ? (
-                <>
-                  Last data update:{" "}
-                  <time dateTime={new Date(lastDataUpdate).toISOString()}>
-                    {formatSyncTime(lastDataUpdate, company.timezone)}
-                  </time>
-                </>
-              ) : (
-                "No validated source yet"
-              )}
-            </span>
-            <Link to={base + "/connections"}>
-              Manage data <ArrowUpRight size={13} />
-            </Link>
-          </div>
-        </details>
-        {!report?.tableReport && (
-          <Select
-            label="Reporting period"
-            value={period}
-            onChange={(event) => setPeriod(event.target.value)}
-          >
-            <option value="all">All available records</option>
-            <option value="month">Last complete month</option>
-            <option value="quarter">Last 3 complete months</option>
-            <option value="year">Last 12 complete months</option>
-          </Select>
-        )}
-      </div>
-      <ErrorBox>{error || streamError}</ErrorBox>
-      {error && (
-        <Button variant="secondary" onClick={() => setRevision((v) => v + 1)}>
-          Retry report
-        </Button>
-      )}
-      {source?.error && <ErrorBox>{source.error}</ErrorBox>}
-      {report?.tableReport ? (
-        <BusinessOverview
-          report={report.tableReport}
-          companyId={company.id}
-          currency={company.currency || "USD"}
-          timezone={company.timezone || "UTC"}
-        />
-      ) : busy && !report ? (
-        <OverviewSkeleton />
-      ) : !data || !points.length ? (
-        <Panel
-          title={
-            data
-              ? "No records in this period"
-              : "Connect your first spreadsheet"
-          }
-        >
-          <p>
-            {data
-              ? `The source contains ${data.recordsAvailable} records, but none fall between ${data.start} and ${data.endExclusive} (exclusive). Choose a different period or update the source dates.`
-              : "Connect Google, upload an Excel or CSV file, or paste a shared sheet URL. Map your columns to see your real metrics here."}
-          </p>
-          <Link className="button secondary" to={base + "/connections"}>
-            Connect data <ArrowUpRight size={14} />
-          </Link>
-        </Panel>
-      ) : (
-        <>
-          <div className="intel-kpi-grid">
-            {[
-              ["Revenue", money(data.totals.revenue)],
-              ["Operating expenses", money(data.totals.costs)],
-              ["Operating profit", money(data.totals.profit)],
-              [
-                "Operating margin",
-                data.totals.margin === null
-                  ? "Unavailable"
-                  : data.totals.margin.toFixed(1) + "%",
-              ],
-            ].map(([label, value]) => (
-              <div className="intel-kpi" key={label}>
-                <span>{label}</span>
-                <strong>{value}</strong>
-                <small>
-                  {data.start} — {data.endExclusive} (exclusive)
-                </small>
-              </div>
-            ))}
-          </div>
-          <Panel
-            title="Revenue & operating costs"
-            action={<span className="intel-status">Validated source</span>}
-          >
-            <div className="live-legend">
-              <span>● Revenue</span>
-              <span>● Operating expenses</span>
-            </div>
-            {active && (
-              <p aria-live="polite">
-                {active.date} · {money(active.revenue)} revenue ·{" "}
-                {money(active.costs)} expenses
-              </p>
-            )}
-            <svg
-              viewBox="0 0 850 225"
-              role="img"
-              aria-label="Monthly revenue and operating expense comparison from validated sheet records"
-              style={{ width: "100%", maxHeight: 280 }}
-            >
-              {[0, 0.5, 1].map((t) => (
-                <g key={t}>
-                  <line
-                    x1="90"
-                    x2="835"
-                    y1={25 + t * 160}
-                    y2={25 + t * 160}
-                    stroke="#eeedf5"
-                  />
-                  <text
-                    x="80"
-                    y={29 + t * 160}
-                    textAnchor="end"
-                    fill="#9992aa"
-                    fontSize="10"
-                  >
-                    {money(max - (max - min) * t)}
-                  </text>
-                </g>
-              ))}
-              <line x1="90" x2="835" y1={y(0)} y2={y(0)} stroke="#bdb4d5" />
-              {points.map((point, i) => {
-                const slot = 735 / points.length,
-                  x = 95 + (i + 0.5) * slot,
-                  w = Math.min(28, slot * 0.28);
-                return (
-                  <g key={point.date}>
-                    <rect
-                      x={x - w - 2}
-                      y={Math.min(y(0), y(point.revenue))}
-                      width={w}
-                      height={Math.abs(y(0) - y(point.revenue))}
-                      rx="3"
-                      fill="#9c8cdb"
-                    >
-                      <title>
-                        {point.date}: revenue {money(point.revenue)}
-                      </title>
-                    </rect>
-                    <rect
-                      x={x + 2}
-                      y={Math.min(y(0), y(point.costs))}
-                      width={w}
-                      height={Math.abs(y(0) - y(point.costs))}
-                      rx="3"
-                      fill="#ddd7ec"
-                    >
-                      <title>
-                        {point.date}: expenses {money(point.costs)}
-                      </title>
-                    </rect>
-                    <text
-                      x={x}
-                      y="213"
-                      textAnchor="middle"
-                      fontSize="10"
-                      fill="#9992aa"
-                    >
-                      {point.date}
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
-            <div className="intel-tabs">
-              {points.map((point, i) => (
-                <button
-                  key={point.date}
-                  aria-pressed={selected === i}
-                  onClick={() => setSelected(i)}
-                >
-                  {point.date}
-                </button>
-              ))}
-            </div>
-          </Panel>
-          <Panel title="Source records">
+            Data status{busy ? " · Updating…" : ""}
+          </summary>
+          {Number.isFinite(checked) && (
             <p>
-              Daily totals across {data.points.length} reporting dates. No
-              synthetic comparisons or growth claims are added.
+              Reporting data checked{" "}
+              <time dateTime={new Date(checked).toISOString()}>
+                {formatSyncTime(checked, company.timezone)}
+              </time>
             </p>
-            <div style={{ overflowX: "auto" }}>
-              <table className="live-records">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Revenue</th>
-                    <th>Operating expenses</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.points.slice(0, 100).map((point) => (
-                    <tr key={point.date}>
-                      <td>{point.date}</td>
-                      <td>{money(point.revenue)}</td>
-                      <td>{money(point.costs)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {data.points.length > 100 && (
-              <p>
-                Showing the first 100 daily totals. Charts and metrics include
-                all dates in this period.
-              </p>
-            )}
-          </Panel>
+          )}
+          <Link to={`/companies/${company.id}/connections`}>
+            Data connections
+          </Link>
+        </details>
+      </div>
+      <ErrorBox>{error}</ErrorBox>
+      {error && (
+        <>
+          <p>
+            Unable to refresh. Any displayed values are from the last saved
+            report.
+          </p>
+          <Button variant="secondary" onClick={() => setRevision((v) => v + 1)}>
+            Retry report
+          </Button>
         </>
       )}
-      {busy && (
+      {executive && executive.scopes.length > 1 && (
+        <Select
+          label="Reporting scope"
+          value={executive.selectedScope || ""}
+          onChange={(e) => chooseScope(e.target.value)}
+        >
+          {executive.scopes.map((s) => (
+            <option value={s.id} key={s.id}>
+              {s.label}
+              {s.department ? ` · ${s.department}` : ""}
+              {s.currency ? ` · ${s.currency}` : ""}
+            </option>
+          ))}
+        </Select>
+      )}
+      {executive ? (
+        <GovernedOverview report={executive} onScope={chooseScope} />
+      ) : busy ? (
+        <OverviewSkeleton />
+      ) : (
+        <Panel title="Reporting unavailable">
+          <Button variant="secondary" onClick={() => setRevision((v) => v + 1)}>
+            Retry report
+          </Button>
+        </Panel>
+      )}
+      {busy && report && (
         <p role="status">
           <RefreshCw size={12} /> Updating report…
         </p>
