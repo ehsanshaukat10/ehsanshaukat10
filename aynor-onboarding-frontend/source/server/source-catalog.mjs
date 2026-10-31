@@ -1,7 +1,6 @@
-import { buildExecutiveReport } from "./executive-presentation.mjs";
+import { createIntelligenceService } from "./intelligence-service.mjs";
 import {
   confirmSemantics,
-  evaluateSemantics,
   validateSemanticSettings,
   currencyEvidence,
 } from "./semantic-intelligence.mjs";
@@ -43,12 +42,16 @@ export function createSourceCatalog({
   fetchImpl = fetch,
 }) {
   const ai = createFreeAi({ env, db, fetchImpl });
-  async function read(company, actor) {
-    const state = await db.rpc("sheet_read", {
+  const intelligenceService = createIntelligenceService({
+    read: (company, actor) => read(company, actor, true),
+  });
+  async function read(company, actor, business = false) {
+    const state = await db.rpc(business ? "intelligence_read" : "sheet_read", {
       p_actor: actor,
       p_company: company,
-      p_snapshot: true,
+      ...(!business ? { p_snapshot: true } : {}),
     });
+    if (!state) fail(403, "Workspace unavailable for your current access.");
     const data = state.snapshot?.data;
     if (data?.kind === "catalog") return { ...state, catalog: data };
     const c = state.connection;
@@ -98,7 +101,7 @@ export function createSourceCatalog({
       });
     }
     for (const source of sources)
-      if (source.mode === "oauth") {
+      if (!business && source.mode === "oauth") {
         try {
           const meta = await metadata(company, source.url);
           source.title = meta.title;
@@ -475,25 +478,14 @@ export function createSourceCatalog({
         tab.table,
       );
   }
-  async function intelligence(company, actor, requestedScope, providedState) {
-    const membership = await member(company, actor, true);
-    const state = providedState || (await read(company, actor));
-    const view = evaluateSemantics({
-      catalog: { ...state.catalog, revision: state.connection?.revision },
-      companyId: company,
-      settings: state.catalog.semanticSettings || {},
-      timezone: membership.company.profile?.timezone || "UTC",
-    });
-    return {
-      ...view,
-      executive: buildExecutiveReport(
-        view,
-        { ...membership.company, ...membership.company.profile, id: company },
-        state.catalog,
-        requestedScope,
-      ),
-    };
+  async function intelligence(company, actor, requestedScope) {
+    return intelligenceService.evaluate(
+      company,
+      actor,
+      requestedScope ? { scope: requestedScope } : {},
+    );
   }
+
   async function overview(company, actor, period) {
     const state = await read(company, actor),
       tables = [],
@@ -583,6 +575,7 @@ export function createSourceCatalog({
     status,
     overview,
     intelligence,
+    intelligenceService,
     async handle({ company, actor, action, id, method, body, query = {} }) {
       await member(company, actor, true);
       if (action === "intelligence" && method === "GET") {
@@ -597,50 +590,15 @@ export function createSourceCatalog({
           : view;
       }
       if (action === "evidence" && method === "GET") {
-        const state = await read(company, actor),
-          source = getSource(state.catalog, id),
-          tab = source.tabs.find((t) => t.tabId === Number(query.tabId));
-        if (!tab?.table) fail(404, "Evidence is unavailable.");
-        const view = await intelligence(company, actor, undefined, state),
-          metric = view.metrics.find(
-            (m) =>
-              m.metricId === query.metricId &&
-              m.lineage.sourceId === id &&
-              m.lineage.tabId === tab.tabId,
-          );
-        if (!metric || metric.state !== "validated")
-          fail(
-            409,
-            "This evidence needs review or refresh before it supports an investigation.",
-          );
-        // Names are optional, explicitly confirmed context from this same row, never joins.
-        const columns = [
-          ...new Set(
-            Object.entries(metric.lineage.fields)
-              .filter(
-                ([role, header]) =>
-                  !role.endsWith("_name") ||
-                  tab.table.types[tab.table.headers.indexOf(header)] === "text",
-              )
-              .map(([, header]) => header),
-          ),
-        ];
-        return {
-          metric,
-          columns,
-          rows: metric.lineage.contributingRows
-            .slice(0, 100)
-            .map((index) =>
-              columns.map(
-                (header) =>
-                  tab.table.rows[index][tab.table.headers.indexOf(header)],
-              ),
-            ),
-          total: metric.lineage.contributingRows.length,
-          sourceTitle: source.title,
-          tabTitle: tab.title,
-        };
+        return intelligenceService.evidence(company, actor, {
+          sourceId: id,
+          tabId: query.tabId,
+          metricId: query.metricId,
+          revision: query.revision,
+          legacy: true,
+        });
       }
+
       if (action === "semantic-config") {
         if (method === "GET")
           return (

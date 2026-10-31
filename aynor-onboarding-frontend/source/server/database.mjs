@@ -66,6 +66,11 @@ export function createDatabase({ env = process.env, fetchImpl = fetch } = {}) {
       if (known) fail(Number(known[1]), known[2]);
       if (result?.code === "23505")
         fail(409, "This record already exists. Reload and try again.");
+      if (result?.code === "PGRST202" && path === "rpc/aynor_intelligence_read")
+        fail(
+          503,
+          "Business intelligence setup is incomplete. Apply the pending AYNOR intelligence-read migration.",
+        );
       if (["42P01", "PGRST202", "PGRST205"].includes(result?.code))
         fail(
           503,

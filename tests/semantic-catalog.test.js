@@ -149,7 +149,8 @@ test("semantic confirmations and settings persist without changing imports; sync
   app = createApplication({
     env,
     fetchImpl: async (input, options) => {
-      if (String(input).endsWith("/rpc/aynor_sheet_read")) evidenceReads++;
+      if (/\/rpc\/aynor_(sheet|intelligence)_read$/.test(String(input)))
+        evidenceReads++;
       return f.fetchImpl(input, options);
     },
   });

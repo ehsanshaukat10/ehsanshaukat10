@@ -369,6 +369,35 @@ export function createServerlessSheets({
           return redirect(back + "?google=failed");
         }
       }
+      const businessRoute = path.match(
+        /^\/companies\/([a-f0-9-]{36})\/intelligence(?:\/(context|evidence|records|relationships))?$/i,
+      );
+      if (businessRoute) {
+        const [, company, operation] = businessRoute;
+        if (method !== "GET") fail(405, "Business intelligence is read-only.");
+        const service = catalog.intelligenceService;
+        const params = Object.fromEntries(
+          [...new Set(url.searchParams.keys())].map((key) => [
+            key,
+            url.searchParams.getAll(key).length > 1
+              ? url.searchParams.getAll(key)
+              : url.searchParams.get(key),
+          ]),
+        );
+        if (operation === "context")
+          return send(
+            await service.context(company, user.id, url.searchParams),
+          );
+        if (operation === "evidence")
+          return send(await service.evidence(company, user.id, params));
+        if (operation === "records")
+          return send(await service.records(company, user.id, params));
+        if (operation === "relationships")
+          return send(
+            await service.relationships(company, user.id, url.searchParams),
+          );
+        return send(await service.snapshot(company, user.id, url.searchParams));
+      }
       const catalogRoute = path.match(
         /^\/companies\/([a-f0-9-]{36})\/sources(?:\/([a-z0-9-]+)(?:\/(inspect|map|sync|skip|prepare|answer|check|department|semantics|evidence))?)?$/i,
       );

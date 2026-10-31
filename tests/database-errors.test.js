@@ -41,3 +41,24 @@ test("Supabase failures expose only safe operation/code diagnostics, never provi
     console.error = original;
   }
 });
+
+test("missing shared intelligence SQL reports the pending migration without exposing provider content", async () => {
+  const db = createDatabase({
+    env: {
+      SUPABASE_URL: "https://test.supabase.co",
+      SUPABASE_SECRET_KEY: "sb_secret_fixture",
+    },
+    fetchImpl: async () =>
+      Response.json(
+        { code: "PGRST202", message: "private provider diagnostics" },
+        { status: 404 },
+      ),
+  });
+  await assert.rejects(
+    () => db.rpc("intelligence_read", {}),
+    (e) =>
+      e.status === 503 &&
+      /pending AYNOR intelligence-read migration/.test(e.message) &&
+      !e.message.includes("private provider"),
+  );
+});

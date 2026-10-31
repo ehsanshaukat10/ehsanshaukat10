@@ -1,5 +1,7 @@
+import { intelligenceAccessSchema } from "./intelligence-policy.mjs";
 import { z } from "zod";
 export const workspaceSchema = z.object({
+  intelligenceAccess: intelligenceAccessSchema.optional(),
   departments: z.array(z.string().trim().min(1).max(80)).max(100),
   priorities: z.array(z.string().trim().min(1).max(100)).max(100),
   sources: z
