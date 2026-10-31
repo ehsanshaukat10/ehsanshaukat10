@@ -16,7 +16,7 @@ export function OperationalOverview({
   onExplore: (index: number) => void;
 }) {
   const [department, setDepartment] = useState("all");
-  const [chart, setChart] = useState("donut");
+  const [view, setView] = useState("summary");
   const tables =
     department === "all"
       ? report.tables
@@ -25,7 +25,8 @@ export function OperationalOverview({
         );
   const summary = operationalOverview(tables, dateInTimezone(timezone));
   const [selected, setSelected] = useState(summary.previewIndex);
-  const table = report.tables[Math.min(selected, report.tables.length - 1)];
+  const selectedIndex = Math.min(selected, report.tables.length - 1);
+  const table = report.tables[selectedIndex];
   const statuses = [
     ["Open / in progress", summary.counts.open],
     ["Completed / closed", summary.counts.completed],
@@ -34,34 +35,16 @@ export function OperationalOverview({
     ["Other statuses", summary.counts.other],
   ] as const;
   const departments = [...summary.departments].sort((a, b) =>
-    a.name === "Unassigned"
-      ? 1
-      : b.name === "Unassigned"
-        ? -1
-        : b.flagged - a.flagged ||
-          b.open - a.open ||
-          a.name.localeCompare(b.name),
+    a.name === b.name
+      ? 0
+      : a.name === "Unassigned"
+        ? 1
+        : b.name === "Unassigned"
+          ? -1
+          : b.flagged - a.flagged ||
+            b.open - a.open ||
+            a.name.localeCompare(b.name),
   );
-  const measures = [...summary.measures].sort((a, b) =>
-    a.name.localeCompare(b.name),
-  );
-  const colors = [
-    "var(--accent)",
-    "color-mix(in srgb, var(--accent) 55%, white)",
-    "var(--muted)",
-    "var(--border)",
-    "var(--light)",
-  ];
-  let offset = 0;
-  const gradient = statuses
-    .filter(([, value]) => value > 0)
-    .map(([label, value]) => {
-      const start = offset;
-      offset += (value / summary.statusRecords) * 100;
-      return `${colors[statuses.findIndex(([name]) => name === label)]} ${start}% ${offset}%`;
-    })
-    .join(",");
-  const max = Math.max(1, ...statuses.map(([, value]) => value));
   return (
     <section
       className="operational-overview"
@@ -89,190 +72,142 @@ export function OperationalOverview({
           <span>
             {summary.workbooks} workbook{summary.workbooks === 1 ? "" : "s"} ·{" "}
             {summary.pages} mapped pages · {summary.records.toLocaleString()}{" "}
-            imported records ·{" "}
-            {summary.departments.filter((d) => d.name !== "Unassigned").length}{" "}
-            assigned departments
+            imported records
           </span>
         </details>
       </div>
       {summary.statusRecords > 0 && (
-        <>
-          <div
-            className="intel-kpi-grid"
-            aria-label="Recorded activity metrics"
-          >
-            {[
-              ["Open / in progress", summary.counts.open],
-              ["Completed / closed", summary.counts.completed],
-              ["Blocked / flagged", summary.counts.flagged],
-              [
-                summary.overdue === null ? "Status records" : "Overdue",
-                summary.overdue === null
-                  ? summary.statusRecords
-                  : summary.overdue,
-              ],
-            ].map(([label, value]) => (
-              <div className="intel-kpi" key={label}>
-                <span>{label}</span>
-                <strong>{Number(value).toLocaleString()}</strong>
-              </div>
-            ))}
-          </div>
-          <div className="operational-panels">
-            <Panel
-              title="Status across your business"
-              action={
-                <div
-                  className="overview-chart-tabs"
-                  aria-label="Status chart view"
-                >
-                  <Button
-                    variant="text"
-                    onClick={() => setChart("donut")}
-                    aria-pressed={chart === "donut"}
-                  >
-                    Donut
-                  </Button>
-                  <Button
-                    variant="text"
-                    onClick={() => setChart("bars")}
-                    aria-pressed={chart === "bars"}
-                  >
-                    Bars
-                  </Button>
-                </div>
-              }
-            >
-              <div
-                className={chart === "donut" ? "overview-status-visual" : ""}
-              >
-                {chart === "donut" && (
-                  <div
-                    className="overview-donut"
-                    role="img"
-                    aria-label={`Status distribution: ${statuses.map(([label, value]) => `${label} ${value}`).join(", ")}`}
-                    style={{ background: `conic-gradient(${gradient})` }}
-                  >
-                    <div>
-                      <strong>{summary.statusRecords}</strong>
-                      <span>records</span>
-                    </div>
-                  </div>
-                )}
-                <div
-                  className={`table-profile-bars ${chart === "donut" ? "overview-status-legend" : ""}`}
-                >
-                  {statuses
-                    .filter(([, value]) => value > 0)
-                    .map(([label, value]) => (
-                      <div className="table-profile-bar" key={label}>
-                        <span>{label}</span>
-                        <i
-                          style={
-                            chart === "donut"
-                              ? {
-                                  background:
-                                    colors[
-                                      statuses.findIndex(
-                                        ([name]) => name === label,
-                                      )
-                                    ],
-                                }
-                              : undefined
-                          }
-                        >
-                          {chart === "bars" && (
-                            <b style={{ width: `${(value / max) * 100}%` }} />
-                          )}
-                        </i>
-                        <span>{value.toLocaleString()}</span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-              <details className="mapping-detail">
-                <summary>Calculation notes</summary>
-                <p>
-                  Counts reflect recorded rows, not unique items across pages.
-                  Overdue includes open or flagged records past a mapped
-                  deadline.
-                </p>
-              </details>
-            </Panel>
-            <Panel title="Activity by department">
-              <div
-                className="operational-departments"
-                style={{ maxHeight: departments.length <= 6 ? "none" : 350 }}
-              >
-                {departments.map((team) => (
-                  <div key={team.name}>
-                    <strong>{team.name}</strong>
-                    <div
-                      className="overview-team-bar"
-                      role="img"
-                      aria-label={`${team.name}: ${team.open} open, ${team.completed} completed, ${team.flagged} flagged`}
-                    >
-                      {team.open + team.completed + team.flagged === 0 && (
-                        <small>No open, closed or flagged statuses</small>
-                      )}
-                      {[team.open, team.completed, team.flagged].map(
-                        (n, i) =>
-                          n > 0 && (
-                            <span
-                              key={i}
-                              title={`${["Open", "Completed", "Flagged"][i]}: ${n}`}
-                              style={{
-                                flex: n,
-                                background: colors[i],
-                                color: i === 1 ? "var(--text)" : "white",
-                              }}
-                            >
-                              {n}
-                            </span>
-                          ),
-                      )}
-                    </div>
-                    <small>{team.records.toLocaleString()} records</small>
-                  </div>
-                ))}
-              </div>
-            </Panel>
-          </div>
-        </>
+        <div className="intel-kpi-grid" aria-label="Recorded activity metrics">
+          {[
+            ...statuses.slice(0, 3),
+            [
+              summary.overdue === null ? "Status records" : "Overdue",
+              summary.overdue ?? summary.statusRecords,
+            ],
+          ].map(([label, value]) => (
+            <div className="intel-kpi" key={label}>
+              <span>{label}</span>
+              <strong>{Number(value).toLocaleString()}</strong>
+            </div>
+          ))}
+        </div>
       )}
-      {summary.measures.length > 0 && (
-        <Panel title="Operational totals">
-          <div className="intel-kpi-grid">
-            {measures.slice(0, 8).map((measure) => (
-              <div className="intel-kpi" key={measure.name}>
-                <span>{measure.name}</span>
-                <strong>
-                  {measure.total.toLocaleString(undefined, {
-                    maximumSignificantDigits: 12,
-                  })}
-                </strong>
+      <div
+        className="overview-chart-tabs overview-section-tabs"
+        aria-label="Overview sections"
+      >
+        {[
+          ["summary", "Summary"],
+          ["departments", "Departments"],
+          ["records", "Worksheet records"],
+        ].map(([id, label]) => (
+          <Button
+            key={id}
+            variant="text"
+            aria-pressed={view === id}
+            onClick={() => setView(id)}
+          >
+            {label}
+          </Button>
+        ))}
+      </div>
+      {view === "summary" && (
+        <div className="overview-summary-grid">
+          <Panel title="Status breakdown">
+            {summary.statusRecords > 0 ? (
+              <div className="overview-status-rows">
+                {statuses
+                  .filter(([, n]) => n > 0)
+                  .map(([label, n]) => (
+                    <div key={label}>
+                      <span>{label}</span>
+                      <div className="overview-status-track">
+                        <i
+                          style={{
+                            width: `${(n / summary.statusRecords) * 100}%`,
+                          }}
+                        />
+                      </div>
+                      <strong>{n.toLocaleString()}</strong>
+                      <small>
+                        {Math.round((n / summary.statusRecords) * 100)}%
+                      </small>
+                    </div>
+                  ))}
               </div>
-            ))}
+            ) : (
+              <p>No status column mapped.</p>
+            )}
+            <details className="mapping-detail">
+              <summary>Calculation notes</summary>
+              <p>
+                Counts reflect recorded rows, not unique items across pages.
+                Overdue includes open or flagged rows past a mapped deadline.
+              </p>
+            </details>
+          </Panel>
+          <Panel title="Operational totals">
+            {summary.measures.length ? (
+              <dl className="overview-measure-list">
+                {[...summary.measures]
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((measure) => (
+                    <div key={measure.name}>
+                      <dt>{measure.name}</dt>
+                      <dd>
+                        {measure.total.toLocaleString(undefined, {
+                          maximumSignificantDigits: 12,
+                        })}
+                      </dd>
+                    </div>
+                  ))}
+              </dl>
+            ) : (
+              <p>No quantity or hours columns mapped.</p>
+            )}
+          </Panel>
+        </div>
+      )}
+      {view === "departments" && (
+        <Panel title="Activity by department">
+          <div className="operational-departments operational-preview">
+            <table className="live-records overview-department-table">
+              <thead>
+                <tr>
+                  <th>Department</th>
+                  <th>Records</th>
+                  <th>Open</th>
+                  <th>Completed</th>
+                  <th>Flagged</th>
+                </tr>
+              </thead>
+              <tbody>
+                {departments.map((team) => (
+                  <tr key={team.name}>
+                    <td>{team.name}</td>
+                    <td>{team.records.toLocaleString()}</td>
+                    <td>{team.open}</td>
+                    <td>{team.completed}</td>
+                    <td>{team.flagged}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </Panel>
       )}
-      {table && (
+      {view === "records" && table && (
         <Panel
           title="Worksheet records"
           action={
-            <Button
-              variant="text"
-              onClick={() =>
-                onExplore(Math.min(selected, report.tables.length - 1))
-              }
-            >
+            <Button variant="text" onClick={() => onExplore(selectedIndex)}>
               View all records
             </Button>
           }
         >
           <Select
             label="Preview an imported worksheet"
-            value={String(Math.min(selected, report.tables.length - 1))}
+            value={String(selectedIndex)}
             onChange={(e) => setSelected(Number(e.target.value))}
           >
             {report.tables.map((item, index) => (
@@ -310,10 +245,9 @@ export function OperationalOverview({
             </table>
           </div>
           <p>
-            Showing {Math.min(5, table.rows.length)} of{" "}
-            {table.rowCount.toLocaleString()} records
-            {table.headers.length > 6 ? " · first 6 columns" : ""}.{" "}
-            {table.department || "Department unassigned"}.
+            {Math.min(5, table.rows.length)} of{" "}
+            {table.rowCount.toLocaleString()} records ·{" "}
+            {table.department || "Unassigned"}
           </p>
         </Panel>
       )}

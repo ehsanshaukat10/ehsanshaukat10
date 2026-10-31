@@ -74,24 +74,20 @@ await scenario(
     ).toContainText("18");
     await expect(
       page.getByRole("heading", {
-        name: "Status across your business",
+        name: "Status breakdown",
         exact: true,
       }),
     ).toBeVisible();
+    await expect(page.locator(".overview-donut")).toHaveCount(0);
+    await expect(page.locator(".operational-preview")).toHaveCount(0);
+    await page
+      .getByRole("button", { name: "Departments", exact: true })
+      .click();
     await expect(page.locator(".operational-departments")).toContainText("QA");
-    await expect(page.locator(".operational-preview tbody tr")).toHaveCount(3);
-    await expect(page.locator(".operational-preview")).toContainText("00001");
     await expect(
-      page.getByText("Executive perspective", { exact: true }),
-    ).toHaveCount(0);
-    await expect(
-      page.getByRole("img", { name: /^Status distribution:/ }),
-    ).toBeVisible();
-    await page.getByRole("button", { name: "Bars", exact: true }).click();
-    await expect(
-      page.getByRole("img", { name: /^Status distribution:/ }),
-    ).toHaveCount(0);
-    await page.getByRole("button", { name: "Donut", exact: true }).click();
+      page.locator(".overview-department-table tbody tr"),
+    ).toHaveCount(1);
+    await page.getByRole("button", { name: "Summary", exact: true }).click();
     await page.getByLabel("Department", { exact: true }).selectOption("QA");
     await expect(activity).toContainText("18");
     await page.getByLabel("Department", { exact: true }).selectOption("all");
@@ -111,6 +107,11 @@ await scenario(
     await expect(page.locator(".intel-notice time").first()).toContainText(
       "Asia/Karachi",
     );
+    await page
+      .getByRole("button", { name: "Worksheet records", exact: true })
+      .click();
+    await expect(page.locator(".operational-preview tbody tr")).toHaveCount(3);
+    await expect(page.locator(".operational-preview")).toContainText("00001");
     await page
       .getByLabel("Preview an imported worksheet", { exact: true })
       .selectOption("8");
