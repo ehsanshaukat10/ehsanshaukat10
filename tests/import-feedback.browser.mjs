@@ -1,5 +1,6 @@
 import {
   scenario,
+  confirmFinancial,
   workspace,
   upload,
   map,
@@ -190,29 +191,35 @@ await scenario(
       "Extra.csv",
       Buffer.from("Date,Revenue,Expenses\n2026-10-29,250,50"),
     );
+    await confirmFinancial(page, w);
     await page.goto(w.base + "/overview");
-    await expect(page.getByLabel("Combined business overview")).toBeVisible();
+    await expect(page.getByLabel("Executive business overview")).toBeVisible();
+    const reports = await (
+      await page.request.get(w.sources + "/intelligence")
+    ).json();
+    const usd = reports.executive.scopes.find((s) => s.currency === "USD"),
+      pkr = reports.executive.scopes.find((s) => s.currency === "PKR");
+    await page
+      .getByLabel("Reporting scope", { exact: true })
+      .selectOption(usd.id);
     await expect(
-      page
-        .getByLabel("USD business performance")
-        .locator(".intel-kpi")
-        .filter({ hasText: "Revenue" }),
+      page.locator(".intel-kpi").filter({ hasText: "Revenue" }),
     ).toContainText("1,000");
+    await page
+      .getByLabel("Reporting scope", { exact: true })
+      .selectOption(pkr.id);
     await expect(
-      page
-        .getByLabel("PKR business performance")
-        .locator(".intel-kpi")
-        .filter({ hasText: "Revenue" }),
+      page.locator(".intel-kpi").filter({ hasText: "Revenue" }),
     ).toContainText("250");
     await expect(page.getByLabel("Imported tables")).toHaveCount(0);
-    await page.route("**/sheets/overview?period=all", async (route) => {
+    await page.route("**/sources/intelligence?scope=*", async (route) => {
       await new Promise((r) => setTimeout(r, 700));
       await route.continue();
     });
     await page.evaluate(() =>
       window.dispatchEvent(new Event("aynor:sheet-change")),
     );
-    await expect(page.getByLabel("Combined business overview")).toBeVisible();
+    await expect(page.getByLabel("Executive business overview")).toBeVisible();
     await expect(
       page.getByRole("heading", {
         name: "Connect your first spreadsheet",

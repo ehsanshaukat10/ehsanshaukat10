@@ -50,7 +50,7 @@ await scenario(
     await expect(page.locator(".source-parent")).toContainText(
       "2/2 pages mapped",
     );
-    await page.goto(w.base + "/overview");
+    await page.goto(w.base + "/connections");
     await page
       .getByRole("button", { name: "Explore imported records", exact: true })
       .click();
@@ -58,7 +58,7 @@ await scenario(
     await page.goto(w.base + "/settings/connections?map=1");
     await map(page, "Reference", "QA");
     await save(page);
-    await page.goto(w.base + "/overview");
+    await page.goto(w.base + "/connections");
     await page
       .getByRole("button", { name: "Explore imported records", exact: true })
       .click();
@@ -71,9 +71,6 @@ await scenario(
       11,
     );
     await page.reload();
-    await page
-      .getByRole("button", { name: "Explore imported records", exact: true })
-      .click();
     await expect(page.locator(".source-coverage")).toContainText("2 of 2");
     await responsive(page);
   },

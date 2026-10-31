@@ -1,3 +1,4 @@
+import { confirmFinancial } from "./fixtures/feedback-browser.mjs";
 import { chromium, expect } from "@playwright/test";
 import assert from "node:assert/strict";
 
@@ -135,6 +136,17 @@ try {
     page.getByRole("link", { name: "Open dashboard", exact: true }),
   ).toBeVisible();
   await page.getByRole("link", { name: "Open dashboard", exact: true }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Confirm your business reporting",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await confirmFinancial(page, {
+    sources: base + `/api/companies/${company}/sources`,
+    api: base + `/api/companies/${company}`,
+  });
+  await page.reload();
   const revenue = () =>
     page
       .locator(".intel-kpi")

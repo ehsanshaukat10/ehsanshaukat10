@@ -1,5 +1,6 @@
 import {
   scenario,
+  confirmFinancial,
   workspace,
   upload,
   expect,
@@ -9,7 +10,22 @@ import {
 await scenario(
   "overview first-load skeleton, retained metrics through SPA navigation, reload and failed refresh, company isolation and logout cleanup; visible live AI test",
   async (page) => {
-    const w = await workspace(page, "Retained overview");
+    const credentials = {
+      email: "retained-executive@example.test",
+      password: "retained-executive-password-long",
+    };
+    assert.equal(
+      (
+        await page.request.post(origin + "/api/auth/signup", {
+          data: { ...credentials, name: "Retained executive" },
+        })
+      ).status(),
+      201,
+    );
+    await page.request.post(origin + "/api/__fixture/confirm-email", {
+      data: { email: credentials.email },
+    });
+    const w = await workspace(page, "Retained overview", credentials);
     await page.goto(w.base + "/connections");
     await upload(
       page,
@@ -19,7 +35,7 @@ await scenario(
     let release;
     let gate = new Promise((r) => (release = r));
     let failure = false;
-    await page.route("**/sheets/overview?period=*", async (route) => {
+    await page.route("**/sources/intelligence?scope=*", async (route) => {
       await gate;
       if (failure)
         await route.fulfill({
@@ -29,6 +45,7 @@ await scenario(
         });
       else await route.continue();
     });
+    await confirmFinancial(page, w);
     await page.goto(w.base + "/overview");
     await expect(page.getByLabel("Loading business overview")).toBeVisible();
     await expect(page.locator(".overview-skeleton .intel-kpi")).toHaveCount(4);
@@ -53,11 +70,11 @@ await scenario(
     failure = true;
     release();
     await expect(page.getByRole("alert")).toContainText(
-      "Temporary reporting interruption",
+      "Unable to refresh business reporting. Retry.",
     );
     await expect(revenue).toContainText("1,357");
     failure = false;
-    const other = await workspace(page, "Different company");
+    const other = await workspace(page, "Different company", credentials);
     gate = new Promise((r) => (release = r));
     await page.goto(other.base + "/overview");
     await expect(page.getByLabel("Loading business overview")).toBeVisible();

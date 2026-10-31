@@ -1,5 +1,6 @@
 import {
   scenario,
+  confirmFinancial,
   workspace,
   map,
   save,
@@ -42,16 +43,19 @@ await scenario(
       page.getByLabel("Property for Revenue", { exact: true }),
     ).toHaveValue("money_in");
     await save(page);
+    await confirmFinancial(page, w);
     await page.goto(w.base + "/overview");
     await expect(
       page.locator(".intel-kpi").filter({ hasText: "Revenue" }),
     ).toContainText("3,000");
+    await page.goto(w.base + "/connections");
     await page
       .getByRole("button", { name: "Explore imported records", exact: true })
       .click();
     await expect(page.getByLabel("Imported table dashboard")).toContainText(
       "Sales workbook",
     );
+    await page.goto(w.base + "/overview");
     await page.reload();
     await expect(
       page.locator(".intel-kpi").filter({ hasText: "Revenue" }),

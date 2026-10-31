@@ -1,5 +1,6 @@
 import {
   scenario,
+  confirmFinancial,
   workspace,
   upload,
   expect,
@@ -25,6 +26,7 @@ await scenario(
     ).toHaveCount(0);
     await page.getByRole("button", { name: "Continue", exact: true }).click();
     await expect(page).toHaveURL(/onboarding\/priorities$/);
+    await confirmFinancial(page, w);
     await page.goto(w.base + "/overview");
     await expect(
       page.locator(".intel-kpi").filter({ hasText: "Revenue" }),

@@ -1,5 +1,6 @@
 import {
   scenario,
+  confirmFinancial,
   workspace,
   privateConnect,
   map,
@@ -24,6 +25,7 @@ await scenario(
       page.getByRole("status").filter({ hasText: "Sync checked" }),
     ).toBeVisible();
     await expect(page.locator(".source-page")).toContainText("No data changes");
+    await confirmFinancial(page, w);
     await page.goto(w.base + "/overview");
     await expect(
       page.locator(".intel-kpi").filter({ hasText: "Revenue" }),

@@ -187,3 +187,44 @@ export async function privateConnect(page, base) {
   ).toBeVisible();
 }
 export { expect, assert };
+
+// These journeys explicitly confirm semantics before expecting executive values.
+// This is test setup only; production never silently confirms mappings.
+export async function confirmFinancial(page, w) {
+  const view = await (
+    await page.request.get(w.sources + "/intelligence")
+  ).json();
+  const legacy = await (
+    await page.request.get(w.api + "/sheets/overview?period=all")
+  ).json();
+  for (const sheet of view.worksheets) {
+    const fields = { ...sheet.proposal.fields };
+    if (!fields.date || !fields.revenue || !fields.expense) continue;
+    const source = legacy.data?.sources?.find((s) => s.id === sheet.sourceId);
+    const table = legacy.data?.tables?.find(
+      (t) => t.sourceId === sheet.sourceId && t.tabId === sheet.tabId,
+    );
+    const identityMode = fields.entity_id ? "identifier" : "reporting_date";
+    fields.entity_id ||= fields.date;
+    const mapping = {
+      purpose: "finance",
+      entity: "transaction",
+      entityNamespace: `test-${sheet.sourceId}-${sheet.tabId}`,
+      identityMode,
+      label: source?.title || "Confirmed financial performance",
+      fields: Object.fromEntries(
+        ["entity_id", "date", "revenue", "expense"].map((key) => [
+          key,
+          fields[key],
+        ]),
+      ),
+      currency: table?.currency || "PKR",
+      period: { kind: "interval", ...sheet.dateRange },
+    };
+    const result = await page.request.post(
+      w.sources + `/${sheet.sourceId}/semantics`,
+      { data: { tabId: sheet.tabId, mapping } },
+    );
+    assert.ok(result.ok(), await result.text());
+  }
+}

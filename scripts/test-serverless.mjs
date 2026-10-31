@@ -80,6 +80,11 @@ try {
   const populatedCheck = start(["tests/populated-overview.browser.mjs"]);
   if ((await new Promise((r) => populatedCheck.on("exit", r))) !== 0)
     throw Error("Populated overview browser check failed.");
+  const executiveCheck = start(["tests/executive-dashboard.browser.mjs"]);
+  if (
+    (await new Promise((resolve) => executiveCheck.on("exit", resolve))) !== 0
+  )
+    throw Error("Executive reporting browser check failed.");
 } finally {
   await Promise.all(
     children
