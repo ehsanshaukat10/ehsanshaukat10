@@ -18,12 +18,12 @@
   display: grid;
   gap: 6px;
   padding: 10px 0;
-  border-bottom: 1px solid #eee8f4;
+  border-bottom: 1px solid var(--border);
 }
 .operational-departments span,
 .operational-departments small {
   font-size: 12px;
-  color: #81758e;
+  color: var(--muted);
 }
 .operational-preview {
   overflow: auto;
@@ -46,9 +46,9 @@
 .operational-coverage {
   padding: 14px 18px;
   border-radius: 12px;
-  background: #f4effc;
+  background: var(--light);
   font-size: 13px;
-  color: #75658f;
+  color: var(--muted);
   overflow-wrap: anywhere;
 }
 /* Data visualization only: retain the shared cards, fonts and workspace palette. */
@@ -94,7 +94,7 @@
 }
 .overview-coverage {
   font-size: 12px;
-  color: #81758e;
+  color: var(--muted);
 }
 .overview-coverage summary {
   cursor: pointer;
@@ -131,7 +131,7 @@
   width: 114px;
   height: 114px;
   border-radius: 50%;
-  background: var(--surface, #fff);
+  background: #fff;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -142,7 +142,7 @@
 }
 .overview-donut span {
   font-size: 12px;
-  color: #81758e;
+  color: var(--muted);
 }
 .overview-status-legend {
   flex: 1;
@@ -173,7 +173,7 @@
   min-height: 20px;
   border-radius: 4px;
   overflow: hidden;
-  background: #eee8f4;
+  background: var(--border);
 }
 .overview-team-bar > span {
   color: #fff;
@@ -185,7 +185,7 @@
 .overview-financial-trend svg {
   width: 100%;
   max-height: 270px;
-  color: #81758e;
+  color: var(--muted);
 }
 .overview-financial-trend text {
   fill: currentColor;
@@ -197,7 +197,7 @@
   align-items: center;
   flex-wrap: wrap;
   font-size: 12px;
-  color: #81758e;
+  color: var(--muted);
 }
 .overview-chart-key > span {
   display: flex;
@@ -228,4 +228,37 @@
 }
 .concise-overview .operational-overview .intel-panel-heading {
   margin-bottom: 16px;
+}
+
+/* Shared brand accent and neutral tokens; selected views use a quiet underline. */
+.overview-chart-tabs button {
+  border-radius: 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  background: transparent;
+  box-shadow: none;
+}
+.overview-chart-tabs button[aria-pressed="true"] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.overview-team-bar:has(> small) {
+  background: transparent;
+  min-height: 0;
+}
+.overview-team-bar > small {
+  padding: 0;
+}
+.overview-donut {
+  width: 128px;
+  height: 128px;
+}
+.overview-donut > div {
+  width: 104px;
+  height: 104px;
+}
+.overview-donut strong {
+  color: var(--text);
+  font-size: 24px;
 }

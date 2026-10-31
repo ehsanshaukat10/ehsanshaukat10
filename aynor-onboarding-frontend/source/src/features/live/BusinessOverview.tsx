@@ -84,13 +84,15 @@ export function BusinessOverview({
             action={
               <div className="overview-chart-tabs">
                 <Button
-                  variant={financialView === "trend" ? "primary" : "text"}
+                  variant="text"
+                  aria-pressed={financialView === "trend"}
                   onClick={() => setFinancialView("trend")}
                 >
                   Trend
                 </Button>
                 <Button
-                  variant={financialView === "records" ? "primary" : "text"}
+                  variant="text"
+                  aria-pressed={financialView === "records"}
                   onClick={() => setFinancialView("records")}
                 >
                   Records
@@ -270,8 +272,9 @@ function FinancialTrend({
           <g key={key}>
             <polyline
               fill="none"
-              stroke={series ? "#d49b53" : "#8668d9"}
-              strokeWidth="2.5"
+              stroke={series ? "var(--muted)" : "var(--accent)"}
+              strokeWidth="2"
+              strokeDasharray={series ? "5 4" : undefined}
               points={points.map((p, i) => `${x(i)},${y(p[key])}`).join(" ")}
             />
             {points.map((p, i) => (
@@ -279,8 +282,8 @@ function FinancialTrend({
                 key={p.date}
                 cx={x(i)}
                 cy={y(p[key])}
-                r="3"
-                fill={series ? "#d49b53" : "#8668d9"}
+                r="2"
+                fill={series ? "var(--muted)" : "var(--accent)"}
               >
                 <title>
                   {p.date} · {key === "revenue" ? "Revenue" : "Expenses"}:{" "}
@@ -302,11 +305,11 @@ function FinancialTrend({
       </svg>
       <div className="overview-chart-key">
         <span>
-          <i style={{ background: "#8668d9" }} />
+          <i style={{ background: "var(--accent)" }} />
           Revenue
         </span>
         <span>
-          <i style={{ background: "#d49b53" }} />
+          <i style={{ background: "var(--muted)" }} />
           Expenses
         </span>
         <span>

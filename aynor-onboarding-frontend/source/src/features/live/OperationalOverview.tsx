@@ -46,11 +46,11 @@ export function OperationalOverview({
     a.name.localeCompare(b.name),
   );
   const colors = [
-    "var(--primary, #7554d9)",
-    "#50a893",
-    "#d49b53",
-    "#b5a5c9",
-    "#ddd5e8",
+    "var(--accent)",
+    "color-mix(in srgb, var(--accent) 55%, white)",
+    "var(--muted)",
+    "var(--border)",
+    "var(--light)",
   ];
   let offset = 0;
   const gradient = statuses
@@ -127,14 +127,14 @@ export function OperationalOverview({
                   aria-label="Status chart view"
                 >
                   <Button
-                    variant={chart === "donut" ? "primary" : "text"}
+                    variant="text"
                     onClick={() => setChart("donut")}
                     aria-pressed={chart === "donut"}
                   >
                     Donut
                   </Button>
                   <Button
-                    variant={chart === "bars" ? "primary" : "text"}
+                    variant="text"
                     onClick={() => setChart("bars")}
                     aria-pressed={chart === "bars"}
                   >
@@ -221,7 +221,11 @@ export function OperationalOverview({
                             <span
                               key={i}
                               title={`${["Open", "Completed", "Flagged"][i]}: ${n}`}
-                              style={{ flex: n, background: colors[i] }}
+                              style={{
+                                flex: n,
+                                background: colors[i],
+                                color: i === 1 ? "var(--text)" : "white",
+                              }}
                             >
                               {n}
                             </span>
