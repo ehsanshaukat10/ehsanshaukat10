@@ -81,10 +81,26 @@ await scenario(
     await expect(page.locator(".operational-departments")).toContainText("QA");
     await expect(page.locator(".operational-preview tbody tr")).toHaveCount(3);
     await expect(page.locator(".operational-preview")).toContainText("00001");
+    await expect(
+      page.getByText("Executive perspective", { exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("img", { name: /^Status distribution:/ }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Bars", exact: true }).click();
+    await expect(
+      page.getByRole("img", { name: /^Status distribution:/ }),
+    ).toHaveCount(0);
+    await page.getByRole("button", { name: "Donut", exact: true }).click();
+    await page.getByLabel("Department", { exact: true }).selectOption("QA");
+    await expect(activity).toContainText("18");
+    await page.getByLabel("Department", { exact: true }).selectOption("all");
     await expect(page.locator(".market-overview")).toHaveCount(0);
     await expect(page.locator(".ops-chart-switch")).toHaveCount(0);
     await expect(activity.locator(".intel-kpi small")).toHaveCount(0);
-    await expect(page.getByText("Calculation notes", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("Calculation notes", { exact: true }),
+    ).toBeVisible();
 
     await expect(page.getByLabel("Reporting coverage")).toContainText(
       "9 mapped pages · 27 imported records",
@@ -156,6 +172,17 @@ await scenario(
     await expect(
       page.locator(".intel-kpi").filter({ hasText: "Revenue" }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("img", { name: /^Revenue and expenses over/ }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Records", exact: true }).click();
+    await expect(
+      page
+        .getByRole("columnheader", { name: "Operating profit", exact: true })
+        .first(),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Trend", exact: true }).click();
+
     await expect(page.locator(".intel-notice time").first()).toContainText(
       "Asia/Karachi",
     );

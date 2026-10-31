@@ -73,3 +73,5 @@ Overview, workbook/page metadata and sync notifications use date, time with seco
 
 
 The overview keeps the shared workspace cards, typography and colors. Source coverage precedes KPIs; department summaries prioritize flagged and open work with unassigned pages last. Calculation details stay expandable, operational totals are alphabetical, and worksheet records follow the summary.
+
+Overview controls now keep sync timestamps inside the heading's Data & sync disclosure, with expandable source coverage beside the department filter. The filter changes operational KPIs, status charts, department activity and operational totals together; worksheet records retain their independent selector. Donut/bar controls use recorded status counts, stacked department bars use open/completed/flagged counts, and confirmed financial data offers Trend/Records views with real date/value tooltips. No chart invents historical changes or combines unlike units.

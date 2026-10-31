@@ -140,18 +140,47 @@ export function LiveOverview({ company }: { company: Company }) {
       </div>
     );
   return (
-    <div className="intel-page exec-dashboard" aria-busy={busy}>
+    <div
+      className="intel-page exec-dashboard concise-overview"
+      aria-busy={busy}
+    >
       <div className="intel-heading">
         <div>
-          <span className="exec-eyebrow">Executive perspective</span>
           <h1>Overview.</h1>
-          <p>
-            {company.name} ·{" "}
-            {report?.tableReport
-              ? "Imported business data"
-              : "Connected business performance"}
-          </p>
         </div>
+        <details className="overview-source-details intel-notice">
+          <summary>
+            <Database size={14} /> Data & sync
+            {source?.status === "syncing"
+              ? " · Syncing…"
+              : source?.stale
+                ? " · Needs attention"
+                : ""}
+          </summary>
+          <div className="overview-source-content">
+            <Database size={14} />
+            <span>
+              {source?.status === "syncing"
+                ? "Syncing source… · "
+                : source?.stale
+                  ? "Sync needs attention · "
+                  : ""}
+              {lastDataUpdate ? (
+                <>
+                  Last data update:{" "}
+                  <time dateTime={new Date(lastDataUpdate).toISOString()}>
+                    {formatSyncTime(lastDataUpdate, company.timezone)}
+                  </time>
+                </>
+              ) : (
+                "No validated source yet"
+              )}
+            </span>
+            <Link to={base + "/connections"}>
+              Manage data <ArrowUpRight size={13} />
+            </Link>
+          </div>
+        </details>
         {!report?.tableReport && (
           <Select
             label="Reporting period"
@@ -171,29 +200,6 @@ export function LiveOverview({ company }: { company: Company }) {
           Retry report
         </Button>
       )}
-      <div className="intel-notice">
-        <Database size={14} />
-        <span>
-          {source?.status === "syncing"
-            ? "Syncing source… · "
-            : source?.stale
-              ? "Sync needs attention · "
-              : ""}
-          {lastDataUpdate ? (
-            <>
-              Last data update:{" "}
-              <time dateTime={new Date(lastDataUpdate).toISOString()}>
-                {formatSyncTime(lastDataUpdate, company.timezone)}
-              </time>
-            </>
-          ) : (
-            "No validated source yet"
-          )}
-        </span>
-        <Link to={base + "/connections"}>
-          Manage data <ArrowUpRight size={13} />
-        </Link>
-      </div>
       {source?.error && <ErrorBox>{source.error}</ErrorBox>}
       {report?.tableReport ? (
         <BusinessOverview

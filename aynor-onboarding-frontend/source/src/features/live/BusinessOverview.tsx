@@ -30,6 +30,7 @@ export function BusinessOverview({
     }
   });
   const [exploring, setExploring] = useState(false);
+  const [financialView, setFinancialView] = useState("trend");
   const [exploreIndex, setExploreIndex] = useState(0);
   const summary = businessOverview(report.tables, currency, selection);
   const money = (n: number | null, unit: string) =>
@@ -78,35 +79,56 @@ export function BusinessOverview({
               </div>
             ))}
           </div>
-          <Panel title={`Business performance · ${group.currency}`}>
-            <p>
-              {group.pages} financial page{group.pages === 1 ? "" : "s"} · latest
-              30 reporting dates
-            </p>
-            <div style={{ overflowX: "auto" }}>
-              <table className="live-records">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Revenue</th>
-                    <th>Operating expenses</th>
-                    <th>Operating profit</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {group.points.slice(-30).map((point) => (
-                    <tr key={point.date}>
-                      <td>{point.date}</td>
-                      <td>{money(point.revenue, group.currency)}</td>
-                      <td>{money(point.costs, group.currency)}</td>
-                      <td>
-                        {money(point.revenue - point.costs, group.currency)}
-                      </td>
+          <Panel
+            title={`Business performance · ${group.currency}`}
+            action={
+              <div className="overview-chart-tabs">
+                <Button
+                  variant={financialView === "trend" ? "primary" : "text"}
+                  onClick={() => setFinancialView("trend")}
+                >
+                  Trend
+                </Button>
+                <Button
+                  variant={financialView === "records" ? "primary" : "text"}
+                  onClick={() => setFinancialView("records")}
+                >
+                  Records
+                </Button>
+              </div>
+            }
+          >
+            {financialView === "trend" ? (
+              <FinancialTrend
+                points={group.points.slice(-30)}
+                currency={group.currency}
+              />
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table className="live-records">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Revenue</th>
+                      <th>Operating expenses</th>
+                      <th>Operating profit</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {group.points.slice(-30).map((point) => (
+                      <tr key={point.date}>
+                        <td>{point.date}</td>
+                        <td>{money(point.revenue, group.currency)}</td>
+                        <td>{money(point.costs, group.currency)}</td>
+                        <td>
+                          {money(point.revenue - point.costs, group.currency)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
             {!group.safe && (
               <p role="alert">
                 Combined amounts exceed safe reporting precision. Review the
@@ -190,9 +212,7 @@ export function BusinessOverview({
         <Button variant="secondary" onClick={() => setExploring(!exploring)}>
           {exploring ? "Close imported records" : "Explore imported records"}
         </Button>
-        <Link to={`/companies/${companyId}/connections`}>
-          Data connections
-        </Link>
+        <Link to={`/companies/${companyId}/connections`}>Data connections</Link>
       </div>
       {exploring && (
         <TableOverview
@@ -205,5 +225,94 @@ export function BusinessOverview({
         />
       )}
     </section>
+  );
+}
+
+function FinancialTrend({
+  points,
+  currency,
+}: {
+  points: { date: string; revenue: number; costs: number }[];
+  currency: string;
+}) {
+  const max = Math.max(1, ...points.flatMap((p) => [p.revenue, p.costs]));
+  const min = Math.min(0, ...points.flatMap((p) => [p.revenue, p.costs]));
+  const y = (n: number) => 180 - ((n - min) / (max - min)) * 150;
+  const x = (i: number) => 65 + (i / Math.max(1, points.length - 1)) * 600;
+  const format = (n: number) =>
+    new Intl.NumberFormat("en", {
+      notation: "compact",
+      maximumFractionDigits: 1,
+    }).format(n);
+  return (
+    <div className="overview-financial-trend">
+      <svg
+        viewBox="0 0 700 220"
+        role="img"
+        aria-label={`Revenue and expenses over ${points.length} reporting dates in ${currency}`}
+      >
+        {[min, (max + min) / 2, max].map((n, i) => (
+          <g key={i}>
+            <line
+              x1="65"
+              x2="665"
+              y1={y(n)}
+              y2={y(n)}
+              stroke="currentColor"
+              opacity=".12"
+            />
+            <text x="55" y={y(n) + 4} textAnchor="end">
+              {format(n)}
+            </text>
+          </g>
+        ))}
+        {(["revenue", "costs"] as const).map((key, series) => (
+          <g key={key}>
+            <polyline
+              fill="none"
+              stroke={series ? "#d49b53" : "#8668d9"}
+              strokeWidth="2.5"
+              points={points.map((p, i) => `${x(i)},${y(p[key])}`).join(" ")}
+            />
+            {points.map((p, i) => (
+              <circle
+                key={p.date}
+                cx={x(i)}
+                cy={y(p[key])}
+                r="3"
+                fill={series ? "#d49b53" : "#8668d9"}
+              >
+                <title>
+                  {p.date} · {key === "revenue" ? "Revenue" : "Expenses"}:{" "}
+                  {new Intl.NumberFormat("en", {
+                    style: "currency",
+                    currency,
+                  }).format(p[key])}
+                </title>
+              </circle>
+            ))}
+          </g>
+        ))}
+        <text x="65" y="208">
+          {points[0]?.date}
+        </text>
+        <text x="665" y="208" textAnchor="end">
+          {points.at(-1)?.date}
+        </text>
+      </svg>
+      <div className="overview-chart-key">
+        <span>
+          <i style={{ background: "#8668d9" }} />
+          Revenue
+        </span>
+        <span>
+          <i style={{ background: "#d49b53" }} />
+          Expenses
+        </span>
+        <span>
+          {currency} · latest {points.length} dates
+        </span>
+      </div>
+    </div>
   );
 }

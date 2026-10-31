@@ -15,7 +15,15 @@ export function OperationalOverview({
   timezone: string;
   onExplore: (index: number) => void;
 }) {
-  const summary = operationalOverview(report.tables, dateInTimezone(timezone));
+  const [department, setDepartment] = useState("all");
+  const [chart, setChart] = useState("donut");
+  const tables =
+    department === "all"
+      ? report.tables
+      : report.tables.filter(
+          (t) => (t.department || "Unassigned") === department,
+        );
+  const summary = operationalOverview(tables, dateInTimezone(timezone));
   const [selected, setSelected] = useState(summary.previewIndex);
   const table = report.tables[Math.min(selected, report.tables.length - 1)];
   const statuses = [
@@ -26,23 +34,66 @@ export function OperationalOverview({
     ["Other statuses", summary.counts.other],
   ] as const;
   const departments = [...summary.departments].sort((a, b) =>
-    a.name === "Unassigned" ? 1 : b.name === "Unassigned" ? -1 :
-      b.flagged - a.flagged || b.open - a.open || a.name.localeCompare(b.name));
-  const measures = [...summary.measures].sort((a, b) => a.name.localeCompare(b.name));
+    a.name === "Unassigned"
+      ? 1
+      : b.name === "Unassigned"
+        ? -1
+        : b.flagged - a.flagged ||
+          b.open - a.open ||
+          a.name.localeCompare(b.name),
+  );
+  const measures = [...summary.measures].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+  const colors = [
+    "var(--primary, #7554d9)",
+    "#50a893",
+    "#d49b53",
+    "#b5a5c9",
+    "#ddd5e8",
+  ];
+  let offset = 0;
+  const gradient = statuses
+    .filter(([, value]) => value > 0)
+    .map(([label, value]) => {
+      const start = offset;
+      offset += (value / summary.statusRecords) * 100;
+      return `${colors[statuses.findIndex(([name]) => name === label)]} ${start}% ${offset}%`;
+    })
+    .join(",");
   const max = Math.max(1, ...statuses.map(([, value]) => value));
   return (
     <section
       className="operational-overview"
       aria-label="Business activity overview"
     >
-      <div className="operational-coverage" aria-label="Reporting coverage">
-        <span>
-          {summary.workbooks} workbook{summary.workbooks === 1 ? "" : "s"} ·{" "}
-          {summary.pages} mapped pages · {summary.records.toLocaleString()}{" "}
-          imported records ·{" "}
-          {summary.departments.filter((d) => d.name !== "Unassigned").length}{" "}
-          departments
-        </span>
+      <div className="overview-data-controls">
+        <Select
+          label="Department"
+          value={department}
+          onChange={(e) => setDepartment(e.target.value)}
+        >
+          <option value="all">All departments</option>
+          {[...new Set(report.tables.map((t) => t.department || "Unassigned"))]
+            .sort()
+            .map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+        </Select>
+        <details className="overview-coverage" aria-label="Reporting coverage">
+          <summary>
+            {summary.records.toLocaleString()} records · {summary.pages} pages
+          </summary>
+          <span>
+            {summary.workbooks} workbook{summary.workbooks === 1 ? "" : "s"} ·{" "}
+            {summary.pages} mapped pages · {summary.records.toLocaleString()}{" "}
+            imported records ·{" "}
+            {summary.departments.filter((d) => d.name !== "Unassigned").length}{" "}
+            assigned departments
+          </span>
+        </details>
       </div>
       {summary.statusRecords > 0 && (
         <>
@@ -68,39 +119,116 @@ export function OperationalOverview({
             ))}
           </div>
           <div className="operational-panels">
-            <Panel title="Status across your business">
-              <div className="table-profile-bars">
-                {statuses
-                  .filter(([, value]) => value > 0)
-                  .map(([label, value]) => (
-                    <div className="table-profile-bar" key={label}>
-                      <span>{label}</span>
-                      <i>
-                        <b style={{ width: `${(value / max) * 100}%` }} />
-                      </i>
-                      <span>{value.toLocaleString()}</span>
+            <Panel
+              title="Status across your business"
+              action={
+                <div
+                  className="overview-chart-tabs"
+                  aria-label="Status chart view"
+                >
+                  <Button
+                    variant={chart === "donut" ? "primary" : "text"}
+                    onClick={() => setChart("donut")}
+                    aria-pressed={chart === "donut"}
+                  >
+                    Donut
+                  </Button>
+                  <Button
+                    variant={chart === "bars" ? "primary" : "text"}
+                    onClick={() => setChart("bars")}
+                    aria-pressed={chart === "bars"}
+                  >
+                    Bars
+                  </Button>
+                </div>
+              }
+            >
+              <div
+                className={chart === "donut" ? "overview-status-visual" : ""}
+              >
+                {chart === "donut" && (
+                  <div
+                    className="overview-donut"
+                    role="img"
+                    aria-label={`Status distribution: ${statuses.map(([label, value]) => `${label} ${value}`).join(", ")}`}
+                    style={{ background: `conic-gradient(${gradient})` }}
+                  >
+                    <div>
+                      <strong>{summary.statusRecords}</strong>
+                      <span>records</span>
                     </div>
-                  ))}
+                  </div>
+                )}
+                <div
+                  className={`table-profile-bars ${chart === "donut" ? "overview-status-legend" : ""}`}
+                >
+                  {statuses
+                    .filter(([, value]) => value > 0)
+                    .map(([label, value]) => (
+                      <div className="table-profile-bar" key={label}>
+                        <span>{label}</span>
+                        <i
+                          style={
+                            chart === "donut"
+                              ? {
+                                  background:
+                                    colors[
+                                      statuses.findIndex(
+                                        ([name]) => name === label,
+                                      )
+                                    ],
+                                }
+                              : undefined
+                          }
+                        >
+                          {chart === "bars" && (
+                            <b style={{ width: `${(value / max) * 100}%` }} />
+                          )}
+                        </i>
+                        <span>{value.toLocaleString()}</span>
+                      </div>
+                    ))}
+                </div>
               </div>
               <details className="mapping-detail">
                 <summary>Calculation notes</summary>
-                <p>Counts reflect recorded rows, not unique items across pages.
-                  Overdue includes open or flagged records past a mapped deadline.</p>
+                <p>
+                  Counts reflect recorded rows, not unique items across pages.
+                  Overdue includes open or flagged records past a mapped
+                  deadline.
+                </p>
               </details>
             </Panel>
             <Panel title="Activity by department">
-              <div className="operational-departments">
+              <div
+                className="operational-departments"
+                style={{ maxHeight: departments.length <= 6 ? "none" : 350 }}
+              >
                 {departments.map((team) => (
                   <div key={team.name}>
                     <strong>{team.name}</strong>
-                    <span>
-                      {team.open} open · {team.completed} completed ·{" "}
-                      {team.flagged} flagged
-                    </span>
-                    <small>
-                      {team.pages} pages · {team.records.toLocaleString()}{" "}
-                      imported records
-                    </small>
+                    <div
+                      className="overview-team-bar"
+                      role="img"
+                      aria-label={`${team.name}: ${team.open} open, ${team.completed} completed, ${team.flagged} flagged`}
+                    >
+                      {team.open + team.completed + team.flagged === 0 && (
+                        <small>No open, closed or flagged statuses</small>
+                      )}
+                      {[team.open, team.completed, team.flagged].map(
+                        (n, i) =>
+                          n > 0 && (
+                            <span
+                              key={i}
+                              title={`${["Open", "Completed", "Flagged"][i]}: ${n}`}
+                              style={{ flex: n, background: colors[i] }}
+                            >
+                              {n}
+                            </span>
+                          ),
+                      )}
+                    </div>
+                    <small>{team.records.toLocaleString()} records</small>
                   </div>
                 ))}
               </div>
@@ -119,10 +247,6 @@ export function OperationalOverview({
                     maximumSignificantDigits: 12,
                   })}
                 </strong>
-                <small>
-                  {measure.pages} page
-                  {measure.pages === 1 ? "" : "s"} · {measure.values} values
-                </small>
               </div>
             ))}
           </div>
