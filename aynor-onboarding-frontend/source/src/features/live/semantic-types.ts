@@ -114,3 +114,31 @@ export type ExecutiveSnapshot = Pick<
   SemanticView,
   "version" | "companyId" | "evaluatedAt" | "executive"
 >;
+
+export type IntelligenceAuthority = {
+  version: number;
+  companyId: string;
+  datasetRevision: string;
+  authorization: {
+    fingerprint: string;
+    role: string;
+    canManageSources: boolean;
+  };
+  context: {
+    key: string;
+    scope: string;
+    department: string;
+    period: string;
+    filters: Record<string, string[]>;
+    periodBasis: string;
+    filterBasis: string;
+  };
+};
+export type IntelligenceSnapshot = ExecutiveSnapshot &
+  IntelligenceAuthority & {
+    metrics: (Omit<SemanticMetric, "period"> & {
+      period: SemanticPeriod | null;
+    })[];
+    concerns: ExecutiveReport["issues"];
+    scopes: ExecutiveScope[];
+  };

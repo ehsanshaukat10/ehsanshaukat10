@@ -13,9 +13,11 @@ import {
 export function GovernedOverview({
   report,
   onScope,
+  readOnly = false,
 }: {
   report: ExecutiveReport;
   onScope: (scope: string) => void;
+  readOnly?: boolean;
 }) {
   const location = useLocation();
   const companyId = location.pathname.split("/")[2];
@@ -31,37 +33,48 @@ export function GovernedOverview({
     <section aria-label="Executive business overview">
       {report.dataStatus && (
         <div className="intel-notice" role="status">
-          {report.dataStatus}. <Link to={reviewHref}>Review data</Link>
+          {report.dataStatus}.{" "}
+          {readOnly ? (
+            "Ask an administrator to review the data."
+          ) : (
+            <Link to={reviewHref}>Review data</Link>
+          )}
         </div>
       )}
       {!report.primary.length ? (
         <Panel
           title={
-            report.state === "not_selected"
-              ? "No executive reporting selected"
-              : report.state === "empty"
-                ? "Connect your first spreadsheet"
-                : report.dataStatus === "Data needs refresh"
-                  ? "Refresh your business data"
-                  : report.dataStatus === "Insufficient data"
-                    ? "Business data is incomplete"
-                    : "Confirm your business reporting"
+            readOnly
+              ? "No authorized business measures"
+              : report.state === "not_selected"
+                ? "No executive reporting selected"
+                : report.state === "empty"
+                  ? "Connect your first spreadsheet"
+                  : report.dataStatus === "Data needs refresh"
+                    ? "Refresh your business data"
+                    : report.dataStatus === "Insufficient data"
+                      ? "Business data is incomplete"
+                      : "Confirm your business reporting"
           }
         >
           <p>
-            {report.state === "not_selected"
-              ? "Your source data remains available. Include a supported business report when you are ready."
-              : report.state === "empty"
-                ? "Connect business data to build your executive overview."
-                : "No validated business measures are available for this reporting scope."}
+            {readOnly
+              ? "An administrator can review your permitted business categories and data configuration."
+              : report.state === "not_selected"
+                ? "Your source data remains available. Include a supported business report when you are ready."
+                : report.state === "empty"
+                  ? "Connect business data to build your executive overview."
+                  : "No validated business measures are available for this reporting scope."}
           </p>
-          <Link className="button secondary" to={reviewHref}>
-            {report.state === "empty"
-              ? "Connect data"
-              : report.dataStatus === "Data needs refresh"
-                ? "Review data connection"
-                : "Review business meanings"}
-          </Link>
+          {!readOnly && (
+            <Link className="button secondary" to={reviewHref}>
+              {report.state === "empty"
+                ? "Connect data"
+                : report.dataStatus === "Data needs refresh"
+                  ? "Review data connection"
+                  : "Review business meanings"}
+            </Link>
+          )}
         </Panel>
       ) : (
         <>

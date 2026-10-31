@@ -88,6 +88,24 @@ try {
   const stabilization = start(["tests/ux-stabilization.browser.mjs"]);
   if ((await new Promise((resolve) => stabilization.on("exit", resolve))) !== 0)
     throw Error("UX stabilization browser check failed.");
+  // Independent authorization group gets a fresh isolated database; keep real login quotas.
+  await new Promise((resolve) => {
+    api.once("exit", resolve);
+    api.kill();
+  });
+  const permissionApi = start(["tests/fixtures/serverless-server.mjs"]);
+  for (let attempt = 0; attempt < 150; attempt++) {
+    if (permissionApi.exitCode !== null)
+      throw Error("Permission fixture failed to start");
+    try {
+      if ((await fetch("http://127.0.0.1:3194/api/health")).ok) break;
+    } catch {}
+    if (attempt === 149) throw Error("Permission fixture startup timeout");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  const permissions = start(["tests/intelligence-permissions.browser.mjs"]);
+  if ((await new Promise((resolve) => permissions.on("exit", resolve))) !== 0)
+    throw Error("Intelligence permissions browser check failed.");
 } finally {
   await Promise.all(
     children

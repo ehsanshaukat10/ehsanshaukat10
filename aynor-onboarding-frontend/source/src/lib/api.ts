@@ -30,7 +30,33 @@ export type Goal = {
   deadline: string;
   owner: string;
 };
+export type IntelligenceAccess = {
+  version: 1;
+  worksheets: Record<
+    string,
+    {
+      category:
+        | "finance"
+        | "sales"
+        | "delivery"
+        | "resources"
+        | "operations"
+        | "marketing"
+        | "other";
+      sensitivity: "standard" | "financial" | "payroll" | "confidential";
+      recordColumns: string[];
+    }
+  >;
+  grants: Record<
+    string,
+    {
+      categories: string[];
+      sensitivities: ("financial" | "payroll" | "confidential")[];
+    }
+  >;
+};
 export type WorkspaceData = {
+  intelligenceAccess?: IntelligenceAccess;
   departments: string[];
   priorities: string[];
   sources: string[];

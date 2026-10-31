@@ -1,4 +1,5 @@
 import { connectionsLink, evidenceReturn } from "./dashboard-navigation";
+import { intelligenceQuery } from "./intelligence-cache";
 import { useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -34,22 +35,38 @@ export function BusinessEvidence({
     [error, setError] = useState(""),
     [revision, setRevision] = useState(0);
   useEffect(() => {
-    let active = true;
+    let active = true,
+      sequence = 0;
     setData(null);
     setError("");
-    serverRequest<Evidence>(
-      `/companies/${companyId}/sources/${encodeURIComponent(sourceId)}/evidence?tabId=${encodeURIComponent(tabId)}&metricId=${encodeURIComponent(metricId)}`,
-    )
-      .then((value) => {
-        if (active) setData(value);
-      })
-      .catch((e) => {
-        if (active) setError(e.message);
-      });
+    const reload = () => {
+      const current = ++sequence;
+      return serverRequest<Evidence>(
+        `/companies/${companyId}/intelligence/evidence?sourceId=${encodeURIComponent(sourceId)}&tabId=${encodeURIComponent(tabId)}&metricId=${encodeURIComponent(metricId)}&revision=${encodeURIComponent(new URLSearchParams(location.search).get("revision") || "")}&${intelligenceQuery(location.search)}`,
+      )
+        .then((value) => {
+          if (active && current === sequence) {
+            setData(value);
+            setError("");
+          }
+        })
+        .catch((e) => {
+          if (active && current === sequence) {
+            setData(null);
+            setError(e.message);
+          }
+        });
+    };
+    void reload();
+    const timer = setInterval(() => void reload(), 15000);
+    window.addEventListener("focus", reload);
+
     return () => {
       active = false;
+      clearInterval(timer);
+      window.removeEventListener("focus", reload);
     };
-  }, [companyId, sourceId, tabId, metricId, revision]);
+  }, [companyId, sourceId, tabId, metricId, revision, location.search]);
   return (
     <div className="intel-page">
       <Link

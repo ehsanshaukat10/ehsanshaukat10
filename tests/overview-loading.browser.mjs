@@ -35,7 +35,7 @@ await scenario(
     let release;
     let gate = new Promise((r) => (release = r));
     let failure = false;
-    await page.route("**/sources/intelligence?scope=*", async (route) => {
+    await page.route("**/intelligence?scope=*", async (route) => {
       await gate;
       if (failure)
         await route.fulfill({

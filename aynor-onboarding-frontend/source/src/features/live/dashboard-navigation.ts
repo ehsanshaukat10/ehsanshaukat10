@@ -40,14 +40,19 @@ export function evidenceReturn(companyId: string, current: string): string {
     overviewReturn(companyId, current) || `/companies/${companyId}/overview`,
     "https://aynor.invalid",
   );
-  for (const key of ["evidence", "source", "tab"]) url.searchParams.delete(key);
+  for (const key of ["evidence", "source", "tab", "revision"])
+    url.searchParams.delete(key);
   return url.pathname + url.search + url.hash;
 }
 // Evidence URLs supply their own source/tab, while carrying the current dashboard filters.
 export function evidenceLink(target: string, search: string): string {
   const url = new URL(target, "https://aynor.invalid");
   for (const [key, value] of new URLSearchParams(search))
-    if (!["evidence", "source", "tab", "returnTo", "scope"].includes(key))
+    if (
+      !["evidence", "source", "tab", "returnTo", "scope", "revision"].includes(
+        key,
+      )
+    )
       url.searchParams.append(key, value);
   return url.pathname + url.search;
 }

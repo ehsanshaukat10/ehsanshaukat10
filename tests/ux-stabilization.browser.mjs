@@ -19,7 +19,22 @@ await scenario(
   "UX stabilization: no overlap/overflow, contextual returns, confirmed evidence names, recovery and capacity concern",
   async (page) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
-    const w = await workspace(page, "Stabilization review");
+    const credentials = {
+      email: "ux-stabilization@example.test",
+      password: "isolated-intelligence-password-long",
+    };
+    assert.equal(
+      (
+        await page.request.post(origin + "/api/auth/signup", {
+          data: { ...credentials, name: "Isolated reviewer" },
+        })
+      ).status(),
+      201,
+    );
+    await page.request.post(origin + "/api/__fixture/confirm-email", {
+      data: { email: credentials.email },
+    });
+    const w = await workspace(page, "Stabilization review", credentials);
     const seed = await page.request.post(w.sources, {
       data: {
         mode: "upload",
@@ -157,10 +172,13 @@ await scenario(
       "Person name (optional)": "Person name",
     });
     const scopes = [`${id}:0`, `${id}:1`, `${id}:2`];
+    await page.request.post(w.sources + `/${id}/department`, {
+      data: { department: "Finance" },
+    });
     const context = new URLSearchParams({
       scope: scopes[1],
       period: "month",
-      department: "Delivery",
+      department: "Finance",
       status: "active",
     });
     context.append("tag", "one");
@@ -268,21 +286,14 @@ await scenario(
       .getByRole("button", { name: "Back to connected sources", exact: true })
       .click();
     await Promise.all([
-      page.waitForResponse(
-        (r) =>
-          r.url().includes("/intelligence?scope=") &&
-          r.url().includes("view=executive"),
-      ),
+      page.waitForResponse((r) => r.url().includes("/intelligence?scope=")),
       page.getByRole("link", { name: "Back", exact: true }).click(),
     ]);
     await expect(
       page.getByLabel("Reporting scope", { exact: true }),
     ).toHaveValue(scopes[2]);
     await expect(page.locator(".intel-kpi").first()).toContainText("125%");
-    assert.equal(
-      new URL(page.url()).searchParams.get("department"),
-      "Delivery",
-    );
+    assert.equal(new URL(page.url()).searchParams.get("department"), "Finance");
     assert.deepEqual(new URL(page.url()).searchParams.getAll("tag"), [
       "one",
       "two",
@@ -326,8 +337,8 @@ await scenario(
       for (const cold of [true, false]) {
         await page.setViewportSize({ width, height: 1000 });
         if (cold) await page.evaluate(() => sessionStorage.clear());
-        await page.route("**/sources/intelligence?*", (route) =>
-          route.request().url().includes("view=executive")
+        await page.route("**/intelligence?*", (route) =>
+          !route.request().url().includes("/context?")
             ? route.fulfill({
                 status: 503,
                 contentType: "application/json",
@@ -348,7 +359,7 @@ await scenario(
             "125%",
           );
         await screenshot(`error-${cold ? "cold" : "cached"}-${width}`);
-        await page.unroute("**/sources/intelligence?*");
+        await page.unroute("**/intelligence?*");
         await page
           .getByRole("button", { name: "Retry report", exact: true })
           .click();

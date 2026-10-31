@@ -1,96 +1,32 @@
-import { useEffect, useState } from "react";
+import { useCompanyIntelligence } from "./useCompanyIntelligence";
 import { Link, useSearchParams } from "react-router-dom";
 import { Database, RefreshCw } from "lucide-react";
 import { formatSyncTime } from "../../../shared/sync-time.mjs";
-import { useApp } from "../../lib/context";
-import { ApiError, serverRequest } from "../../lib/runtime";
 import { Button, ErrorBox } from "../../components/ui";
 import type { Company } from "../../lib/api";
 import { useSheetStatus } from "./SheetsConnection";
 import { Panel } from "../intelligence/shared";
 import { Select } from "./LiveSelect";
 import { OverviewSkeleton } from "./OverviewSkeleton";
-import {
-  readOverviewCache,
-  writeOverviewCache,
-  clearOverviewCache,
-} from "./overview-cache";
 import { connectionsLink } from "./dashboard-navigation";
 import { useLocation } from "react-router-dom";
 import { GovernedOverview } from "./GovernedOverview";
 import { BusinessEvidence } from "./BusinessEvidence";
-import type { ExecutiveSnapshot } from "./semantic-types";
 import "../dashboard/dashboard.css";
 import "../intelligence/intelligence.css";
 import "./operational-overview.css";
 export function LiveOverview({ company }: { company: Company }) {
-  const { user } = useApp(),
-    [query, setQuery] = useSearchParams(),
+  const [query, setQuery] = useSearchParams(),
     location = useLocation();
-  const cacheScope = `${user?.id}:${company.id}:${company.role}:executive-v1`,
-    cached = readOverviewCache(cacheScope);
-  const [report, setReport] = useState<ExecutiveSnapshot | null>(
-      () => (cached?.report as ExecutiveSnapshot) || null,
-    ),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(true),
-    [revision, setRevision] = useState(0);
-  const allowed = ["Owner", "Admin"].includes(company.role),
-    { source } = useSheetStatus(company.id, allowed),
-    requested = query.get("scope") || "",
+  const sourceAdmin = ["Owner", "Admin"].includes(company.role),
+    { source } = useSheetStatus(company.id, sourceAdmin),
     evidence = query.get("evidence") || "";
-  useEffect(() => {
-    if (!allowed || evidence) return;
-    let active = true;
-    setBusy(true);
-    serverRequest<ExecutiveSnapshot>(
-      `/companies/${company.id}/sources/intelligence?scope=${encodeURIComponent(requested)}&view=executive`,
-    )
-      .then((view) => {
-        if (active) {
-          setReport(view);
-          writeOverviewCache(cacheScope, "all", view);
-          setError("");
-        }
-      })
-      .catch((e) => {
-        if (active) {
-          if (e instanceof ApiError && [401, 403, 404].includes(e.status)) {
-            clearOverviewCache(cacheScope);
-            setReport(null);
-          }
-          setError(
-            e instanceof ApiError && [401, 403, 404].includes(e.status)
-              ? "Business reporting is unavailable for your current access."
-              : "Unable to refresh business reporting. Retry.",
-          );
-        }
-      })
-      .finally(() => {
-        if (active) setBusy(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [
-    company.id,
-    cacheScope,
-    allowed,
-    requested,
-    evidence,
-    source?.revision,
-    source?.status,
-    revision,
-  ]);
-  if (!allowed)
-    return (
-      <div className="intel-page">
-        <h1>Overview.</h1>
-        <Panel title="Scoped reporting">
-          <p>An Owner or Admin can access company-wide business reporting.</p>
-        </Panel>
-      </div>
-    );
+  const { report, error, busy, retry } = useCompanyIntelligence(
+    company,
+    location.search,
+    !evidence,
+    `${source?.revision}:${source?.status}`,
+  );
   if (evidence)
     return (
       <BusinessEvidence
@@ -149,7 +85,7 @@ export function LiveOverview({ company }: { company: Company }) {
       {error && (
         <>
           {report && <p>Displayed values are from the last saved report.</p>}
-          <Button variant="secondary" onClick={() => setRevision((v) => v + 1)}>
+          <Button variant="secondary" onClick={retry}>
             Retry report
           </Button>
         </>
@@ -170,7 +106,11 @@ export function LiveOverview({ company }: { company: Company }) {
         </Select>
       )}
       {executive ? (
-        <GovernedOverview report={executive} onScope={chooseScope} />
+        <GovernedOverview
+          report={executive}
+          onScope={chooseScope}
+          readOnly={!report?.authorization.canManageSources}
+        />
       ) : busy ? (
         <OverviewSkeleton />
       ) : (

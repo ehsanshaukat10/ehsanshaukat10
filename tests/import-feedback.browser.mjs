@@ -212,7 +212,7 @@ await scenario(
       page.locator(".intel-kpi").filter({ hasText: "Revenue" }),
     ).toContainText("250");
     await expect(page.getByLabel("Imported tables")).toHaveCount(0);
-    await page.route("**/sources/intelligence?scope=*", async (route) => {
+    await page.route("**/intelligence?scope=*", async (route) => {
       await new Promise((r) => setTimeout(r, 700));
       await route.continue();
     });
