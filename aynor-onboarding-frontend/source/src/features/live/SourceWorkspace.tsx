@@ -615,7 +615,12 @@ export function SourceWorkspace({
       </section>
     );
   return (
-    <section className="source-workspace" aria-busy={!!busy}>
+    <section
+      className="source-workspace"
+      data-view={viewSection}
+      data-phase={phase}
+      aria-busy={!!busy}
+    >
       {phase === "manage" && (
         <div
           className="source-section-tabs"
@@ -623,6 +628,7 @@ export function SourceWorkspace({
         >
           <Button
             variant={viewSection === "inventory" ? "primary" : "secondary"}
+            aria-pressed={viewSection === "inventory"}
             disabled={!!busy}
             onClick={() => {
               setSection("inventory");
@@ -634,6 +640,7 @@ export function SourceWorkspace({
           </Button>
           <Button
             variant={viewSection === "connect" ? "primary" : "secondary"}
+            aria-pressed={viewSection === "connect"}
             disabled={!!busy}
             onClick={() => {
               setSection("connect");
@@ -645,6 +652,7 @@ export function SourceWorkspace({
           </Button>
           <Button
             variant={viewSection === "mapping" ? "primary" : "secondary"}
+            aria-pressed={viewSection === "mapping"}
             disabled={!!busy}
             onClick={() => {
               setSection("mapping");
@@ -657,86 +665,6 @@ export function SourceWorkspace({
             </span>
           </Button>
         </div>
-      )}
-      {phase === "manage" && (
-        <section className="source-ai-status" aria-label="Live AI status">
-          <strong>Live AI</strong>
-          <p>
-            {aiCheck
-              ? aiMessage(aiCheck)
-              : catalog.aiAvailable
-                ? "Credentials are configured. This does not confirm a successful AI request."
-                : aiMessage("not_configured")}
-          </p>
-          {aiDetails && (
-            <p role="status">
-              {aiDetails.limitScope && (
-                <>
-                  <span>
-                    Allowance:{" "}
-                    {(
-                      {
-                        configuration: "AI disabled by configured limits",
-                        workspace: "mapping requests for this company",
-                        global: "mapping requests across AYNOR",
-                        connection_test_workspace:
-                          "connection tests for this company",
-                        connection_test_global: "connection tests across AYNOR",
-                      } as Record<string, string>
-                    )[aiDetails.limitScope] || aiDetails.limitScope}
-                    .
-                  </span>
-                  <br />
-                </>
-              )}
-              Enable flag: {aiDetails.enabled ? "On" : "Off"} · API key present:{" "}
-              {aiDetails.keyPresent ? "Yes" : "No"}.<br />
-              Check stage:{" "}
-              {(
-                {
-                  configuration: "server configuration",
-                  model_catalog: "free model discovery",
-                  request_limit: "daily request allowance",
-                  inference: "OpenRouter AI request",
-                  validation: "AI response validation",
-                  complete: "completed",
-                } as Record<string, string>
-              )[aiDetails.stage || ""] || "unknown"}{" "}
-              · AI request attempted:{" "}
-              {aiDetails.inferenceAttempted ? "Yes" : "No"}
-              {aiDetails.httpStatus
-                ? ` · Provider HTTP ${aiDetails.httpStatus}`
-                : ""}
-              .
-            </p>
-          )}
-          <Button
-            variant="secondary"
-            busy={busy === "ai-check"}
-            disabled={!!busy}
-            onClick={() =>
-              void run("ai-check", async () => {
-                const result = await serverRequest<{
-                  status: string;
-                  stage?: string;
-                  inferenceAttempted?: boolean;
-                  keyPresent?: boolean;
-                  enabled?: boolean;
-                  httpStatus?: number;
-                  limitScope?: string;
-                }>(`${root}/ai-check`, "POST", {});
-                setAiCheck(result.status);
-                setAiDetails(result);
-              })
-            }
-          >
-            Test live AI connection
-          </Button>
-          <small>
-            Uses synthetic labels only and stays free-only. Connection tests use
-            a separate capped allowance from spreadsheet mapping.
-          </small>
-        </section>
       )}
       <ErrorBox>{error}</ErrorBox>
       {message && (
@@ -1095,26 +1023,33 @@ export function SourceWorkspace({
                       · {source.tabs.filter((t) => t.mapped).length}/
                       {source.tabs.length} pages mapped
                     </small>
-                    {source.lastChecked && (
-                      <small>
-                        Last sync check:{" "}
-                        <time
-                          dateTime={new Date(source.lastChecked).toISOString()}
-                        >
-                          {formatSyncTime(source.lastChecked, timezone)}
-                        </time>
-                      </small>
-                    )}
-                    {source.lastSuccess && (
-                      <small>
-                        Last data update:{" "}
-                        <time
-                          dateTime={new Date(source.lastSuccess).toISOString()}
-                        >
-                          {formatSyncTime(source.lastSuccess, timezone)}
-                        </time>
-                      </small>
-                    )}
+                    <details className="source-sync-details">
+                      <summary>Sync history</summary>
+                      {source.lastChecked && (
+                        <small>
+                          Last sync check:{" "}
+                          <time
+                            dateTime={new Date(
+                              source.lastChecked,
+                            ).toISOString()}
+                          >
+                            {formatSyncTime(source.lastChecked, timezone)}
+                          </time>
+                        </small>
+                      )}
+                      {source.lastSuccess && (
+                        <small>
+                          Last data update:{" "}
+                          <time
+                            dateTime={new Date(
+                              source.lastSuccess,
+                            ).toISOString()}
+                          >
+                            {formatSyncTime(source.lastSuccess, timezone)}
+                          </time>
+                        </small>
+                      )}
+                    </details>
                   </div>
                   <div className="source-parent-actions">
                     <Button
@@ -1181,12 +1116,15 @@ export function SourceWorkspace({
                   </div>
                 </header>
                 {source.automation && (
-                  <p
-                    className="source-ai-result"
-                    aria-label={`AI preparation status for ${source.title}`}
-                  >
-                    {aiMessage(source.automation.aiStatus)}
-                  </p>
+                  <details className="source-preparation-details">
+                    <summary>Preparation details</summary>
+                    <p
+                      className="source-ai-result"
+                      aria-label={`AI preparation status for ${source.title}`}
+                    >
+                      {aiMessage(source.automation.aiStatus)}
+                    </p>
+                  </details>
                 )}
                 {source.error && (
                   <p className="source-page-error">
@@ -1266,16 +1204,19 @@ export function SourceWorkspace({
                             <small key={index}>{note}</small>
                           ))}
                           {tab.lastSuccess && (
-                            <small>
-                              Checked{" "}
-                              <time
-                                dateTime={new Date(
-                                  tab.lastSuccess,
-                                ).toISOString()}
-                              >
-                                {formatSyncTime(tab.lastSuccess, timezone)}
-                              </time>
-                            </small>
+                            <details className="source-page-time">
+                              <summary>Last checked</summary>
+                              <small>
+                                Checked{" "}
+                                <time
+                                  dateTime={new Date(
+                                    tab.lastSuccess,
+                                  ).toISOString()}
+                                >
+                                  {formatSyncTime(tab.lastSuccess, timezone)}
+                                </time>
+                              </small>
+                            </details>
                           )}
                           {tab.changes && (
                             <small className="source-change">
@@ -1480,6 +1421,10 @@ export function SourceWorkspace({
             </p>
           ) : (
             <div className="source-property-list">
+              <div className="source-column-head" aria-hidden="true">
+                <span>Column &amp; sample values</span>
+                <span>Property</span>
+              </div>
               {activeDraft.inspection.headers.map((name, index) => (
                 <div
                   className={`source-property ${conflicts?.issues.some((i) => i.column === index) ? "has-conflict" : ""}`}
@@ -1580,6 +1525,90 @@ export function SourceWorkspace({
             </Button>
           </div>
         </section>
+      )}
+      {phase === "manage" && (
+        <details className="source-support-panel">
+          <summary>AI connection &amp; diagnostics</summary>
+          <section className="source-ai-status" aria-label="Live AI status">
+            <strong>Live AI</strong>
+            <p>
+              {aiCheck
+                ? aiMessage(aiCheck)
+                : catalog.aiAvailable
+                  ? "Credentials are configured. This does not confirm a successful AI request."
+                  : aiMessage("not_configured")}
+            </p>
+            {aiDetails && (
+              <p role="status">
+                {aiDetails.limitScope && (
+                  <>
+                    <span>
+                      Allowance:{" "}
+                      {(
+                        {
+                          configuration: "AI disabled by configured limits",
+                          workspace: "mapping requests for this company",
+                          global: "mapping requests across AYNOR",
+                          connection_test_workspace:
+                            "connection tests for this company",
+                          connection_test_global:
+                            "connection tests across AYNOR",
+                        } as Record<string, string>
+                      )[aiDetails.limitScope] || aiDetails.limitScope}
+                      .
+                    </span>
+                    <br />
+                  </>
+                )}
+                Enable flag: {aiDetails.enabled ? "On" : "Off"} · API key
+                present: {aiDetails.keyPresent ? "Yes" : "No"}.<br />
+                Check stage:{" "}
+                {(
+                  {
+                    configuration: "server configuration",
+                    model_catalog: "free model discovery",
+                    request_limit: "daily request allowance",
+                    inference: "OpenRouter AI request",
+                    validation: "AI response validation",
+                    complete: "completed",
+                  } as Record<string, string>
+                )[aiDetails.stage || ""] || "unknown"}{" "}
+                · AI request attempted:{" "}
+                {aiDetails.inferenceAttempted ? "Yes" : "No"}
+                {aiDetails.httpStatus
+                  ? ` · Provider HTTP ${aiDetails.httpStatus}`
+                  : ""}
+                .
+              </p>
+            )}
+            <Button
+              variant="secondary"
+              busy={busy === "ai-check"}
+              disabled={!!busy}
+              onClick={() =>
+                void run("ai-check", async () => {
+                  const result = await serverRequest<{
+                    status: string;
+                    stage?: string;
+                    inferenceAttempted?: boolean;
+                    keyPresent?: boolean;
+                    enabled?: boolean;
+                    httpStatus?: number;
+                    limitScope?: string;
+                  }>(`${root}/ai-check`, "POST", {});
+                  setAiCheck(result.status);
+                  setAiDetails(result);
+                })
+              }
+            >
+              Test live AI connection
+            </Button>
+            <small>
+              Uses synthetic labels only and stays free-only. Connection tests
+              use a separate capped allowance from spreadsheet mapping.
+            </small>
+          </section>
+        </details>
       )}
       {question && (
         <Modal

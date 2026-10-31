@@ -104,6 +104,9 @@ await scenario(
     }
     await page.reload();
     await page
+      .getByText("AI connection & diagnostics", { exact: true })
+      .click();
+    await page
       .getByRole("button", { name: "Test live AI connection", exact: true })
       .click();
     await expect(page.getByLabel("Live AI status")).toContainText(
