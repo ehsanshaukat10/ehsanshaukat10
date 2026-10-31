@@ -370,7 +370,7 @@ export function createServerlessSheets({
         }
       }
       const catalogRoute = path.match(
-        /^\/companies\/([a-f0-9-]{36})\/sources(?:\/([a-z0-9-]+)(?:\/(inspect|map|sync|skip|prepare|answer|check|department))?)?$/i,
+        /^\/companies\/([a-f0-9-]{36})\/sources(?:\/([a-z0-9-]+)(?:\/(inspect|map|sync|skip|prepare|answer|check|department|semantics))?)?$/i,
       );
       if (catalogRoute) {
         const [, company, id, action] = catalogRoute;
@@ -379,7 +379,11 @@ export function createServerlessSheets({
           return send(await google.files(company));
         const operation =
           action ||
-          (id === "ai-check" ? "ai-check" : id ? "remove" : "sources");
+          (["ai-check", "intelligence", "semantic-config"].includes(id)
+            ? id
+            : id
+              ? "remove"
+              : "sources");
         return send(
           await catalog.handle({
             company,

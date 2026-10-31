@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   confirmSemantics,
+  currencyEvidence,
   evaluateSemantics,
   proposeSemantics,
   validateSemanticSettings,
@@ -400,4 +401,193 @@ test("overlapping shared identifiers are blocked and company metric settings are
       now,
     ),
   );
+});
+
+test("resource intervals respect mapped dates; undated changed snapshots retain meanings but require scope confirmation", () => {
+  const t = table(
+    ["Person", "Week", "Assigned", "Available"],
+    ["text", "date", "number", "number"],
+    [
+      ["E1", "2026-10-04", 10, 40],
+      ["E2", "2026-11-04", 40, 40],
+    ],
+  );
+  const meaning = {
+    purpose: "resources",
+    entity: "resource",
+    entityNamespace: "weekly",
+    fields: {
+      entity_id: "Person",
+      date: "Week",
+      assigned_hours: "Assigned",
+      available_hours: "Available",
+    },
+    period: interval,
+  };
+  assert.equal(metric(run(t, meaning), "resources.utilization").value, 25);
+  const undated = table(
+    ["Person", "Assigned", "Available"],
+    ["text", "number", "number"],
+    [["E1", 10, 40]],
+  );
+  const sm = {
+    ...meaning,
+    fields: {
+      entity_id: "Person",
+      assigned_hours: "Assigned",
+      available_hours: "Available",
+    },
+  };
+  const semantic = confirmSemantics(sm, undated, "owner", now);
+  undated.rows[0][1] = 20;
+  const result = evaluateSemantics({
+    companyId: "tenant-a",
+    now,
+    catalog: {
+      sources: [
+        {
+          id: "a",
+          tabs: [{ tabId: 1, table: undated, semantic, lastSuccess: now }],
+        },
+      ],
+    },
+  });
+  assert.equal(metric(result, "resources.utilization").state, "provisional");
+  assert.deepEqual(result.worksheets[0].confirmation.fields, sm.fields);
+  assert.equal(result.worksheets[0].executiveEligible, false);
+});
+test("snapshot date context follows company timezone, and percentage fields cannot bind to amounts", () => {
+  const t = table(["Project", "Status"], ["text", "text"], [["P1", "Doing"]]);
+  const m = {
+    purpose: "delivery",
+    entity: "project",
+    entityNamespace: "delivery",
+    fields: { entity_id: "Project", status: "Status" },
+    period: { kind: "snapshot", asOf: "2026-11-01" },
+    statusValues: { active: ["Doing"] },
+  };
+  const time = Date.parse("2026-10-31T21:00:00Z"),
+    semantic = confirmSemantics(m, t, "owner", time),
+    catalog = {
+      sources: [
+        {
+          id: "a",
+          tabs: [{ tabId: 1, table: t, semantic, lastSuccess: time }],
+        },
+      ],
+    };
+  assert.equal(
+    metric(
+      evaluateSemantics({
+        catalog,
+        companyId: "tenant-a",
+        now: time,
+        timezone: "Asia/Karachi",
+      }),
+      "delivery.active_projects",
+    ).value,
+    1,
+  );
+  assert.equal(
+    metric(
+      evaluateSemantics({
+        catalog,
+        companyId: "tenant-a",
+        now: time,
+        timezone: "UTC",
+      }),
+      "delivery.active_projects",
+    ).state,
+    "provisional",
+  );
+  const f = finance();
+  f.types[2] = "percentage";
+  assert.throws(() => confirmSemantics(financialMeaning, f, "owner", now));
+});
+
+test("excluded reference data does not create business entity conflicts; unsafe numeric identifiers are blocked", () => {
+  const t = finance(),
+    semantic = confirmSemantics(financialMeaning, t, "owner", now),
+    reference = confirmSemantics(
+      { ...financialMeaning, purpose: "reference" },
+      t,
+      "owner",
+      now,
+    );
+  const out = evaluateSemantics({
+    companyId: "a",
+    now,
+    catalog: {
+      sources: [
+        {
+          id: "a",
+          tabs: [
+            { tabId: 1, table: t, semantic, lastSuccess: now },
+            { tabId: 2, table: t, semantic: reference, lastSuccess: now },
+          ],
+        },
+      ],
+    },
+  });
+  assert.equal(metric(out, "finance.revenue").state, "validated");
+  assert.equal(out.worksheets[1].executiveEligible, false);
+  const bad = finance();
+  bad.types[0] = "number";
+  bad.rows[0][0] = Number.MAX_SAFE_INTEGER + 1;
+  bad.rows[1][0] = 42;
+  assert.equal(
+    metric(run(bad, financialMeaning), "finance.revenue").state,
+    "provisional",
+  );
+});
+
+test("original currency symbols and numeric identifier loss are observed before normalization", () => {
+  const t = finance(),
+    semantic = confirmSemantics(financialMeaning, t, "owner", now);
+  const observation = currencyEvidence(
+    [
+      ["Entry", "Booked", "Turnover", "Spend"],
+      ["T1", "2026-10-01", "€100", "€20"],
+    ],
+    0,
+    semantic,
+    t.headers,
+    t,
+  );
+  assert.deepEqual(observation.currencies, ["EUR"]);
+  const out = evaluateSemantics({
+    companyId: "a",
+    now,
+    catalog: {
+      sources: [
+        {
+          id: "a",
+          tabs: [
+            {
+              tabId: 1,
+              table: t,
+              semantic: { ...semantic, observation },
+              lastSuccess: now,
+            },
+          ],
+        },
+      ],
+    },
+  });
+  assert.equal(metric(out, "finance.revenue").state, "provisional");
+  t.types[0] = "number";
+  t.rows[0][0] = 1;
+  t.rows[1][0] = 2;
+  const numeric = confirmSemantics(financialMeaning, t, "owner", now);
+  const loss = currencyEvidence(
+    [
+      ["Entry", "Booked", "Turnover", "Spend"],
+      ["0001", "2026-10-01", 100, 20],
+    ],
+    0,
+    numeric,
+    t.headers,
+    t,
+  );
+  assert.equal(loss.identifierLoss, true);
 });

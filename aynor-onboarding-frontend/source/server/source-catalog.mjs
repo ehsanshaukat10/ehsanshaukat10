@@ -1,4 +1,10 @@
 import {
+  confirmSemantics,
+  evaluateSemantics,
+  validateSemanticSettings,
+  currencyEvidence,
+} from "./semantic-intelligence.mjs";
+import {
   AUTO_VERSION,
   detectTable,
   finalizePlan,
@@ -458,6 +464,26 @@ export function createSourceCatalog({
     }
     return table;
   }
+  function captureSemanticObservation(tab, values) {
+    if (tab.semantic)
+      tab.semantic.observation = currencyEvidence(
+        values,
+        tab.config?.headerRow || 0,
+        tab.semantic,
+        columns(values.slice(tab.config?.headerRow || 0)),
+        tab.table,
+      );
+  }
+  async function intelligence(company, actor) {
+    const membership = await member(company, actor, true);
+    const state = await read(company, actor);
+    return evaluateSemantics({
+      catalog: { ...state.catalog, revision: state.connection?.revision },
+      companyId: company,
+      settings: state.catalog.semanticSettings || {},
+      timezone: membership.company.timezone || "UTC",
+    });
+  }
   async function overview(company, actor, period) {
     const state = await read(company, actor),
       tables = [],
@@ -546,8 +572,71 @@ export function createSourceCatalog({
     list,
     status,
     overview,
+    intelligence,
     async handle({ company, actor, action, id, method, body }) {
       await member(company, actor, true);
+      if (action === "intelligence" && method === "GET")
+        return intelligence(company, actor);
+      if (action === "semantic-config") {
+        if (method === "GET")
+          return (
+            (await read(company, actor)).catalog.semanticSettings ||
+            validateSemanticSettings({})
+          );
+        if (method === "POST") {
+          const settings = validateSemanticSettings(body);
+          await mutate(company, actor, async (catalog) => {
+            catalog.semanticSettings = settings;
+          });
+          return settings;
+        }
+      }
+      if (action === "semantics") {
+        if (method === "GET") {
+          getSource((await read(company, actor)).catalog, id);
+          const view = await intelligence(company, actor);
+          return {
+            ...view,
+            worksheets: view.worksheets.filter((w) => w.sourceId === id),
+            metrics: view.metrics.filter((m) => m.lineage.sourceId === id),
+          };
+        }
+        if (method === "POST") {
+          if (!body || !Number.isInteger(body.tabId) || !body.mapping)
+            fail(400, "Choose a worksheet and semantic mapping.");
+          await mutate(company, actor, async (catalog) => {
+            const source = getSource(catalog, id),
+              tab = source.tabs.find((t) => t.tabId === body.tabId);
+            if (!tab?.table)
+              fail(
+                409,
+                "Import the worksheet before confirming business meanings.",
+              );
+            const confirmed = confirmSemantics(body.mapping, tab.table, actor);
+            const values = await rows(company, source, tab);
+            let current;
+            try {
+              current = refreshTable(values, tab.config, tab.table);
+            } catch {
+              fail(
+                409,
+                "Source structure or values changed. Sync or upload it before confirming business meanings.",
+              );
+            }
+            if (
+              digest([current.headers, current.types, current.rows]) !==
+              digest([tab.table.headers, tab.table.types, tab.table.rows])
+            )
+              fail(
+                409,
+                "Source data changed. Sync or upload it before confirming business meanings.",
+              );
+            tab.semantic = confirmed;
+            captureSemanticObservation(tab, values);
+          });
+          return intelligence(company, actor);
+        }
+      }
       if (action === "ai-check" && method === "POST") {
         const result = await ai.classify({
           company,
@@ -674,13 +763,11 @@ export function createSourceCatalog({
                 (t) => t.config && !t.config.legacyMapping,
               )) {
                 try {
-                  const table = refreshTable(
-                    await rows(company, existing, tab),
-                    tab.config,
-                    tab.table,
-                  );
+                  const values = await rows(company, existing, tab);
+                  const table = refreshTable(values, tab.config, tab.table);
                   tab.changes = changes(tab.table, table);
                   tab.table = table;
+                  captureSemanticObservation(tab, values);
                   tab.error = null;
                   tab.lastSuccess = Date.now();
                 } catch (error) {
@@ -753,6 +840,7 @@ export function createSourceCatalog({
                 const table = refreshTable(values, tab.config, tab.table);
                 tab.changes = changes(tab.table, table);
                 tab.table = table;
+                captureSemanticObservation(tab, values);
                 tab.error = null;
                 tab.lastSuccess = Date.now();
                 continue;
@@ -829,6 +917,7 @@ export function createSourceCatalog({
               tab.changes = changes(tab.table, prepared.table);
               tab.table = prepared.table;
               tab.config = prepared.config;
+              captureSemanticObservation(tab, values);
               tab.department = source.department ?? prepared.config.department;
               prepared.config.department = tab.department;
               prepared.plan.department = tab.department;
@@ -894,6 +983,7 @@ export function createSourceCatalog({
           tab.changes = changes(tab.table, prepared.table);
           tab.table = prepared.table;
           tab.config = prepared.config;
+          captureSemanticObservation(tab, values);
           tab.department = prepared.config.department;
           tab.error = null;
           tab.lastSuccess = Date.now();
@@ -1077,6 +1167,7 @@ export function createSourceCatalog({
               prepared.push({
                 tab,
                 table,
+                values,
                 config: {
                   ...clean,
                   properties: props,
@@ -1088,10 +1179,11 @@ export function createSourceCatalog({
             }
           }
           if (errors.length) fail(422, errors.join("\n"));
-          for (const { tab, table, config } of prepared) {
+          for (const { tab, table, config, values } of prepared) {
             tab.changes = changes(tab.table, table);
             tab.table = table;
             tab.config = config;
+            captureSemanticObservation(tab, values);
             tab.department = config.department;
             tab.skipped = false;
             tab.error = null;
@@ -1151,6 +1243,7 @@ export function createSourceCatalog({
                 const table = refreshTable(values, tab.config, tab.table);
                 tab.changes = changes(tab.table, table);
                 tab.table = table;
+                captureSemanticObservation(tab, values);
                 tab.error = null;
                 tab.lastSuccess = Date.now();
               } catch (e) {

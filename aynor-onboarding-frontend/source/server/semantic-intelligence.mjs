@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { dateInTimezone } from "../shared/sync-time.mjs";
 // Governed MVP metrics. This module never writes records, calls AI, or changes imports.
 export const SEMANTIC_VERSION = 1;
 export const purposes = [
@@ -140,6 +142,9 @@ export function validateSemanticSettings(input) {
     result.enabledMetrics = [...new Set(input.enabledMetrics)];
   }
   return result;
+}
+function dataVersion(table) {
+  return createHash("sha256").update(JSON.stringify(table.rows)).digest("hex");
 }
 export function schemaOf(table) {
   return JSON.stringify([table.headers || [], table.types || []]);
@@ -298,6 +303,7 @@ export function confirmSemantics(input, table, actor, now = Date.now()) {
     statusValues,
     enabled: input.enabled !== false,
     schema: schemaOf(table),
+    confirmedDataVersion: dataVersion(table),
     confirmedBy: actor,
     confirmedAt: now,
   };
@@ -444,10 +450,11 @@ export function evaluateSemantics({
   companyId,
   settings = {},
   now = Date.now(),
+  timezone = "UTC",
 }) {
   const results = [],
     worksheets = [];
-  const asOf = new Date(now).toISOString().slice(0, 10);
+  const asOf = dateInTimezone(timezone, now);
   const all = catalog.sources.flatMap((source) =>
     source.tabs
       .filter((tab) => tab.table)
@@ -457,7 +464,14 @@ export function evaluateSemantics({
   const identities = new Map(),
     overlapping = new Set();
   for (const { source, tab, semantic: s } of all) {
-    if (!s?.fields.entity_id || !s.enabled || s.schema !== schemaOf(tab.table))
+    if (
+      !s?.fields.entity_id ||
+      s.version !== SEMANTIC_VERSION ||
+      !s.enabled ||
+      tab.skipped ||
+      ["reference", "other"].includes(s.purpose) ||
+      s.schema !== schemaOf(tab.table)
+    )
       continue;
     const index = tab.table.headers.indexOf(s.fields.entity_id);
     for (const row of tab.table.rows) {
@@ -511,6 +525,7 @@ export function evaluateSemantics({
             ? s?.currency || null
             : null,
         period: s?.period || null,
+        timezone,
         state: "provisional",
         value: null,
         reasons: [],
@@ -554,6 +569,20 @@ export function evaluateSemantics({
         );
         continue;
       }
+      if (tab.error) {
+        block(
+          "stale",
+          "Source refresh failed; last imported records remain accessible.",
+        );
+        continue;
+      }
+      if (!s.fields.date && s.confirmedDataVersion !== dataVersion(table)) {
+        block(
+          "provisional",
+          "Records changed without a reporting-date field. Reconfirm the table's reporting scope; saved field meanings are retained.",
+        );
+        continue;
+      }
       const missing = metric.requiredFields.filter((field) => !s.fields[field]);
       result.completeness =
         (metric.requiredFields.length - missing.length) /
@@ -593,6 +622,17 @@ export function evaluateSemantics({
         );
         continue;
       }
+      if (
+        s.currency &&
+        (s.observation?.conflict ||
+          s.observation?.currencies.some((currency) => currency !== s.currency))
+      ) {
+        block(
+          "provisional",
+          "Original source cells contain mixed or incompatible currency evidence.",
+        );
+        continue;
+      }
       const currencyColumns = table.headers
         .map((h, i) => (/^(currency|currency code)$/i.test(h.trim()) ? i : -1))
         .filter((i) => i >= 0);
@@ -614,6 +654,20 @@ export function evaluateSemantics({
       const indices = Object.fromEntries(
         Object.entries(s.fields).map(([f, h]) => [f, table.headers.indexOf(h)]),
       );
+      if (
+        s.observation?.identifierLoss ||
+        table.rows.some(
+          (row) =>
+            typeof row[indices.entity_id] === "number" &&
+            !Number.isSafeInteger(row[indices.entity_id]),
+        )
+      ) {
+        block(
+          "provisional",
+          "Identifier precision or leading zeros were lost during numeric import. Preserve identifiers as text before confirming them.",
+        );
+        continue;
+      }
       const seen = new Set();
       if (
         overlapping.has(scope) ||
@@ -653,10 +707,7 @@ export function evaluateSemantics({
         continue;
       }
       let rows = table.rows.map((row, index) => ({ row, index }));
-      if (
-        metric.periodKind === "interval" &&
-        metric.requiredFields.includes("date")
-      ) {
+      if (metric.periodKind === "interval" && s.fields.date) {
         if (rows.some(({ row }) => !validDate(row[indices.date]))) {
           block("insufficient_data", "Missing or invalid reporting dates.");
           continue;
@@ -783,7 +834,8 @@ export function evaluateSemantics({
         !tab.lastSuccess ||
         now - tab.lastSuccess > (settings.freshnessHours || 48) * 3600000 ||
         (s.period.kind === "snapshot" &&
-          now - Date.parse(s.period.asOf + "T00:00:00Z") >
+          Date.parse(asOf + "T00:00:00Z") -
+            Date.parse(s.period.asOf + "T00:00:00Z") >
             (settings.freshnessHours || 48) * 3600000)
       ) {
         block(
@@ -804,7 +856,82 @@ export function evaluateSemantics({
     companyId,
     evaluatedAt: now,
     registry: metricRegistry.map(({ operation, ...m }) => m),
-    worksheets,
+    worksheets: worksheets.map((worksheet) => ({
+      ...worksheet,
+      executiveEligible:
+        worksheet.executiveEligible &&
+        results.some(
+          (metric) =>
+            metric.lineage.sourceId === worksheet.sourceId &&
+            metric.lineage.tabId === worksheet.tabId &&
+            metric.state === "validated",
+        ),
+    })),
     metrics: results,
   };
+}
+
+// Read currency evidence from the original cells before normalization loses symbols.
+// Evidence is refreshed with each successful import, independently of confirmation.
+export function currencyEvidence(values, headerRow, semantic, headers, table) {
+  const fields = Object.entries(semantic.fields).filter(([f]) =>
+    ["revenue", "expense", "amount", "outstanding_amount"].includes(f),
+  );
+  const indices = fields
+    .map(([, name]) => headers.indexOf(name))
+    .filter((i) => i >= 0);
+  const codeIndex = headers.findIndex((h) =>
+    /^(currency|currency code)$/i.test(h.trim()),
+  );
+  const found = new Set();
+  let conflict = false,
+    identifierLoss = false;
+  const idIndex = headers.indexOf(semantic.fields.entity_id);
+  const numericIdentifier =
+    table?.types[table.headers.indexOf(semantic.fields.entity_id)] === "number";
+  for (const row of values.slice(headerRow + 1)) {
+    if (!row.some((v) => String(v ?? "").trim())) continue;
+    if (
+      numericIdentifier &&
+      idIndex >= 0 &&
+      typeof row[idIndex] === "string" &&
+      /^0\d+$/.test(row[idIndex].trim())
+    )
+      identifierLoss = true;
+    if (codeIndex >= 0) {
+      const code = String(row[codeIndex] ?? "")
+        .trim()
+        .toUpperCase();
+      if (!currencies.has(code)) conflict = true;
+      else found.add(code);
+    }
+    for (const index of indices) {
+      const raw = String(row[index] ?? "").trim();
+      const code =
+        raw.match(/^([A-Z]{3})\s*[-+(\d]/i)?.[1]?.toUpperCase() ||
+        raw.match(/[\d)]\s*([A-Z]{3})$/i)?.[1]?.toUpperCase();
+      if (code) {
+        if (currencies.has(code)) found.add(code);
+        else conflict = true;
+      }
+      for (const [symbol, unit] of [
+        ["€", "EUR"],
+        ["£", "GBP"],
+        ["₹", "INR"],
+      ])
+        if (raw.includes(symbol)) found.add(unit);
+      if (
+        raw.includes("$") &&
+        semantic.currency &&
+        !new Intl.NumberFormat("en", {
+          style: "currency",
+          currency: semantic.currency,
+        })
+          .formatToParts(1)
+          .some((p) => p.type === "currency" && p.value.includes("$"))
+      )
+        conflict = true;
+    }
+  }
+  return { currencies: [...found].sort(), conflict, identifierLoss };
 }
