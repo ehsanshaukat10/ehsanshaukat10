@@ -1,3 +1,5 @@
+import { SemanticReview } from "./SemanticReview";
+import { SourceRecords } from "./SourceRecords";
 import { formatSyncTime } from "../../../shared/sync-time.mjs";
 import { useCallback, useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -191,6 +193,12 @@ export function SourceWorkspace({
     nav = useNavigate();
   const { user, toast } = useApp();
   const cacheKey = `${user?.id}:${companyId}`;
+  const [semanticTarget, setSemanticTarget] = useState<{
+    sourceId: string;
+    tabId: number;
+  } | null>(null);
+  const semanticOpened = useRef("");
+
   const [catalog, setCatalog] = useState<Catalog | null>(
       () => catalogCache.get(cacheKey) || null,
     ),
@@ -598,6 +606,25 @@ export function SourceWorkspace({
   const reviewPages = visibleSources
     .flatMap((s) => s.tabs)
     .filter((t) => t.automatic?.status === "needs_review").length;
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search),
+      sourceId = query.get("source"),
+      tabId = Number(query.get("tab"));
+    if (
+      query.has("business") &&
+      sourceId &&
+      query.has("tab") &&
+      catalog?.sources.some(
+        (source) =>
+          source.id === sourceId &&
+          source.tabs.some((tab) => tab.tabId === tabId && tab.mapped),
+      ) &&
+      semanticOpened.current !== `${sourceId}:${tabId}`
+    ) {
+      semanticOpened.current = `${sourceId}:${tabId}`;
+      setSemanticTarget({ sourceId, tabId });
+    }
+  }, [catalog]);
   if (!catalog)
     return (
       <section className="source-workspace" aria-busy={!error}>
@@ -613,6 +640,17 @@ export function SourceWorkspace({
           <p role="status">Loading your connected sources…</p>
         )}
       </section>
+    );
+  if (
+    phase === "manage" &&
+    new URLSearchParams(window.location.search).has("records")
+  )
+    return (
+      <SourceRecords
+        companyId={companyId}
+        timezone={timezone}
+        onClose={() => nav(`/companies/${companyId}/connections`)}
+      />
     );
   return (
     <section
@@ -664,6 +702,16 @@ export function SourceWorkspace({
               {mapped}/{total}
             </span>
           </Button>
+          {!!sources.length && (
+            <Button
+              variant="text"
+              onClick={() =>
+                nav(`/companies/${companyId}/connections?records=1`)
+              }
+            >
+              Explore imported records
+            </Button>
+          )}
         </div>
       )}
       <ErrorBox>{error}</ErrorBox>
@@ -1242,6 +1290,20 @@ export function SourceWorkspace({
                               {tab.mapped ? "Edit mapping" : "Map columns"}
                               <ChevronRight size={13} />
                             </Button>
+                            {tab.mapped && (
+                              <Button
+                                variant="text"
+                                disabled={!!busy}
+                                onClick={() =>
+                                  setSemanticTarget({
+                                    sourceId: source.id,
+                                    tabId: tab.tabId,
+                                  })
+                                }
+                              >
+                                Business meanings
+                              </Button>
+                            )}
                             {!tab.mapped && (
                               <Button
                                 variant="text"
@@ -1609,6 +1671,22 @@ export function SourceWorkspace({
             </small>
           </section>
         </details>
+      )}
+      {semanticTarget && (
+        <SemanticReview
+          companyId={companyId}
+          sourceId={semanticTarget.sourceId}
+          tabId={semanticTarget.tabId}
+          timezone={timezone}
+          onClose={() => setSemanticTarget(null)}
+          onSaved={async () => {
+            await refresh();
+            setMessage(
+              "Business meanings saved. Overview shows only measures that pass validation.",
+            );
+            window.dispatchEvent(new Event("aynor:sheet-change"));
+          }}
+        />
       )}
       {question && (
         <Modal
