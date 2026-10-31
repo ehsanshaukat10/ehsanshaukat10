@@ -136,10 +136,32 @@ test("semantic confirmations and settings persist without changing imports; sync
     300,
   );
   assert.equal(confirmed.data.metrics[0].timezone, "Asia/Karachi");
+  const executiveOnly = await call(root + "/intelligence?view=executive");
+  assert.equal(executiveOnly.status, 200);
+  assert.deepEqual(Object.keys(executiveOnly.data).sort(), [
+    "companyId",
+    "evaluatedAt",
+    "executive",
+    "version",
+  ]);
+  assert.equal(executiveOnly.data.executive.primary[0].value, 300);
+  let evidenceReads = 0;
+  app = createApplication({
+    env,
+    fetchImpl: async (input, options) => {
+      if (String(input).endsWith("/rpc/aynor_sheet_read")) evidenceReads++;
+      return f.fetchImpl(input, options);
+    },
+  });
   const evidence = await call(
     root + `/${id}/evidence?tabId=0&metricId=finance.revenue`,
   );
   assert.equal(evidence.status, 200);
+  assert.equal(
+    evidenceReads,
+    1,
+    "Metric and contributing records must come from one snapshot, even during concurrent refresh.",
+  );
   assert.equal(evidence.data.metric.value, 300);
   assert.equal(evidence.data.rows.length, 2);
   assert.ok(evidence.data.rows.flat().includes("T1"));

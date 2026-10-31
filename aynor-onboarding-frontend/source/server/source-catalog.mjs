@@ -475,9 +475,9 @@ export function createSourceCatalog({
         tab.table,
       );
   }
-  async function intelligence(company, actor, requestedScope) {
+  async function intelligence(company, actor, requestedScope, providedState) {
     const membership = await member(company, actor, true);
-    const state = await read(company, actor);
+    const state = providedState || (await read(company, actor));
     const view = evaluateSemantics({
       catalog: { ...state.catalog, revision: state.connection?.revision },
       companyId: company,
@@ -585,14 +585,23 @@ export function createSourceCatalog({
     intelligence,
     async handle({ company, actor, action, id, method, body, query = {} }) {
       await member(company, actor, true);
-      if (action === "intelligence" && method === "GET")
-        return intelligence(company, actor, query.scope);
+      if (action === "intelligence" && method === "GET") {
+        const view = await intelligence(company, actor, query.scope);
+        return query.view === "executive"
+          ? {
+              version: view.version,
+              companyId: view.companyId,
+              evaluatedAt: view.evaluatedAt,
+              executive: view.executive,
+            }
+          : view;
+      }
       if (action === "evidence" && method === "GET") {
         const state = await read(company, actor),
           source = getSource(state.catalog, id),
           tab = source.tabs.find((t) => t.tabId === Number(query.tabId));
         if (!tab?.table) fail(404, "Evidence is unavailable.");
-        const view = await intelligence(company, actor),
+        const view = await intelligence(company, actor, undefined, state),
           metric = view.metrics.find(
             (m) =>
               m.metricId === query.metricId &&
