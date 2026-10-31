@@ -81,9 +81,9 @@ test("semantic confirmations and settings persist without changing imports; sync
     {
       name: "Business ledger",
       rows: [
-        ["Entry", "Date", "Turnover", "Spend"],
-        ["T1", "2026-10-01", 100, 20],
-        ["T2", "2026-10-02", 200, 30],
+        ["Entry", "Date", "Turnover", "Spend", "Client", "Owner"],
+        ["T1", "2026-10-01", 100, 20, "Acme", "Sara"],
+        ["T2", "2026-10-02", 200, 30, "Nimbus", null],
       ],
     },
     {
@@ -165,9 +165,53 @@ test("semantic confirmations and settings persist without changing imports; sync
   assert.equal(evidence.data.metric.value, 300);
   assert.equal(evidence.data.rows.length, 2);
   assert.ok(evidence.data.rows.flat().includes("T1"));
-  const confirmation = confirmed.data.worksheets.find(
-    (w) => w.tabId === 0,
-  ).confirmation;
+  assert.ok(
+    !evidence.data.columns.includes("Client"),
+    "Unconfirmed name columns must not be exposed as evidence identities",
+  );
+  const named = await call(root + `/${id}/semantics`, "POST", {
+    tabId: 0,
+    mapping: {
+      ...mapping,
+      fields: { ...mapping.fields, client_name: "Client", owner_name: "Owner" },
+    },
+  });
+  assert.equal(named.status, 200, JSON.stringify(named.data));
+  const namedEvidence = await call(
+    root + `/${id}/evidence?tabId=0&metricId=finance.revenue`,
+  );
+  assert.equal(namedEvidence.data.metric.value, evidence.data.metric.value);
+  assert.deepEqual(
+    namedEvidence.data.metric.lineage.contributingRows,
+    evidence.data.metric.lineage.contributingRows,
+  );
+  assert.ok(namedEvidence.data.columns.includes("Client"));
+  assert.ok(namedEvidence.data.rows[0].includes("Acme"));
+  assert.ok(namedEvidence.data.rows[0].includes("Sara"));
+  assert.equal(
+    namedEvidence.data.rows[1][namedEvidence.data.columns.indexOf("Owner")],
+    null,
+    "Missing owner remains missing; never inferred from another record",
+  );
+  app = createApplication({ env, fetchImpl: f.fetchImpl });
+  const reloadedNames = (
+    await call(root + `/${id}/semantics`)
+  ).data.worksheets.find((w) => w.tabId === 0).confirmation.fields;
+  assert.equal(reloadedNames.client_name, "Client");
+  assert.equal(reloadedNames.owner_name, "Owner");
+  const invalidName = await call(root + `/${id}/semantics`, "POST", {
+    tabId: 0,
+    mapping: {
+      ...mapping,
+      fields: { ...mapping.fields, owner_name: "Turnover" },
+    },
+  });
+  assert.equal(invalidName.status, 400);
+  // Restore the original confirmation so the remainder verifies existing sync behavior unchanged.
+  await call(root + `/${id}/semantics`, "POST", { tabId: 0, mapping });
+  const confirmation = (
+    await call(root + `/${id}/semantics`)
+  ).data.worksheets.find((w) => w.tabId === 0).confirmation;
   assert.ok(confirmation.confirmedBy);
   assert.equal(confirmation.currency, "USD");
   const after = (await call(`/companies/${c.id}/sheets/overview?period=all`))

@@ -18,6 +18,10 @@ const kinds = [
   ["other:other", "Other — keep out of executive reporting"],
 ];
 const roles: Record<string, string> = {
+  client_name: "Client name (optional)",
+  project_name: "Project name (optional)",
+  owner_name: "Owner name (optional)",
+  resource_name: "Person name (optional)",
   entity_id: "Unique record ID",
   date: "Reporting date",
   revenue: "Recognized revenue (not cash received)",
@@ -140,7 +144,16 @@ export function SemanticReview({
     };
   }, [root, tabId, revision]);
   const [purpose, entity] = kind.split(":");
-  const fieldNames = required[kind] || [];
+  const contextFields =
+    entity === "project"
+      ? ["project_name", "client_name", "owner_name"]
+      : entity === "resource"
+        ? ["resource_name", "owner_name"]
+        : ["client_name", "owner_name"];
+  const fieldNames = [
+    ...(required[kind] || []),
+    ...(["reference", "other"].includes(purpose) ? [] : contextFields),
+  ];
   const snapshot =
     entity === "invoice" ||
     entity === "project" ||
@@ -327,7 +340,7 @@ export function SemanticReview({
                             .filter((f) =>
                               field === "date" || field === "due_date"
                                 ? f.type === "date"
-                                : field === "status"
+                                : field === "status" || field.endsWith("_name")
                                   ? f.type === "text"
                                   : field === "entity_id"
                                     ? ["text", "number"].includes(f.type)

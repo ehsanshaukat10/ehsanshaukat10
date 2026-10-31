@@ -272,7 +272,7 @@ await scenario(
       page.locator(".intel-kpi").filter({ hasText: "Planned utilization" }),
     ).toContainText("112.5%");
     await expect(
-      page.getByText("Review planned capacity", { exact: true }),
+      page.getByText("Planned capacity exceeded", { exact: true }),
     ).toBeVisible();
     await responsive(page);
   },

@@ -136,7 +136,7 @@ export function buildExecutiveReport(view, company, catalog, requestedScope) {
           : m.metricId === "delivery.overdue_projects" && m.value > 0
             ? "Review overdue projects"
             : m.metricId === "resources.utilization" && m.value > 100
-              ? "Review planned capacity"
+              ? "Planned capacity exceeded"
               : m.metricId === "finance.profit" && m.value < 0
                 ? "Review operating loss"
                 : null;

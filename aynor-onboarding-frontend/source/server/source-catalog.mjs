@@ -613,7 +613,18 @@ export function createSourceCatalog({
             409,
             "This evidence needs review or refresh before it supports an investigation.",
           );
-        const columns = [...new Set(Object.values(metric.lineage.fields))];
+        // Names are optional, explicitly confirmed context from this same row, never joins.
+        const columns = [
+          ...new Set(
+            Object.entries(metric.lineage.fields)
+              .filter(
+                ([role, header]) =>
+                  !role.endsWith("_name") ||
+                  tab.table.types[tab.table.headers.indexOf(header)] === "text",
+              )
+              .map(([, header]) => header),
+          ),
+        ];
         return {
           metric,
           columns,

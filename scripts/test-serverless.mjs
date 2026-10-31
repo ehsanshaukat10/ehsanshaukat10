@@ -85,6 +85,9 @@ try {
     (await new Promise((resolve) => executiveCheck.on("exit", resolve))) !== 0
   )
     throw Error("Executive reporting browser check failed.");
+  const stabilization = start(["tests/ux-stabilization.browser.mjs"]);
+  if ((await new Promise((resolve) => stabilization.on("exit", resolve))) !== 0)
+    throw Error("UX stabilization browser check failed.");
 } finally {
   await Promise.all(
     children

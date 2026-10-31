@@ -21,6 +21,10 @@ export const entities = [
   "other",
 ];
 const aliases = {
+  client_name: ["client", "client name", "customer", "customer name"],
+  project_name: ["project name", "project title"],
+  owner_name: ["owner", "owner name", "account owner", "project owner"],
+  resource_name: ["employee name", "resource name", "person name"],
   entity_id: [
     "id",
     "transaction id",
@@ -162,7 +166,9 @@ export function proposeSemantics(table, settings = {}) {
           ? ["number", "currency"].includes(table.types?.[i])
           : ["date", "due_date"].includes(field)
             ? table.types?.[i] === "date"
-            : ["text", "number"].includes(table.types?.[i])),
+            : field.endsWith("_name")
+              ? table.types?.[i] === "text"
+              : ["text", "number"].includes(table.types?.[i])),
     );
     if (matches.length === 1) fields[field] = matches[0];
     else if (matches.length > 1) ambiguous.push(field);
@@ -285,6 +291,8 @@ export function confirmSemantics(input, table, actor, now = Date.now()) {
       )
     )
       error("Identifiers require text or number columns.");
+    if (field.endsWith("_name") && table.types[index] !== "text")
+      error("Evidence names require validated text columns.");
     if (field === "status" && table.types[index] !== "text")
       error("Status meanings require text columns.");
   }

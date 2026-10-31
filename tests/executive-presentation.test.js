@@ -252,3 +252,50 @@ test("deliberately excluded reporting is retained without a false mapping warnin
   assert.equal(r.primary.length, 0);
   assert.equal(r.dataStatus, null);
 });
+
+test("only validated planned utilization strictly above 100% creates a capacity concern without severity scores", () => {
+  const { catalog } = fixture();
+  const table = {
+    headers: ["Employee ID", "Assigned hours", "Available hours"],
+    types: ["text", "number", "number"],
+    rows: [["E1", 125, 100]],
+  };
+  const tab = { tabId: 9, table, lastSuccess: now };
+  const meaning = {
+    purpose: "resources",
+    entity: "resource",
+    entityNamespace: "people",
+    fields: {
+      entity_id: "Employee ID",
+      assigned_hours: "Assigned hours",
+      available_hours: "Available hours",
+    },
+    period,
+  };
+  tab.semantic = confirmSemantics(meaning, table, "owner", now);
+  catalog.sources.push({ id: "capacity", tabs: [tab] });
+  const build = () =>
+    buildExecutiveReport(
+      evaluateSemantics({ catalog, companyId: "company", now }),
+      { id: "company", data: {} },
+      catalog,
+      "capacity:9",
+    );
+  const issue = build().issues.find(
+    (i) => i.metric.metricId === "resources.utilization",
+  );
+  assert.equal(issue.title, "Planned capacity exceeded");
+  assert.equal(issue.metric.value, 125);
+  assert.ok(!Object.hasOwn(issue, "severity"));
+  table.rows[0][1] = 100;
+  tab.semantic = confirmSemantics(meaning, table, "owner", now);
+  assert.ok(
+    !build().issues.some((i) => i.metric.metricId === "resources.utilization"),
+  );
+  table.rows[0][1] = 125;
+  tab.semantic = confirmSemantics(meaning, table, "owner", now);
+  tab.lastSuccess = now - 10 * 86400000;
+  assert.ok(
+    !build().issues.some((i) => i.metric.metricId === "resources.utilization"),
+  );
+});
