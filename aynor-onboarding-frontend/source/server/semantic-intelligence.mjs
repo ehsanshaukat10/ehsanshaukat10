@@ -209,6 +209,8 @@ export function confirmSemantics(input, table, actor, now = Date.now()) {
     !plain(input) ||
     !ownKeys(input, [
       "purpose",
+      "label",
+      "identityMode",
       "entity",
       "entityNamespace",
       "fields",
@@ -230,10 +232,43 @@ export function confirmSemantics(input, table, actor, now = Date.now()) {
     );
   if (!plain(input.fields) || !ownKeys(input.fields, Object.keys(aliases)))
     error("Choose supported semantic fields.");
+  if (
+    input.label !== undefined &&
+    (typeof input.label !== "string" ||
+      !input.label.trim() ||
+      input.label.length > 100)
+  )
+    error("Use a reporting name of up to 100 characters.");
+  const dateIdentity = input.identityMode === "reporting_date";
+  if (
+    input.identityMode !== undefined &&
+    !["identifier", "reporting_date"].includes(input.identityMode)
+  )
+    error("Review the record identity.");
+  if (
+    dateIdentity &&
+    (input.purpose !== "finance" ||
+      input.entity !== "transaction" ||
+      !input.fields.date ||
+      input.fields.entity_id !== input.fields.date)
+  )
+    error(
+      "One record per date is supported only for confirmed financial reporting dates.",
+    );
   const bound = new Set();
   for (const [field, header] of Object.entries(input.fields)) {
     const index = table.headers.indexOf(header);
-    if (typeof header !== "string" || index < 0 || bound.has(header))
+    if (
+      typeof header !== "string" ||
+      index < 0 ||
+      (bound.has(header) &&
+        !(
+          dateIdentity &&
+          ["entity_id", "date"].includes(field) &&
+          input.fields.entity_id === header &&
+          input.fields.date === header
+        ))
+    )
       error("Bind each field to a different existing column.");
     bound.add(header);
     if (
@@ -245,7 +280,9 @@ export function confirmSemantics(input, table, actor, now = Date.now()) {
       error("Date meanings require validated date columns.");
     if (
       field === "entity_id" &&
-      !["text", "number"].includes(table.types[index])
+      !["text", "number", ...(dateIdentity ? ["date"] : [])].includes(
+        table.types[index],
+      )
     )
       error("Identifiers require text or number columns.");
     if (field === "status" && table.types[index] !== "text")
@@ -295,6 +332,8 @@ export function confirmSemantics(input, table, actor, now = Date.now()) {
   return {
     version: SEMANTIC_VERSION,
     purpose: input.purpose,
+    label: input.label?.trim() || null,
+    identityMode: dateIdentity ? "reporting_date" : "identifier",
     entity: input.entity,
     entityNamespace: input.entityNamespace,
     fields: { ...input.fields },
@@ -493,6 +532,41 @@ export function evaluateSemantics({
       sourceId: source.id,
       tabId: tab.tabId,
       proposal,
+      availableFields: table.headers.map((name, index) => ({
+        name,
+        type: table.types[index],
+        values:
+          table.types[index] === "text"
+            ? [
+                ...new Set(
+                  table.rows
+                    .map((r) => r[index])
+                    .filter((v) => v !== null)
+                    .map(String),
+                ),
+              ].slice(0, 30)
+            : [],
+      })),
+      dateRange: (() => {
+        const dates = table.rows
+          .flatMap((row) =>
+            row.filter(
+              (v, index) => table.types[index] === "date" && validDate(v),
+            ),
+          )
+          .sort();
+        return dates.length
+          ? {
+              start: dates[0],
+              endExclusive: new Date(
+                Date.parse(dates.at(-1) + "T00:00:00Z") + 86400000,
+              )
+                .toISOString()
+                .slice(0, 10),
+            }
+          : null;
+      })(),
+      department: tab.department || null,
       confirmation: s || null,
       state: confirmed ? "confirmed" : "provisional",
       executiveEligible: !!(

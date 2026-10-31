@@ -370,7 +370,7 @@ export function createServerlessSheets({
         }
       }
       const catalogRoute = path.match(
-        /^\/companies\/([a-f0-9-]{36})\/sources(?:\/([a-z0-9-]+)(?:\/(inspect|map|sync|skip|prepare|answer|check|department|semantics))?)?$/i,
+        /^\/companies\/([a-f0-9-]{36})\/sources(?:\/([a-z0-9-]+)(?:\/(inspect|map|sync|skip|prepare|answer|check|department|semantics|evidence))?)?$/i,
       );
       if (catalogRoute) {
         const [, company, id, action] = catalogRoute;
@@ -392,6 +392,7 @@ export function createServerlessSheets({
             id,
             method,
             body,
+            query: Object.fromEntries(url.searchParams),
           }),
         );
       }

@@ -1,3 +1,4 @@
+import { buildExecutiveReport } from "./executive-presentation.mjs";
 import {
   confirmSemantics,
   evaluateSemantics,
@@ -474,15 +475,24 @@ export function createSourceCatalog({
         tab.table,
       );
   }
-  async function intelligence(company, actor) {
+  async function intelligence(company, actor, requestedScope) {
     const membership = await member(company, actor, true);
     const state = await read(company, actor);
-    return evaluateSemantics({
+    const view = evaluateSemantics({
       catalog: { ...state.catalog, revision: state.connection?.revision },
       companyId: company,
       settings: state.catalog.semanticSettings || {},
       timezone: membership.company.timezone || "UTC",
     });
+    return {
+      ...view,
+      executive: buildExecutiveReport(
+        view,
+        { ...membership.company, id: company },
+        state.catalog,
+        requestedScope,
+      ),
+    };
   }
   async function overview(company, actor, period) {
     const state = await read(company, actor),
@@ -573,10 +583,44 @@ export function createSourceCatalog({
     status,
     overview,
     intelligence,
-    async handle({ company, actor, action, id, method, body }) {
+    async handle({ company, actor, action, id, method, body, query = {} }) {
       await member(company, actor, true);
       if (action === "intelligence" && method === "GET")
-        return intelligence(company, actor);
+        return intelligence(company, actor, query.scope);
+      if (action === "evidence" && method === "GET") {
+        const state = await read(company, actor),
+          source = getSource(state.catalog, id),
+          tab = source.tabs.find((t) => t.tabId === Number(query.tabId));
+        if (!tab?.table) fail(404, "Evidence is unavailable.");
+        const view = await intelligence(company, actor),
+          metric = view.metrics.find(
+            (m) =>
+              m.metricId === query.metricId &&
+              m.lineage.sourceId === id &&
+              m.lineage.tabId === tab.tabId,
+          );
+        if (!metric || metric.state !== "validated")
+          fail(
+            409,
+            "This evidence needs review or refresh before it supports an investigation.",
+          );
+        const columns = [...new Set(Object.values(metric.lineage.fields))];
+        return {
+          metric,
+          columns,
+          rows: metric.lineage.contributingRows
+            .slice(0, 100)
+            .map((index) =>
+              columns.map(
+                (header) =>
+                  tab.table.rows[index][tab.table.headers.indexOf(header)],
+              ),
+            ),
+          total: metric.lineage.contributingRows.length,
+          sourceTitle: source.title,
+          tabTitle: tab.title,
+        };
+      }
       if (action === "semantic-config") {
         if (method === "GET")
           return (
