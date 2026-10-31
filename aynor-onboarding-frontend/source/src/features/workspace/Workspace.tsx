@@ -1,3 +1,4 @@
+import { connectionsLink } from "../live/dashboard-navigation";
 import { serverMode } from "../../lib/runtime";
 import { LiveOverview } from "../live/LiveOverview";
 import { SignOutButton } from "../../components/SignOutButton";
@@ -80,7 +81,11 @@ export function Workspace({
     const current = new URLSearchParams(location.search);
     for (const key of ["state", "period"])
       if (current.has(key)) params.set(key, current.get(key)!);
-    return path + (params.size ? "?" + params.toString() : "");
+    return connectionsLink(
+      id!,
+      path + (params.size ? "?" + params.toString() : ""),
+      location.pathname + location.search + location.hash,
+    );
   };
   const overviewSelected = ![
     "departments",

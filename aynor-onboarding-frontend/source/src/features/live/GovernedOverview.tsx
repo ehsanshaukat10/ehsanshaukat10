@@ -1,3 +1,5 @@
+import { connectionsLink, evidenceLink } from "./dashboard-navigation";
+import { useLocation } from "react-router-dom";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/ui";
@@ -15,6 +17,13 @@ export function GovernedOverview({
   report: ExecutiveReport;
   onScope: (scope: string) => void;
 }) {
+  const location = useLocation();
+  const companyId = location.pathname.split("/")[2];
+  const reviewHref = connectionsLink(
+    companyId,
+    report.reviewHref,
+    location.pathname + location.search + location.hash,
+  );
   const [visual, setVisual] = useState("trend");
   const scope = report.scopes.find((s) => s.id === report.selectedScope),
     performance = report.performance;
@@ -22,7 +31,7 @@ export function GovernedOverview({
     <section aria-label="Executive business overview">
       {report.dataStatus && (
         <div className="intel-notice" role="status">
-          {report.dataStatus}. <Link to={report.reviewHref}>Review data</Link>
+          {report.dataStatus}. <Link to={reviewHref}>Review data</Link>
         </div>
       )}
       {!report.primary.length ? (
@@ -46,7 +55,7 @@ export function GovernedOverview({
                 ? "Connect business data to build your executive overview."
                 : "No validated business measures are available for this reporting scope."}
           </p>
-          <Link className="button secondary" to={report.reviewHref}>
+          <Link className="button secondary" to={reviewHref}>
             {report.state === "empty"
               ? "Connect data"
               : report.dataStatus === "Data needs refresh"
@@ -173,12 +182,20 @@ export function GovernedOverview({
           {report.issues.map((issue) => (
             <div key={issue.id}>
               <h3>{issue.title}</h3>
+              {issue.metric.metricId === "resources.utilization" && (
+                <p>
+                  Assigned hours exceed available capacity for this reporting
+                  period.
+                </p>
+              )}
               <p>
                 {displayMetric(issue.metric)} · {issue.scopeLabel}
                 {issue.department ? ` · ${issue.department}` : ""} ·{" "}
                 {displayPeriod(issue.metric.period)}
               </p>
-              <Link to={issue.href}>Investigate evidence</Link>
+              <Link to={evidenceLink(issue.href, location.search)}>
+                Investigate evidence
+              </Link>
             </div>
           ))}
         </Panel>

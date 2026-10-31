@@ -15,6 +15,8 @@ import {
   writeOverviewCache,
   clearOverviewCache,
 } from "./overview-cache";
+import { connectionsLink } from "./dashboard-navigation";
+import { useLocation } from "react-router-dom";
 import { GovernedOverview } from "./GovernedOverview";
 import { BusinessEvidence } from "./BusinessEvidence";
 import type { ExecutiveSnapshot } from "./semantic-types";
@@ -23,7 +25,8 @@ import "../intelligence/intelligence.css";
 import "./operational-overview.css";
 export function LiveOverview({ company }: { company: Company }) {
   const { user } = useApp(),
-    [query, setQuery] = useSearchParams();
+    [query, setQuery] = useSearchParams(),
+    location = useLocation();
   const cacheScope = `${user?.id}:${company.id}:${company.role}:executive-v1`,
     cached = readOverviewCache(cacheScope);
   const [report, setReport] = useState<ExecutiveSnapshot | null>(
@@ -96,7 +99,6 @@ export function LiveOverview({ company }: { company: Company }) {
         sourceId={query.get("source") || ""}
         tabId={query.get("tab") || ""}
         metricId={evidence}
-        scope={requested}
       />
     );
   const executive = report?.executive;
@@ -106,7 +108,9 @@ export function LiveOverview({ company }: { company: Company }) {
     ),
   );
   function chooseScope(scope: string) {
-    setQuery({ scope });
+    const next = new URLSearchParams(query);
+    next.set("scope", scope);
+    setQuery(next);
   }
   return (
     <div
@@ -130,7 +134,13 @@ export function LiveOverview({ company }: { company: Company }) {
               </time>
             </p>
           )}
-          <Link to={`/companies/${company.id}/connections`}>
+          <Link
+            to={connectionsLink(
+              company.id,
+              `/companies/${company.id}/connections`,
+              location.pathname + location.search + location.hash,
+            )}
+          >
             Data connections
           </Link>
         </details>
@@ -138,10 +148,7 @@ export function LiveOverview({ company }: { company: Company }) {
       <ErrorBox>{error}</ErrorBox>
       {error && (
         <>
-          <p>
-            Unable to refresh. Any displayed values are from the last saved
-            report.
-          </p>
+          {report && <p>Displayed values are from the last saved report.</p>}
           <Button variant="secondary" onClick={() => setRevision((v) => v + 1)}>
             Retry report
           </Button>
@@ -167,11 +174,7 @@ export function LiveOverview({ company }: { company: Company }) {
       ) : busy ? (
         <OverviewSkeleton />
       ) : (
-        <Panel title="Reporting unavailable">
-          <Button variant="secondary" onClick={() => setRevision((v) => v + 1)}>
-            Retry report
-          </Button>
-        </Panel>
+        <Panel title="Reporting unavailable">{null}</Panel>
       )}
       {busy && report && (
         <p role="status">

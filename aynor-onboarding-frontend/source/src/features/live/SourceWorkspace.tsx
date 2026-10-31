@@ -1,3 +1,4 @@
+import { connectionsLink, overviewReturn } from "./dashboard-navigation";
 import { SemanticReview } from "./SemanticReview";
 import { SourceRecords } from "./SourceRecords";
 import { formatSyncTime } from "../../../shared/sync-time.mjs";
@@ -649,7 +650,17 @@ export function SourceWorkspace({
       <SourceRecords
         companyId={companyId}
         timezone={timezone}
-        onClose={() => nav(`/companies/${companyId}/connections`)}
+        onClose={() =>
+          nav(
+            connectionsLink(
+              companyId,
+              `/companies/${companyId}/connections`,
+              window.location.pathname +
+                window.location.search +
+                window.location.hash,
+            ),
+          )
+        }
       />
     );
   return (
@@ -706,7 +717,15 @@ export function SourceWorkspace({
             <Button
               variant="text"
               onClick={() =>
-                nav(`/companies/${companyId}/connections?records=1`)
+                nav(
+                  connectionsLink(
+                    companyId,
+                    `/companies/${companyId}/connections?records=1`,
+                    window.location.pathname +
+                      window.location.search +
+                      window.location.hash,
+                  ),
+                )
               }
             >
               Explore imported records
@@ -745,7 +764,16 @@ export function SourceWorkspace({
             {cardMapped > 0 && (
               <Button
                 disabled={!!busy}
-                onClick={() => nav(`/companies/${companyId}/overview`)}
+                onClick={() =>
+                  nav(
+                    overviewReturn(
+                      companyId,
+                      new URLSearchParams(window.location.search).get(
+                        "returnTo",
+                      ),
+                    ) || `/companies/${companyId}/overview`,
+                  )
+                }
               >
                 Open dashboard
                 <ArrowRight size={14} />

@@ -220,3 +220,12 @@
   margin: 0;
   flex: 0 1 auto;
 }
+
+/* Let actual metric values size their column without widening the dashboard. */
+.exec-dashboard .table-profile-bar {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, max-content);
+}
+.exec-dashboard .table-profile-bar > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

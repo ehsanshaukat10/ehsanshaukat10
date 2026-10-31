@@ -1,3 +1,4 @@
+import { overviewReturn } from "../live/dashboard-navigation";
 import { serverMode } from "../../lib/runtime";
 import { SheetsConnection } from "../live/SheetsConnection";
 import { useState } from "react";
@@ -127,14 +128,20 @@ export function Settings(props: ModuleProps) {
   );
 }
 export function DataConnections(props: ModuleProps) {
-  const e = useExecutive(props.company);
+  const e = useExecutive(props.company),
+    location = useLocation();
   return (
     <ModulePage
       title="Data connections"
       showPeriod={false}
       description="Manage your workbooks, worksheet pages and column mapping."
       exec={e}
-      back={e.link(e.base + "/overview")}
+      back={
+        overviewReturn(
+          props.company.id,
+          new URLSearchParams(location.search).get("returnTo"),
+        ) || e.link(e.base + "/overview")
+      }
     >
       {!e.editable ? (
         <Blank

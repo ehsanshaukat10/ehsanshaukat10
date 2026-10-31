@@ -1,3 +1,5 @@
+import { connectionsLink, evidenceReturn } from "./dashboard-navigation";
+import { useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button, ErrorBox } from "../../components/ui";
@@ -21,14 +23,13 @@ export function BusinessEvidence({
   sourceId,
   tabId,
   metricId,
-  scope,
 }: {
   companyId: string;
   sourceId: string;
   tabId: string;
   metricId: string;
-  scope: string;
 }) {
+  const location = useLocation();
   const [data, setData] = useState<Evidence | null>(null),
     [error, setError] = useState(""),
     [revision, setRevision] = useState(0);
@@ -53,7 +54,10 @@ export function BusinessEvidence({
     <div className="intel-page">
       <Link
         className="intel-back"
-        to={`/companies/${companyId}/overview?scope=${encodeURIComponent(scope)}`}
+        to={evidenceReturn(
+          companyId,
+          location.pathname + location.search + location.hash,
+        )}
       >
         Back to overview
       </Link>
@@ -67,7 +71,11 @@ export function BusinessEvidence({
             Retry evidence
           </Button>
           <Link
-            to={`/companies/${companyId}/connections?business=1&source=${encodeURIComponent(sourceId)}&tab=${encodeURIComponent(tabId)}`}
+            to={connectionsLink(
+              companyId,
+              `/companies/${companyId}/connections?business=1&source=${encodeURIComponent(sourceId)}&tab=${encodeURIComponent(tabId)}`,
+              location.pathname + location.search + location.hash,
+            )}
           >
             Review data
           </Link>
@@ -93,7 +101,12 @@ export function BusinessEvidence({
             </p>
           </Panel>
           <Panel title="Supporting records">
-            <div className="operational-preview">
+            <div
+              className="operational-preview"
+              role="region"
+              aria-label="Supporting records"
+              tabIndex={0}
+            >
               <table className="live-records">
                 <thead>
                   <tr>
