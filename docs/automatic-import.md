@@ -71,4 +71,5 @@ Mapped non-financial pages now populate the overview immediately. Status/State/S
 
 Overview, workbook/page metadata and sync notifications use date, time with seconds, AM/PM, and the company timezone. Workbook last-check time is recorded separately from successful page data updates so a partial failed sync does not claim all data was refreshed.
 
-The overview presentation now uses a compact executive KPI strip, neutral card surfaces, a real status-distribution donut with a working breakdown toggle, a department matrix, restrained operational measures and a searchable worksheet preview. Calculation notes and financial setup are collapsible. Styling is scoped to the hosted overview; import/mapping logic, financial calculations, sync state and retained loading snapshots are unchanged.
+
+The overview keeps the shared workspace cards, typography and colors. Source coverage precedes KPIs; department summaries prioritize flagged and open work with unassigned pages last. Calculation details stay expandable, operational totals are alphabetical, and worksheet records follow the summary.

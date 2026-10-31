@@ -1,4 +1,3 @@
-import { ArrowUpRight } from "lucide-react";
 import { OperationalOverview } from "./OperationalOverview";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -76,17 +75,13 @@ export function BusinessOverview({
               <div className="intel-kpi" key={label}>
                 <span>{label}</span>
                 <strong>{value}</strong>
-                <small>
-                  {group.currency} · combined from {group.pages} confirmed
-                  financial page{group.pages === 1 ? "" : "s"}
-                </small>
               </div>
             ))}
           </div>
           <Panel title={`Business performance · ${group.currency}`}>
             <p>
-              Revenue and expenses combined by reporting date. Each currency
-              stays separate.
+              {group.pages} financial page{group.pages === 1 ? "" : "s"} · latest
+              30 reporting dates
             </p>
             <div style={{ overflowX: "auto" }}>
               <table className="live-records">
@@ -130,7 +125,7 @@ export function BusinessOverview({
         }}
       />
       {!summary.groups.length && (
-        <details className="market-report-note">
+        <details className="mapping-detail">
           <summary>Financial reporting setup</summary>
           <p>
             {report.sources?.length || 1} workbook
@@ -191,12 +186,12 @@ export function BusinessOverview({
           ))}
         </details>
       )}
-      <div className="market-data-tools" aria-label="Data tools">
+      <div className="intel-inline-links" aria-label="Data tools">
         <Button variant="secondary" onClick={() => setExploring(!exploring)}>
           {exploring ? "Close imported records" : "Explore imported records"}
         </Button>
         <Link to={`/companies/${companyId}/connections`}>
-          Data connections <ArrowUpRight size={12} />
+          Data connections
         </Link>
       </div>
       {exploring && (
