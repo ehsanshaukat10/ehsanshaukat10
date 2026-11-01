@@ -88,7 +88,10 @@ export type SemanticView = {
   metrics: SemanticMetric[];
   executive: ExecutiveReport;
 };
-export function displayMetric(metric: SemanticMetric, compact = false) {
+export function displayMetric(
+  metric: Pick<SemanticMetric, "value" | "unit" | "currency">,
+  compact = false,
+) {
   if (metric.value === null) return "Unavailable";
   if (metric.unit === "currency" && metric.currency)
     return new Intl.NumberFormat("en", {
@@ -139,6 +142,7 @@ export type IntelligenceSnapshot = ExecutiveSnapshot &
     metrics: (Omit<SemanticMetric, "period"> & {
       period: SemanticPeriod | null;
     })[];
+    departments: string[];
     concerns: ExecutiveReport["issues"];
     scopes: ExecutiveScope[];
   };

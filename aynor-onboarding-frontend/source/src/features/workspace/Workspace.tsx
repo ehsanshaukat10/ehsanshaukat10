@@ -1,4 +1,4 @@
-import { connectionsLink } from "../live/dashboard-navigation";
+import { connectionsLink, businessLink } from "../live/dashboard-navigation";
 import { serverMode } from "../../lib/runtime";
 import { LiveOverview } from "../live/LiveOverview";
 import { SignOutButton } from "../../components/SignOutButton";
@@ -81,6 +81,8 @@ export function Workspace({
     const current = new URLSearchParams(location.search);
     for (const key of ["state", "period"])
       if (current.has(key)) params.set(key, current.get(key)!);
+    if (/\/(departments|actions|overview)(?:\/|$)/.test(path))
+      return businessLink(id!, path, location.search);
     return connectionsLink(
       id!,
       path + (params.size ? "?" + params.toString() : ""),
@@ -362,7 +364,10 @@ export function Workspace({
             title="Your workspace is ready to explore"
             description="An Owner or Admin manages company setup."
             action={
-              <Link className="button" to={`/companies/${id}/overview`}>
+              <Link
+                className="button"
+                to={shellPath(`/companies/${id}/overview`)}
+              >
                 Open workspace
               </Link>
             }

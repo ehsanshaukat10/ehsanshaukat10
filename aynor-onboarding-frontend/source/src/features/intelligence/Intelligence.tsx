@@ -1,3 +1,6 @@
+import { serverMode } from "../../lib/runtime";
+import { GovernedDepartments } from "../live/GovernedDepartments";
+import { GovernedActions } from "../live/GovernedActions";
 import { useLocation } from "react-router-dom";
 import { Departments } from "./Departments";
 import { Dependencies } from "./Dependencies";
@@ -14,13 +17,17 @@ export function Intelligence(props: ModuleProps) {
       module === "connections"
         ? DataConnections
         : module === "departments"
-          ? Departments
+          ? serverMode
+            ? GovernedDepartments
+            : Departments
           : module === "dependencies"
             ? Dependencies
             : module === "goals"
               ? Goals
               : module === "actions"
-                ? Actions
+                ? serverMode
+                  ? GovernedActions
+                  : Actions
                 : module === "ask"
                   ? Ask
                   : Settings;

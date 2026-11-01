@@ -106,6 +106,9 @@ try {
   const permissions = start(["tests/intelligence-permissions.browser.mjs"]);
   if ((await new Promise((resolve) => permissions.on("exit", resolve))) !== 0)
     throw Error("Intelligence permissions browser check failed.");
+  const modules = start(["tests/departments-actions.browser.mjs"]);
+  if ((await new Promise((resolve) => modules.on("exit", resolve))) !== 0)
+    throw Error("Departments and Actions browser check failed.");
 } finally {
   await Promise.all(
     children

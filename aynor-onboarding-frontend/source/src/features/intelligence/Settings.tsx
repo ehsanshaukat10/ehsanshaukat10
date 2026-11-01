@@ -1,4 +1,4 @@
-import { overviewReturn } from "../live/dashboard-navigation";
+import { moduleReturn } from "../live/dashboard-navigation";
 import { serverMode } from "../../lib/runtime";
 import { SheetsConnection } from "../live/SheetsConnection";
 import { useState } from "react";
@@ -137,7 +137,7 @@ export function DataConnections(props: ModuleProps) {
       description="Manage your workbooks, worksheet pages and column mapping."
       exec={e}
       back={
-        overviewReturn(
+        moduleReturn(
           props.company.id,
           new URLSearchParams(location.search).get("returnTo"),
         ) || e.link(e.base + "/overview")

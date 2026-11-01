@@ -306,10 +306,17 @@ export function ModulePage({
   actions,
   children,
   showPeriod = true,
+  governed = false,
 }: {
   title: string;
   description?: string;
-  exec: Executive;
+  exec: {
+    period: string;
+    changePeriod: Executive["changePeriod"];
+    error: string;
+    reload: () => unknown;
+  };
+  governed?: boolean;
   back?: string;
   actions?: ReactNode;
   children: ReactNode;
@@ -371,7 +378,7 @@ export function ModulePage({
           Retry local data
         </Button>
       )}
-      <DataNotice exec={exec} />
+      {!governed && <DataNotice exec={exec as Executive} />}
       {children}
     </div>
   );

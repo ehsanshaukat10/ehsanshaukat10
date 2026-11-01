@@ -76,7 +76,9 @@ export function BusinessEvidence({
           location.pathname + location.search + location.hash,
         )}
       >
-        Back to overview
+        {new URLSearchParams(location.search).get("from")
+          ? "Back to investigation"
+          : "Back to overview"}
       </Link>
       <div className="intel-heading">
         <h1>{data?.metric.name || "Business evidence"}.</h1>

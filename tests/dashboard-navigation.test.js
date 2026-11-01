@@ -5,6 +5,8 @@ import {
   overviewReturn,
   evidenceReturn,
   evidenceLink,
+  moduleReturn,
+  businessLink,
 } from "../aynor-onboarding-frontend/source/src/features/live/dashboard-navigation.ts";
 test("connections and nested records retain exact company, scope, period, repeated filters and hash", () => {
   const overview =
@@ -63,4 +65,43 @@ test("evidence retains reporting filters and returns without evidence-only param
     "/companies/a/overview?scope=s&period=month&department=Design&tag=a&tag=b",
   );
   assert.ok(!back.includes("source="));
+});
+
+test("Departments and Actions preserve context through evidence and mapping correction, without cross-company returns", () => {
+  const origin =
+    "/companies/a/departments/Design?department=Design&period=quarter&tag=a&tag=b#measures";
+  const action = businessLink(
+    "a",
+    "/companies/a/actions/rec?scope=s2",
+    "?scope=s1&department=Design&period=quarter&tag=a&tag=b",
+    origin,
+  );
+  const url = new URL(action, "https://aynor.invalid");
+  assert.equal(url.searchParams.get("scope"), "s2");
+  assert.deepEqual(url.searchParams.getAll("tag"), ["a", "b"]);
+  assert.equal(moduleReturn("a", url.searchParams.get("from")), origin);
+  const correction = connectionsLink(
+    "a",
+    "/companies/a/connections?map=1",
+    action,
+  );
+  assert.equal(
+    new URL(correction, "https://aynor.invalid").searchParams.get("returnTo"),
+    moduleReturn("a", action),
+  );
+  const evidence = businessLink(
+    "a",
+    "/companies/a/overview?evidence=delivery.overdue_projects&scope=s2&revision=abc",
+    url.search,
+    action,
+  );
+  assert.equal(evidenceReturn("a", evidence), moduleReturn("a", action));
+  for (const unsafe of [
+    "https://evil.test/companies/a/actions",
+    "/companies/b/actions",
+    "/companies/a/settings",
+    "/companies/a/actions/x/../../settings",
+  ])
+    assert.equal(moduleReturn("a", unsafe), null);
+  assert.equal(businessLink("b", action, ""), "/companies/b/overview");
 });
