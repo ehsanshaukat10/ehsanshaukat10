@@ -47,8 +47,10 @@ export function GovernedModule({
   back,
   actions,
   children,
+  reportingScopes,
 }: {
   title: string;
+  reportingScopes?: { id: string; label: string; currency?: string | null }[];
   description?: string;
   module: ReturnType<typeof useGovernedModule>;
   back?: string;
@@ -100,7 +102,7 @@ export function GovernedModule({
               onChange={(e) => m.change("scope", e.target.value)}
             >
               <option value="">All authorized reporting scopes</option>
-              {m.report.scopes.map((s) => (
+              {(reportingScopes || m.report.scopes).map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.label}
                   {s.currency ? ` · ${s.currency}` : ""}

@@ -105,3 +105,39 @@ test("Departments and Actions preserve context through evidence and mapping corr
     assert.equal(moduleReturn("a", unsafe), null);
   assert.equal(businessLink("b", action, ""), "/companies/b/overview");
 });
+
+test("Dependencies evidence and correction returns retain authorized reporting context", () => {
+  const root =
+    "/companies/a/dependencies?scope=book%3A0&department=Studio&period=month&tag=a&tag=b";
+  const detail = businessLink(
+    "a",
+    "/companies/a/dependencies/relation",
+    new URL(root, "https://aynor.invalid").search,
+    root,
+  );
+  const evidence = businessLink(
+    "a",
+    "/companies/a/dependencies/relation/evidence",
+    new URL(detail, "https://aynor.invalid").search,
+    detail,
+  );
+  assert.equal(
+    moduleReturn(
+      "a",
+      new URL(evidence, "https://aynor.invalid").searchParams.get("from"),
+    ),
+    moduleReturn("a", detail),
+  );
+  assert.equal(
+    new URL(
+      connectionsLink("a", "/companies/a/connections?map=1", root),
+      "https://aynor.invalid",
+    ).searchParams.get("returnTo"),
+    root,
+  );
+  assert.equal(moduleReturn("b", detail), null);
+  assert.equal(
+    moduleReturn("a", "/companies/a/dependencies/relation/evidence/extra"),
+    null,
+  );
+});

@@ -146,3 +146,20 @@ export type IntelligenceSnapshot = ExecutiveSnapshot &
     concerns: ExecutiveReport["issues"];
     scopes: ExecutiveScope[];
   };
+
+export type RelationshipEndpoint = {
+  scope: string;
+  entity: "client" | "project" | "employee" | "resource" | "invoice" | "deal";
+  idColumn: string;
+  labelColumn: string;
+  namespace: string;
+  schema: string;
+};
+export type RelationshipContract = {
+  id: string;
+  label: string;
+  from: RelationshipEndpoint;
+  to: RelationshipEndpoint;
+  foreignKey: string;
+  confirmed: true;
+};

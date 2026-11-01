@@ -109,6 +109,9 @@ try {
   const modules = start(["tests/departments-actions.browser.mjs"]);
   if ((await new Promise((resolve) => modules.on("exit", resolve))) !== 0)
     throw Error("Departments and Actions browser check failed.");
+  const dependencies = start(["tests/relationships.browser.mjs"]);
+  if ((await new Promise((resolve) => dependencies.on("exit", resolve))) !== 0)
+    throw Error("Dependencies browser check failed.");
 } finally {
   await Promise.all(
     children

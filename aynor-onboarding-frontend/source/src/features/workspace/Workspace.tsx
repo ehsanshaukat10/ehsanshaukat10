@@ -81,7 +81,7 @@ export function Workspace({
     const current = new URLSearchParams(location.search);
     for (const key of ["state", "period"])
       if (current.has(key)) params.set(key, current.get(key)!);
-    if (/\/(departments|actions|overview)(?:\/|$)/.test(path))
+    if (/\/(departments|actions|overview|dependencies)(?:\/|$)/.test(path))
       return businessLink(id!, path, location.search);
     return connectionsLink(
       id!,

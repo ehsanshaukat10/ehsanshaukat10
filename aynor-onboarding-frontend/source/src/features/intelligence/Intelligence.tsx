@@ -1,3 +1,4 @@
+import { GovernedDependencies } from "../live/GovernedDependencies";
 import { serverMode } from "../../lib/runtime";
 import { GovernedDepartments } from "../live/GovernedDepartments";
 import { GovernedActions } from "../live/GovernedActions";
@@ -21,7 +22,9 @@ export function Intelligence(props: ModuleProps) {
             ? GovernedDepartments
             : Departments
           : module === "dependencies"
-            ? Dependencies
+            ? serverMode
+              ? GovernedDependencies
+              : Dependencies
             : module === "goals"
               ? Goals
               : module === "actions"

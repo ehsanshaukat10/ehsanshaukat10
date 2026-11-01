@@ -1,3 +1,4 @@
+import type { RelationshipContract } from "../features/live/semantic-types";
 import { serverMode, serverRequest } from "./runtime";
 import { mockRequest } from "./mockService";
 export type User = {
@@ -56,6 +57,7 @@ export type IntelligenceAccess = {
   >;
 };
 export type WorkspaceData = {
+  relationshipContracts?: RelationshipContract[];
   intelligenceAccess?: IntelligenceAccess;
   departments: string[];
   priorities: string[];
