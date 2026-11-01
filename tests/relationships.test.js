@@ -321,6 +321,17 @@ test("namespaces and exact typed identifiers remain explicit across syncs", asyn
   f.contract.to.schema = schemaOf(f.tabs[1].table);
   r = await f.service.relationships(company, actor, {});
   assert.equal(r.relationships.length, 2);
+  f.tabs[0].config = { headerRow: 0, endRow: 5 };
+  f.state.catalog.sources[0].workbook[0].values.push([
+    "Footer",
+    "Outside confirmed range",
+    "0001",
+  ]);
+  assert.equal(
+    (await f.service.relationships(company, actor, {})).relationships.length,
+    2,
+    "Ignored footer cells cannot invalidate an in-range ID match",
+  );
   f.state.catalog.sources[0].workbook[0].values[1][2] = "001";
   r = await f.service.relationships(company, actor, {});
   assert.equal(r.relationships.length, 0);

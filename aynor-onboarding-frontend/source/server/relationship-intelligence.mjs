@@ -53,10 +53,12 @@ function unsafeNumericIdentifier(entry, column) {
   )?.values;
   if (!values) return true;
   const header = entry.tab.config?.headerRow || 0,
-    rawIndex = columns(values.slice(header)).indexOf(column);
+    rawIndex = columns(values.slice(header, entry.tab.config?.endRow)).indexOf(
+      column,
+    );
   return (
     rawIndex < 0 ||
-    values.slice(header + 1).some((row) => {
+    values.slice(header + 1, entry.tab.config?.endRow).some((row) => {
       const v = row[rawIndex];
       if (v === null || v === undefined || v === "") return false;
       return typeof v === "number"
