@@ -1,3 +1,4 @@
+import { createActionService } from "./action-service.mjs";
 import { createSourceCatalog } from "./source-catalog.mjs";
 import {
   suggestHeader,
@@ -25,6 +26,10 @@ export function createServerlessSheets({
 }) {
   const google = createGoogle({ db, env, fetchImpl });
   const catalog = createSourceCatalog({ db, google, member, env, fetchImpl });
+  const actions = createActionService({
+    intelligence: catalog.intelligenceService,
+    db,
+  });
   function present(c, snapshot) {
     const interrupted =
       c?.status === "syncing" && Number(c.lease_until || 0) < Date.now();
@@ -368,6 +373,19 @@ export function createServerlessSheets({
         } catch {
           return redirect(back + "?google=failed");
         }
+      }
+      const actionRoute = path.match(
+        /^\/companies\/([a-f0-9-]{36})\/intelligence\/actions(?:\/(tasks|decisions)(?:\/([a-z0-9-]+))?)?$/i,
+      );
+      if (actionRoute) {
+        const [, company, operation, id] = actionRoute;
+        if (method === "GET" && !operation)
+          return send(await actions.list(company, user.id, url.searchParams));
+        if (method === "POST" && operation === "tasks" && !id)
+          return send(await actions.task(company, user.id, body));
+        if (method === "POST" && operation === "decisions" && id)
+          return send(await actions.decision(company, user.id, id, body));
+        fail(405, "Action operation unavailable.");
       }
       const businessRoute = path.match(
         /^\/companies\/([a-f0-9-]{36})\/intelligence(?:\/(context|evidence|records|relationships))?$/i,

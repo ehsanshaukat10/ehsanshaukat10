@@ -9,6 +9,7 @@ export async function fixtureDatabase() {
     "202610270001_aynor_foundation.sql",
     "202610270002_serverless_operations.sql",
     "202611010001_intelligence_read.sql",
+    "202611010002_governed_actions.sql",
   ])
     await pg.exec(
       readFileSync(

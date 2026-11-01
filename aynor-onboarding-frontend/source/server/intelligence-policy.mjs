@@ -88,6 +88,21 @@ export function intelligencePolicy(state, actor) {
           tab,
           department,
           columns: admin ? null : rule.recordColumns,
+          protection: {
+            scope: id,
+            department,
+            category: tab.semantic?.purpose || "other",
+            sensitivities: [
+              ...new Set([
+                ...(rule && rule.sensitivity !== "standard"
+                  ? [rule.sensitivity]
+                  : rule
+                    ? []
+                    : ["confidential"]),
+                ...(tab.semantic?.purpose === "finance" ? ["financial"] : []),
+              ]),
+            ],
+          },
         });
     }
   const fingerprint = digest([
@@ -103,6 +118,17 @@ export function intelligencePolicy(state, actor) {
     role: m.role,
     fingerprint,
     scopes,
+    canReadAction(protection) {
+      if (admin) return true;
+      const entry = scopes.get(protection?.scope);
+      return (
+        !!entry &&
+        entry.department === protection.department &&
+        entry.protection.category === protection.category &&
+        Array.isArray(protection.sensitivities) &&
+        protection.sensitivities.every((x) => grant.sensitivities.includes(x))
+      );
+    },
     require(id) {
       const scope = scopes.get(id);
       if (!scope)

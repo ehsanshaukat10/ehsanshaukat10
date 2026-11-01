@@ -57,9 +57,10 @@ export function createIntelligenceService({ read, now = () => Date.now() }) {
     if (context.scope) policy.require(context.scope);
     if (
       context.department &&
-      ![...policy.scopes.values()].some(
-        (x) => x.department === context.department,
-      )
+      (!state.company.data.departments?.includes(context.department) ||
+        (!policy.admin &&
+          policy.role !== "Executive" &&
+          !state.membership.scope?.includes(context.department)))
     )
       fail(403, "Department unavailable for your current access.");
     const visible = new Map(
@@ -184,6 +185,12 @@ export function createIntelligenceService({ read, now = () => Date.now() }) {
           ),
       metrics: view.metrics.map(decorate),
       executive,
+      departments: (s.state.company.data.departments || []).filter(
+        (d) =>
+          s.policy.admin ||
+          s.policy.role === "Executive" ||
+          s.state.membership.scope?.includes(d),
+      ),
       ...metadata(s),
     };
   }
@@ -196,6 +203,21 @@ export function createIntelligenceService({ read, now = () => Date.now() }) {
       return { version: 1, companyId: company, ...metadata(s) };
     },
     evaluate,
+    async withAuthorizedState(company, actor, input, consume) {
+      const s = await load(company, actor, input);
+      return consume({
+        report: calculate(s),
+        policy: s.policy,
+        records: s.state.actions || [],
+        fence: {
+          companyVersion: s.state.company.version,
+          snapshotRevision: s.state.snapshot?.revision ?? null,
+          snapshotCreated: s.state.snapshot?.created ?? null,
+          generation: s.state.connection?.generation ?? null,
+          connectionRevision: s.state.connection?.revision ?? null,
+        },
+      });
+    },
     async snapshot(company, actor, input) {
       const v = await evaluate(company, actor, input);
       return {
@@ -205,6 +227,7 @@ export function createIntelligenceService({ read, now = () => Date.now() }) {
         datasetRevision: v.datasetRevision,
         authorization: v.authorization,
         context: v.context,
+        departments: v.departments,
         metrics: v.metrics,
         concerns: v.executive.issues,
         scopes: v.executive.scopes,
