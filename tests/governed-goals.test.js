@@ -274,6 +274,7 @@ test("governed goals persist through authorized workflows, preserve metric value
   assert.equal(margin.progress, (100 * margin.actual) / 50);
   for (const [role, scopes, sensitivities, visible] of [
     ["Viewer", ["Studio"], ["financial"], false],
+    ["Viewer", ["Finance"], ["financial"], true],
     ["Department Manager", ["Finance"], ["financial"], true],
     ["Executive", [], [], false],
     ["Executive", [], ["financial"], true],
@@ -307,7 +308,7 @@ test("governed goals persist through authorized workflows, preserve metric value
     );
   }
   await f.pg.query(
-    "UPDATE public.aynor_members SET role='Owner',scope='[]' WHERE company_id=$1 AND user_id=$2",
+    "UPDATE public.aynor_members SET role='Admin',scope='[]' WHERE company_id=$1 AND user_id=$2",
     [c.id, actor],
   );
   assert.equal(
