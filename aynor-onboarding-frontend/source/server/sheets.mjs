@@ -388,7 +388,7 @@ export function createServerlessSheets({
         fail(405, "Action operation unavailable.");
       }
       const businessRoute = path.match(
-        /^\/companies\/([a-f0-9-]{36})\/intelligence(?:\/(context|evidence|records|relationships))?$/i,
+        /^\/companies\/([a-f0-9-]{36})\/intelligence(?:\/(context|evidence|records|relationships|relationship-evidence))?$/i,
       );
       if (businessRoute) {
         const [, company, operation] = businessRoute;
@@ -410,6 +410,10 @@ export function createServerlessSheets({
           return send(await service.evidence(company, user.id, params));
         if (operation === "records")
           return send(await service.records(company, user.id, params));
+        if (operation === "relationship-evidence")
+          return send(
+            await service.relationshipEvidence(company, user.id, params),
+          );
         if (operation === "relationships")
           return send(
             await service.relationships(company, user.id, url.searchParams),

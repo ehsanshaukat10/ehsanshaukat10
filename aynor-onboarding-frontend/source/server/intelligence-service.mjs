@@ -1,3 +1,4 @@
+import { buildRelationships } from "./relationship-intelligence.mjs";
 import { evaluateSemantics } from "./semantic-intelligence.mjs";
 import { buildExecutiveReport } from "./executive-presentation.mjs";
 import { intelligencePolicy, digest } from "./intelligence-policy.mjs";
@@ -315,11 +316,67 @@ export function createIntelligenceService({ read, now = () => Date.now() }) {
     },
     async relationships(company, actor, input) {
       const s = await load(company, actor, input);
+      const result = buildRelationships({
+        state: s.state,
+        policy: s.policy,
+        context: s.context,
+        revision: s.revision,
+        now: now(),
+      });
       return {
-        relationships: [],
-        state: "not_configured",
-        reason:
-          "Confirmed business relationship contracts will be connected in Milestone 4C.",
+        version: 1,
+        companyId: company,
+        ...result,
+        relationships: result.relationships.map(({ evidence, ...r }) => r),
+        ...metadata(s),
+      };
+    },
+    async relationshipEvidence(
+      company,
+      actor,
+      { relationshipId, revision, ...context },
+    ) {
+      const s = await load(company, actor, context);
+      if (!revision || revision !== s.revision)
+        fail(
+          409,
+          "Relationship evidence changed. Refresh before investigating.",
+        );
+      const result = buildRelationships({
+        state: s.state,
+        policy: s.policy,
+        context: s.context,
+        revision: s.revision,
+        now: now(),
+      });
+      const relationship = result.relationships.find(
+        (r) => r.id === relationshipId,
+      );
+      if (!relationship)
+        fail(
+          404,
+          "Relationship unavailable for this reporting scope and access.",
+        );
+      return {
+        relationship: { ...relationship, evidence: undefined },
+        sources: relationship.evidence.map((e) => {
+          const entry = s.policy.require(e.scope);
+          return {
+            scope: e.scope,
+            sourceTitle: entry.source.title,
+            tabTitle: entry.tab.title,
+            rowReference: e.row,
+            columns: e.columns,
+            rows: [
+              e.columns.map(
+                (h) =>
+                  entry.tab.table.rows[e.row][
+                    entry.tab.table.headers.indexOf(h)
+                  ],
+              ),
+            ],
+          };
+        }),
         ...metadata(s),
       };
     },
