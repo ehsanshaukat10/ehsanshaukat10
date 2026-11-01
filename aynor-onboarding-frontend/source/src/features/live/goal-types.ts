@@ -1,0 +1,45 @@
+import type { SemanticPeriod } from "./semantic-types";
+export type GoalDefinition = {
+  id: string;
+  version: number;
+  title: string;
+  level: "company" | "department";
+  department: string;
+  scope: string;
+  metricId: string;
+  target: number;
+  unit: "currency" | "percent" | "count";
+  currency: string | null;
+  period: SemanticPeriod;
+  deadline: string;
+  owner: string;
+  direction: "increase" | "decrease" | "maintain";
+  threshold: "at_least" | "at_most";
+  baseline: number | null;
+  lifecycle: "Active" | "Paused" | "Archived";
+};
+export type GovernedGoal = GoalDefinition & {
+  actual: number | null;
+  available: boolean;
+  assessment: string;
+  met: boolean | null;
+  progress: number | null;
+  progressExplanation: string;
+  reason: string;
+  next: string;
+  deadlinePassed: boolean;
+  metricName: string;
+  metricDefinition: string | null;
+  metricState: string;
+  sourcePeriod: SemanticPeriod | null;
+  evidenceHref: string | null;
+  concern: { title: string; explanation: string; next: string } | null;
+};
+export type GoalView = {
+  companyId: string;
+  companyVersion: number;
+  datasetRevision: string;
+  authorization: { fingerprint: string };
+  context: { key: string };
+  items: GovernedGoal[];
+};

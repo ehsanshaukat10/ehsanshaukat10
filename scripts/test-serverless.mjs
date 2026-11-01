@@ -112,6 +112,9 @@ try {
   const dependencies = start(["tests/relationships.browser.mjs"]);
   if ((await new Promise((resolve) => dependencies.on("exit", resolve))) !== 0)
     throw Error("Dependencies browser check failed.");
+  const goals = start(["tests/goals.browser.mjs"]);
+  if ((await new Promise((resolve) => goals.on("exit", resolve))) !== 0)
+    throw Error("Goals browser check failed.");
 } finally {
   await Promise.all(
     children

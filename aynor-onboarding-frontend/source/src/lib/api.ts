@@ -57,6 +57,7 @@ export type IntelligenceAccess = {
   >;
 };
 export type WorkspaceData = {
+  governedGoals?: unknown[];
   relationshipContracts?: RelationshipContract[];
   intelligenceAccess?: IntelligenceAccess;
   departments: string[];
