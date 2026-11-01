@@ -118,7 +118,7 @@ export function intelligencePolicy(state, actor) {
     role: m.role,
     fingerprint,
     scopes,
-    canReadAction(protection) {
+    canReadProtectedFact(protection) {
       if (admin) return true;
       const entry = scopes.get(protection?.scope);
       return (
@@ -128,6 +128,9 @@ export function intelligencePolicy(state, actor) {
         Array.isArray(protection.sensitivities) &&
         protection.sensitivities.every((x) => grant.sensitivities.includes(x))
       );
+    },
+    canReadAction(protection) {
+      return this.canReadProtectedFact(protection);
     },
     require(id) {
       const scope = scopes.get(id);

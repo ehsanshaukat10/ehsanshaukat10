@@ -208,6 +208,9 @@ export function createIntelligenceService({ read, now = () => Date.now() }) {
       const s = await load(company, actor, input);
       return consume({
         report: calculate(s),
+        companyData: s.state.company.data,
+        companyVersion: s.state.company.version,
+        timezone: s.state.company.profile?.timezone || "UTC",
         policy: s.policy,
         records: s.state.actions || [],
         fence: {

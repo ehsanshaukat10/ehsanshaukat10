@@ -1,7 +1,9 @@
+import { storedGoalsSchema } from "./goal-definition.mjs";
 import { relationshipContractsSchema } from "./relationship-intelligence.mjs";
 import { intelligenceAccessSchema } from "./intelligence-policy.mjs";
 import { z } from "zod";
 export const workspaceSchema = z.object({
+  governedGoals: storedGoalsSchema.optional(),
   relationshipContracts: relationshipContractsSchema.optional(),
   intelligenceAccess: intelligenceAccessSchema.optional(),
   departments: z.array(z.string().trim().min(1).max(80)).max(100),

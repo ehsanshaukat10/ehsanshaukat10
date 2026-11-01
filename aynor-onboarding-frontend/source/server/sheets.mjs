@@ -1,3 +1,4 @@
+import { createGoalService } from "./goal-service.mjs";
 import { createActionService } from "./action-service.mjs";
 import { createSourceCatalog } from "./source-catalog.mjs";
 import {
@@ -27,6 +28,10 @@ export function createServerlessSheets({
   const google = createGoogle({ db, env, fetchImpl });
   const catalog = createSourceCatalog({ db, google, member, env, fetchImpl });
   const actions = createActionService({
+    intelligence: catalog.intelligenceService,
+    db,
+  });
+  const goals = createGoalService({
     intelligence: catalog.intelligenceService,
     db,
   });
@@ -373,6 +378,18 @@ export function createServerlessSheets({
         } catch {
           return redirect(back + "?google=failed");
         }
+      }
+      const goalRoute = path.match(
+        /^\/companies\/([a-f0-9-]{36})\/intelligence\/goals$/i,
+      );
+      if (goalRoute) {
+        if (method === "GET")
+          return send(
+            await goals.list(goalRoute[1], user.id, url.searchParams),
+          );
+        if (method === "POST")
+          return send(await goals.save(goalRoute[1], user.id, body));
+        fail(405, "Goal operation unavailable.");
       }
       const actionRoute = path.match(
         /^\/companies\/([a-f0-9-]{36})\/intelligence\/actions(?:\/(tasks|decisions)(?:\/([a-z0-9-]+))?)?$/i,
