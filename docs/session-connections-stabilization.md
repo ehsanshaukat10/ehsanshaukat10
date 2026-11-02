@@ -26,7 +26,7 @@ A 30-day inactivity limit is intentional; logout/security revocation, expired se
 - Automated regression suite: 117 passing tests, including exact existing metric/permission behavior; persistent login across application reconstruction; daily renewal; password-reset revocation; multi-company entry and obsolete onboarding bookmarks; workbook-level department propagation; server sync cooldown and changed-column details.
 - TypeScript build check passes. Existing CSS asset remains `index-dH7GHMWQ.css`.
 - Browser acceptance checks a fresh browser context with the persistent session cookie, company selection even with a deep login return, Step 3/4 separation, one import result, absent pre-connection AI text, parent department in the worksheet editor, automatic source refresh, named changes, and desktop/mobile overflow.
-- The rest of the browser regression suite verifies ingestion, authentication, mapping, Overview, Departments, Actions, Dependencies, Goals, Ask, permission scopes and evidence navigation using synthetic local providers.
+- `npm run test:serverless` passed in full. The browser regression suite verifies ingestion, authentication, mapping, Overview, Departments, Actions, Dependencies, Goals, Ask, permission scopes and evidence navigation using synthetic local providers.
 
 Screenshots and test logs: `/workspace/artifacts/session-connections/README.md`.
 
