@@ -1,3 +1,4 @@
+import { useActiveSourceSync } from "../live/useActiveSourceSync";
 import { scopeAskMemory } from "../live/ask-memory";
 import { connectionsLink, businessLink } from "../live/dashboard-navigation";
 import { serverMode } from "../../lib/runtime";
@@ -153,6 +154,16 @@ export function Workspace({
     [loading, setLoading] = useState(true),
     [help, setHelp] = useState(false);
   const { toast, user } = useApp();
+  useActiveSourceSync(
+    id || "",
+    serverMode &&
+      !!company &&
+      company.id === id &&
+      !!company.data.completed &&
+      ["Owner", "Admin"].includes(company.role) &&
+      moduleName !== "connections" &&
+      !location.pathname.includes("/onboarding/"),
+  );
   useEffect(() => scopeAskMemory(user?.id || "", id || ""), [user?.id, id]);
   useEffect(() => {
     const media = matchMedia("(max-width:760px)");

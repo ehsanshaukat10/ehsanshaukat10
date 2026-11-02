@@ -111,8 +111,12 @@ try {
       buffer: Buffer.from(`Date,Revenue,Expenses\n${date},5000,1700`),
     });
   await expect(
-    page.getByRole("status").filter({ hasText: "Your data is ready" }),
+    page
+      .getByRole("status")
+      .filter({ hasText: /Your data is ready|Workbook connected/ }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page).toHaveURL(/onboarding\/mapping$/);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "What matters most?", exact: true }),

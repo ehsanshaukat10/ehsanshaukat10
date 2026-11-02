@@ -1,3 +1,4 @@
+import { useActiveSourceSync } from "./useActiveSourceSync";
 import { connectionsLink, overviewReturn } from "./dashboard-navigation";
 import { SemanticReview } from "./SemanticReview";
 import { SourceRecords } from "./SourceRecords";
@@ -39,6 +40,7 @@ type Change = {
   removed: number;
   updated: number;
   checked: number;
+  details?: { record: number; columns: string[] }[];
 };
 type Config = {
   headers?: string[];
@@ -84,6 +86,7 @@ type Source = {
   title: string;
   department?: string;
   lastChecked?: number | null;
+  lastSyncStarted?: number | null;
   tabs: Tab[];
   lastSuccess: number | null;
   error: string | null;
@@ -215,6 +218,7 @@ export function SourceWorkspace({
           : "connect",
     ),
     [mode, setMode] = useState("oauth"),
+    [addAnother, setAddAnother] = useState(false),
     [url, setUrl] = useState(""),
     [title, setTitle] = useState(""),
     [busy, setBusy] = useState(""),
@@ -255,6 +259,13 @@ export function SourceWorkspace({
     [remove, setRemove] = useState<Source | null>(null);
   const viewSection =
     phase === "manage" ? section : phase === "mapping" ? "mapping" : "connect";
+  useActiveSourceSync(
+    companyId,
+    phase === "manage" &&
+      viewSection === "inventory" &&
+      !busy &&
+      !drafts.length,
+  );
   const uploadInput = useRef<HTMLInputElement>(null);
   function applyCatalog(value: Catalog) {
     setCatalog((current) => {
@@ -302,12 +313,18 @@ export function SourceWorkspace({
       .catch((e) => {
         if (active) setError(e.message);
       });
+    const synced = (event: Event) => {
+      if ((event as CustomEvent).detail?.companyId === companyId && active)
+        void refresh().catch(() => {});
+    };
+    window.addEventListener("aynor:source-synced", synced);
     const timer = setInterval(() => {
       if (active) void refresh().catch(() => {});
     }, 15000);
     return () => {
       active = false;
       clearInterval(timer);
+      window.removeEventListener("aynor:source-synced", synced);
     };
   }, [root, companyId, refresh]);
   useEffect(() => {
@@ -384,9 +401,11 @@ export function SourceWorkspace({
         0,
       ) || 0;
     setMessage(
-      ready
-        ? `Your data is ready. ${ready} worksheet page${ready === 1 ? "" : "s"} prepared${questions ? ` · ${questions} quick check${questions === 1 ? "" : "s"} available` : ""}.`
-        : "Workbook connected. Some pages need a manual check before they can be prepared.",
+      phase === "connect"
+        ? "Workbook connected. Continue to review mapping."
+        : ready
+          ? `Your data is ready. ${ready} worksheet page${ready === 1 ? "" : "s"} prepared${questions ? ` · ${questions} quick check${questions === 1 ? "" : "s"} available` : ""}.`
+          : "Workbook connected. Some pages need a manual check before they can be prepared.",
     );
   }
   async function add(input: unknown) {
@@ -401,15 +420,18 @@ export function SourceWorkspace({
       setMessage(
         `“${source?.title}” is already connected. No duplicate was added; your mappings are unchanged.`,
       );
-      toast("This workbook is already connected.");
+      setAddAnother(false);
+      if (phase !== "connect") toast("This workbook is already connected.");
       return;
     }
-    toast(
-      result.duplicate
-        ? "Workbook updated successfully."
-        : "Workbook added successfully. Preparing your data…",
-    );
+    if (phase !== "connect")
+      toast(
+        result.duplicate
+          ? "Workbook updated successfully."
+          : "Workbook added successfully. Preparing your data…",
+      );
     await prepareSource(result.selectedId);
+    setAddAnother(false);
     if (result.duplicate) setMessage((m) => `Existing workbook updated. ${m}`);
   }
   const activeDraft =
@@ -578,7 +600,7 @@ export function SourceWorkspace({
     ),
   );
   const visibleSources =
-    viewSection === "connect"
+    viewSection === "connect" && phase !== "connect"
       ? sources.filter((source) => source.mode === mode)
       : sources;
   const automaticallyPrepared = visibleSources.some(
@@ -733,14 +755,14 @@ export function SourceWorkspace({
           )}
         </div>
       )}
-      <ErrorBox>{error}</ErrorBox>
+      <ErrorBox>{error || catalog?.error}</ErrorBox>
       {message && (
         <p className="source-notice" role="status">
           <CheckCircle2 size={16} />
           {message}
         </p>
       )}
-      {automaticallyPrepared && !activeDraft && (
+      {phase !== "connect" && automaticallyPrepared && !activeDraft && (
         <section className="auto-ready-card" aria-label="Automatic preparation">
           <span className="auto-ready-icon">
             <Sparkles size={22} />
@@ -761,7 +783,7 @@ export function SourceWorkspace({
             </p>
           </div>
           <div className="auto-ready-actions">
-            {cardMapped > 0 && (
+            {phase === "manage" && cardMapped > 0 && (
               <Button
                 disabled={!!busy}
                 onClick={() =>
@@ -805,244 +827,264 @@ export function SourceWorkspace({
           </div>
         </section>
       )}
-      {viewSection === "connect" && (
-        <>
-          <div className="auto-import-intro">
-            <Sparkles size={17} />
-            <p>
-              Connect your workbook. We’ll prepare its columns automatically.
-              Manual editing stays available.
-            </p>
-          </div>
-          {catalog?.aiAvailable && (
-            <label className="auto-ai-consent">
-              <input
-                type="checkbox"
-                checked={allowAi}
-                disabled={!!busy}
-                onChange={(e) => {
-                  setAllowAi(e.target.checked);
-                  try {
-                    localStorage.setItem(
-                      `aynor.ai.${cacheKey}`,
-                      String(e.target.checked),
-                    );
-                  } catch {}
-                }}
-              />
-              <span>
-                Use optional AI for unfamiliar labels
-                <small>
-                  Share workbook labels, column names and type summaries with a
-                  free AI provider. Sheet rows and cell values are not sent. If
-                  unavailable, automatic detection continues locally.
-                </small>
-              </span>
-            </label>
-          )}
-
-          <div
-            className="sheet-source-tabs intel-tabs"
-            aria-label="Spreadsheet source"
+      {viewSection === "connect" &&
+        phase === "connect" &&
+        sources.length > 0 &&
+        !addAnother && (
+          <Button
+            variant="secondary"
+            disabled={!!busy}
+            onClick={() => setAddAnother(true)}
           >
-            {[
-              ["oauth", "Connect Google"],
-              ["upload", "Upload sheet"],
-              ["public", "Paste URL"],
-            ].map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={mode === value}
-                disabled={!!busy}
-                onClick={() => {
-                  setMode(value);
-                  setError("");
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {mode === "oauth" ? (
-            <div className="source-connect-panel">
-              <div className="source-account">
-                <span className="source-account-icon">
-                  <Mail size={19} />
-                </span>
-                <div>
-                  <strong>
-                    {catalog?.account?.email ||
-                      (catalog?.account?.connected
-                        ? "Google account connected"
-                        : "Connect your Google account")}
-                  </strong>
-                  <small>
-                    {catalog?.account?.connected
-                      ? "Read-only spreadsheet access"
-                      : "Your files stay in Google. Aynor won’t edit them."}
-                  </small>
-                </div>
-                <Button
-                  variant="secondary"
-                  busy={busy === "google"}
-                  disabled={!!busy}
-                  onClick={() => void connect()}
-                >
-                  {catalog?.account?.connected
-                    ? "Change account"
-                    : "Connect Google"}
-                  <ExternalLink size={13} />
-                </Button>
+            <Plus size={14} />
+            Add workbook
+          </Button>
+        )}
+      {viewSection === "connect" &&
+        (phase !== "connect" || !sources.length || addAnother) && (
+          <>
+            {(mode !== "oauth" || catalog?.account?.connected) && (
+              <div className="auto-import-intro">
+                <Sparkles size={17} />
+                <p>
+                  Connect your workbook. We’ll prepare its columns
+                  automatically. Manual editing stays available.
+                </p>
               </div>
-              {catalog?.account?.connected && (
-                <>
-                  {filesLoading ? (
-                    <p role="status">Looking for available spreadsheets…</p>
-                  ) : files.length > 0 ? (
-                    <div className="source-add-form">
-                      <Select
-                        label="Choose a Google spreadsheet"
-                        value={fileId}
-                        onChange={(e) => setFileId(e.target.value)}
-                        disabled={!!busy}
-                      >
-                        <option value="">Select a spreadsheet</option>
-                        {files.map((file) => (
-                          <option value={file.id} key={file.id}>
-                            {file.name}
-                          </option>
-                        ))}
-                      </Select>
+            )}
+            {catalog?.aiAvailable &&
+              (mode !== "oauth" || catalog?.account?.connected) && (
+                <label className="auto-ai-consent">
+                  <input
+                    type="checkbox"
+                    checked={allowAi}
+                    disabled={!!busy}
+                    onChange={(e) => {
+                      setAllowAi(e.target.checked);
+                      try {
+                        localStorage.setItem(
+                          `aynor.ai.${cacheKey}`,
+                          String(e.target.checked),
+                        );
+                      } catch {}
+                    }}
+                  />
+                  <span>
+                    Use optional AI for unfamiliar labels
+                    <small>
+                      Share workbook labels, column names and type summaries
+                      with a free AI provider. Sheet rows and cell values are
+                      not sent. If unavailable, automatic detection continues
+                      locally.
+                    </small>
+                  </span>
+                </label>
+              )}
+
+            <div
+              className="sheet-source-tabs intel-tabs"
+              aria-label="Spreadsheet source"
+            >
+              {[
+                ["oauth", "Connect Google"],
+                ["upload", "Upload sheet"],
+                ["public", "Paste URL"],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={mode === value}
+                  disabled={!!busy}
+                  onClick={() => {
+                    setMode(value);
+                    setError("");
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {mode === "oauth" ? (
+              <div className="source-connect-panel">
+                <div className="source-account">
+                  <span className="source-account-icon">
+                    <Mail size={19} />
+                  </span>
+                  <div>
+                    <strong>
+                      {catalog?.account?.email ||
+                        (catalog?.account?.connected
+                          ? "Google account connected"
+                          : "Connect your Google account")}
+                    </strong>
+                    <small>
+                      {catalog?.account?.connected
+                        ? "Read-only spreadsheet access"
+                        : "Your files stay in Google. Aynor won’t edit them."}
+                    </small>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    busy={busy === "google"}
+                    disabled={!!busy}
+                    onClick={() => void connect()}
+                  >
+                    {catalog?.account?.connected
+                      ? "Change account"
+                      : "Connect Google"}
+                    <ExternalLink size={13} />
+                  </Button>
+                </div>
+                {catalog?.account?.connected && (
+                  <>
+                    {filesLoading ? (
+                      <p role="status">Looking for available spreadsheets…</p>
+                    ) : files.length > 0 ? (
+                      <div className="source-add-form">
+                        <Select
+                          label="Choose a Google spreadsheet"
+                          value={fileId}
+                          onChange={(e) => setFileId(e.target.value)}
+                          disabled={!!busy}
+                        >
+                          <option value="">Select a spreadsheet</option>
+                          {files.map((file) => (
+                            <option value={file.id} key={file.id}>
+                              {file.name}
+                            </option>
+                          ))}
+                        </Select>
+                        <Button
+                          disabled={!!busy || !fileId}
+                          onClick={() =>
+                            void run("add", () =>
+                              add({
+                                mode: "oauth",
+                                url: `https://docs.google.com/spreadsheets/d/${fileId}/edit`,
+                              }),
+                            )
+                          }
+                        >
+                          Add spreadsheet
+                          <Plus size={14} />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="source-muted">
+                        Google is connected. Paste the spreadsheet link below to
+                        choose a workbook. This read-only grant may not allow
+                        browsing your Drive.
+                      </p>
+                    )}
+                    <form
+                      className="source-add-form"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void run("add", () => add({ mode: "oauth", url }));
+                      }}
+                    >
+                      <Field
+                        label="Google spreadsheet link"
+                        type="text"
+                        value={url}
+                        onChange={(e) => {
+                          setUrl(e.target.value);
+                          setError("");
+                        }}
+                        placeholder="https://docs.google.com/spreadsheets/d/…"
+                      />
                       <Button
-                        disabled={!!busy || !fileId}
-                        onClick={() =>
-                          void run("add", () =>
-                            add({
-                              mode: "oauth",
-                              url: `https://docs.google.com/spreadsheets/d/${fileId}/edit`,
-                            }),
-                          )
-                        }
+                        disabled={!!busy || !url.trim()}
+                        busy={busy === "add"}
                       >
                         Add spreadsheet
                         <Plus size={14} />
                       </Button>
-                    </div>
-                  ) : (
-                    <p className="source-muted">
-                      Google is connected. Paste the spreadsheet link below to
-                      choose a workbook. This read-only grant may not allow
-                      browsing your Drive.
-                    </p>
-                  )}
-                  <form
-                    className="source-add-form"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      void run("add", () => add({ mode: "oauth", url }));
-                    }}
-                  >
-                    <Field
-                      label="Google spreadsheet link"
-                      type="text"
-                      value={url}
-                      onChange={(e) => {
-                        setUrl(e.target.value);
-                        setError("");
-                      }}
-                      placeholder="https://docs.google.com/spreadsheets/d/…"
-                    />
-                    <Button
-                      disabled={!!busy || !url.trim()}
-                      busy={busy === "add"}
-                    >
-                      Add spreadsheet
-                      <Plus size={14} />
-                    </Button>
-                  </form>
-                </>
-              )}
-            </div>
-          ) : mode === "upload" ? (
-            <div className="source-upload-panel">
-              <Upload size={23} />
-              <div>
-                <h3>Add an Excel or CSV workbook</h3>
-                <p>
-                  All worksheet pages stay available. We prepare their columns
-                  automatically.
-                </p>
+                    </form>
+                  </>
+                )}
               </div>
-              <Button
-                variant="secondary"
-                type="button"
-                disabled={!!busy}
-                busy={busy === "upload"}
-                onClick={() => uploadInput.current?.click()}
-              >
-                Choose file
-              </Button>
-              <input
-                ref={uploadInput}
-                aria-label="Upload Excel or CSV file"
-                type="file"
-                accept=".xlsx,.csv"
-                disabled={!!busy}
-                hidden
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file)
-                    void run("upload", async () => {
-                      const book = await readWorkbook(file);
-                      await add({
-                        mode: "upload",
-                        name: book.name,
-                        sheets: book.sheets,
+            ) : mode === "upload" ? (
+              <div className="source-upload-panel">
+                <Upload size={23} />
+                <div>
+                  <h3>Add an Excel or CSV workbook</h3>
+                  <p>
+                    All worksheet pages stay available. We prepare their columns
+                    automatically.
+                  </p>
+                </div>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  disabled={!!busy}
+                  busy={busy === "upload"}
+                  onClick={() => uploadInput.current?.click()}
+                >
+                  Choose file
+                </Button>
+                <input
+                  ref={uploadInput}
+                  aria-label="Upload Excel or CSV file"
+                  type="file"
+                  accept=".xlsx,.csv"
+                  disabled={!!busy}
+                  hidden
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file)
+                      void run("upload", async () => {
+                        const book = await readWorkbook(file);
+                        await add({
+                          mode: "upload",
+                          name: book.name,
+                          sheets: book.sheets,
+                        });
                       });
-                    });
-                  e.target.value = "";
+                    e.target.value = "";
+                  }}
+                />
+                <small>
+                  Up to 5 MB per file · 3 MB total saved source data
+                </small>
+              </div>
+            ) : (
+              <form
+                className="source-url-panel"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void run("add", () => add({ mode: "public", url, title }));
                 }}
-              />
-              <small>Up to 5 MB per file · 3 MB total saved source data</small>
-            </div>
-          ) : (
-            <form
-              className="source-url-panel"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void run("add", () => add({ mode: "public", url, title }));
-              }}
-            >
-              <p>
-                Use a Google Sheet shared for viewing or a published CSV link.
-                This method adds the worksheet selected in the URL. To browse
-                every page, use Connect Google or upload the workbook.
-              </p>
-              <Field
-                label="Source name"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Sales workbook"
-                maxLength={150}
-              />
-              <Field
-                label="Sheet URL"
-                type="text"
-                value={url}
-                onChange={(e) => {
-                  setUrl(e.target.value);
-                  setError("");
-                }}
-              />
-              <Button disabled={!!busy || !url.trim()} busy={busy === "add"}>
-                Add shared sheet
-                <Plus size={14} />
-              </Button>
-            </form>
-          )}
-        </>
-      )}
+              >
+                <p>
+                  Use a Google Sheet shared for viewing or a published CSV link.
+                  This method adds the worksheet selected in the URL. To browse
+                  every page, use Connect Google or upload the workbook.
+                </p>
+                <Field
+                  label="Source name"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Sales workbook"
+                  maxLength={150}
+                />
+                <Field
+                  label="Sheet URL"
+                  type="text"
+                  value={url}
+                  onChange={(e) => {
+                    setUrl(e.target.value);
+                    setError("");
+                  }}
+                />
+                <Button disabled={!!busy || !url.trim()} busy={busy === "add"}>
+                  Add shared sheet
+                  <Plus size={14} />
+                </Button>
+              </form>
+            )}
+          </>
+        )}
       {activeDraft && viewSection === "mapping" && (
         <Button variant="secondary" onClick={() => setShowPages(!showPages)}>
           {showPages
@@ -1060,7 +1102,9 @@ export function SourceWorkspace({
                   : "Connected sources"}
               </h3>
               <span>
-                {mapped} of {total} pages mapped
+                {viewSection === "connect"
+                  ? `${visibleSources.reduce((n, s) => n + s.tabs.length, 0)} worksheet page${visibleSources.reduce((n, s) => n + s.tabs.length, 0) === 1 ? "" : "s"}`
+                  : `${mapped} of ${total} pages mapped`}
               </span>
             </div>
             {visibleSources.map((source) => (
@@ -1068,39 +1112,71 @@ export function SourceWorkspace({
                 <header>
                   <FileSpreadsheet size={20} />
                   <div>
-                    <button
-                      type="button"
-                      className="source-parent-toggle"
-                      aria-expanded={expanded.includes(source.id)}
-                      onClick={() =>
-                        setExpanded((ids) =>
-                          ids.includes(source.id)
-                            ? ids.filter((id) => id !== source.id)
-                            : [...ids, source.id],
-                        )
-                      }
-                    >
-                      <ChevronRight
-                        size={16}
-                        style={{
-                          transform: expanded.includes(source.id)
-                            ? "rotate(90deg)"
-                            : undefined,
-                        }}
-                      />
+                    {phase === "connect" ? (
                       <h4>{source.title}</h4>
-                    </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="source-parent-toggle"
+                        aria-expanded={expanded.includes(source.id)}
+                        onClick={() =>
+                          setExpanded((ids) =>
+                            ids.includes(source.id)
+                              ? ids.filter((id) => id !== source.id)
+                              : [...ids, source.id],
+                          )
+                        }
+                      >
+                        <ChevronRight
+                          size={16}
+                          style={{
+                            transform: expanded.includes(source.id)
+                              ? "rotate(90deg)"
+                              : undefined,
+                          }}
+                        />
+                        <h4>{source.title}</h4>
+                      </button>
+                    )}
                     <small>
                       {source.mode === "oauth"
                         ? "Google Sheets"
                         : source.mode === "upload"
                           ? "Uploaded workbook"
                           : "Shared URL"}{" "}
-                      · {source.tabs.filter((t) => t.mapped).length}/
-                      {source.tabs.length} pages mapped
+                      ·{" "}
+                      {viewSection === "connect"
+                        ? `${source.tabs.length} worksheet page${source.tabs.length === 1 ? "" : "s"}`
+                        : `${source.tabs.filter((t) => t.mapped).length}/${source.tabs.length} pages mapped`}
                     </small>
+                    {source.lastChecked && viewSection !== "connect" && (
+                      <small className="source-change">
+                        {source.error
+                          ? "Sync needs attention"
+                          : (() => {
+                              const changed = source.tabs.filter(
+                                (t) =>
+                                  t.changes &&
+                                  t.changes.checked >=
+                                    (source.lastSyncStarted || 0) &&
+                                  (t.changes.added ||
+                                    t.changes.updated ||
+                                    t.changes.removed),
+                              );
+                              return changed.length
+                                ? `Updated: ${changed.map((t) => t.title).join(", ")}`
+                                : "All mapped pages checked · no changes";
+                            })()}
+                      </small>
+                    )}
                     <details className="source-sync-details">
                       <summary>Sync history</summary>
+                      {source.mode !== "upload" && (
+                        <small>
+                          Auto-sync checks while this workspace is open.
+                          Uploaded files need a new version.
+                        </small>
+                      )}
                       {source.lastChecked && (
                         <small>
                           Last sync check:{" "}
@@ -1128,21 +1204,23 @@ export function SourceWorkspace({
                     </details>
                   </div>
                   <div className="source-parent-actions">
-                    <Button
-                      variant="text"
-                      disabled={!!busy}
-                      busy={busy === `prepare:${source.id}`}
-                      onClick={() =>
-                        void run(`prepare:${source.id}`, () =>
-                          prepareSource(source.id),
-                        )
-                      }
-                    >
-                      <Sparkles size={14} />
-                      {source.automation
-                        ? "Prepare again"
-                        : "Prepare automatically"}
-                    </Button>
+                    {phase !== "connect" && (
+                      <Button
+                        variant="text"
+                        disabled={!!busy}
+                        busy={busy === `prepare:${source.id}`}
+                        onClick={() =>
+                          void run(`prepare:${source.id}`, () =>
+                            prepareSource(source.id),
+                          )
+                        }
+                      >
+                        <Sparkles size={14} />
+                        {source.automation
+                          ? "Prepare again"
+                          : "Prepare automatically"}
+                      </Button>
+                    )}
                     {source.mode !== "upload" ? (
                       <Button
                         variant="text"
@@ -1156,8 +1234,21 @@ export function SourceWorkspace({
                               {},
                             );
                             applyCatalog(value);
+                            const current = value.sources.find(
+                              (s) => s.id === source.id,
+                            );
+                            const changed = current?.tabs.filter(
+                              (t) =>
+                                t.changes &&
+                                (t.changes.added ||
+                                  t.changes.updated ||
+                                  t.changes.removed),
+                            );
+                            setExpanded((ids) => [
+                              ...new Set([...ids, source.id]),
+                            ]);
                             setMessage(
-                              `Sync checked all mapped pages at ${formatSyncTime(value.sources.find((s) => s.id === source.id)?.lastChecked, timezone)}. See each page for updates or issues.`,
+                              `Sync checked ${formatSyncTime(current?.lastChecked, timezone)}. ${current?.error || (changed?.length ? `Updated pages: ${changed.map((t) => t.title).join(", ")}.` : "No data changes.")}`,
                             );
                           })
                         }
@@ -1191,7 +1282,7 @@ export function SourceWorkspace({
                     </Button>
                   </div>
                 </header>
-                {source.automation && (
+                {phase !== "connect" && source.automation && (
                   <details className="source-preparation-details">
                     <summary>Preparation details</summary>
                     <p
@@ -1208,32 +1299,43 @@ export function SourceWorkspace({
                     {source.error}
                   </p>
                 )}
-                <Select
-                  label={`Department for ${source.title}`}
-                  value={source.department || ""}
-                  disabled={!!busy}
-                  onChange={(e) => {
-                    const department = e.target.value;
-                    void run("department", async () => {
-                      applyCatalog(
-                        await serverRequest<Catalog>(
-                          `${root}/${source.id}/department`,
-                          "POST",
-                          { department },
-                        ),
-                      );
-                      setMessage(
-                        "Department applied to all pages in this workbook. You can override individual pages in Edit mapping.",
-                      );
-                    });
-                  }}
-                >
-                  <option value="">Unassigned · assign individual pages</option>
-                  {departments.map((d) => (
-                    <option key={d}>{d}</option>
-                  ))}
-                </Select>
-                {expanded.includes(source.id) && (
+                {phase !== "connect" && (
+                  <Select
+                    label={`Department for ${source.title}`}
+                    value={source.department || ""}
+                    disabled={!!busy}
+                    onChange={(e) => {
+                      const department = e.target.value;
+                      void run("department", async () => {
+                        applyCatalog(
+                          await serverRequest<Catalog>(
+                            `${root}/${source.id}/department`,
+                            "POST",
+                            { department },
+                          ),
+                        );
+                        setDrafts((ds) =>
+                          ds.map((d) =>
+                            d.inspection.sourceId === source.id
+                              ? { ...d, department }
+                              : d,
+                          ),
+                        );
+                        setMessage(
+                          "Department applied to all pages in this workbook. You can override individual pages in Edit mapping.",
+                        );
+                      });
+                    }}
+                  >
+                    <option value="">
+                      Unassigned · assign individual pages
+                    </option>
+                    {departments.map((d) => (
+                      <option key={d}>{d}</option>
+                    ))}
+                  </Select>
+                )}
+                {phase !== "connect" && expanded.includes(source.id) && (
                   <div className="source-pages">
                     {source.tabs.map((tab) => (
                       <div
@@ -1294,16 +1396,44 @@ export function SourceWorkspace({
                               </small>
                             </details>
                           )}
-                          {tab.changes && (
-                            <small className="source-change">
-                              <RefreshCw size={11} />
-                              {tab.changes.added ||
-                              tab.changes.removed ||
-                              tab.changes.updated
-                                ? `${tab.changes.added} added · ${tab.changes.updated} changed · ${tab.changes.removed} removed`
-                                : "No data changes"}
-                            </small>
-                          )}
+                          {tab.changes &&
+                            tab.changes.checked >=
+                              (source.lastSyncStarted || 0) && (
+                              <small className="source-change">
+                                <RefreshCw size={11} />
+                                {tab.changes.added ||
+                                tab.changes.removed ||
+                                tab.changes.updated
+                                  ? `${tab.changes.added} added · ${tab.changes.updated} changed · ${tab.changes.removed} removed`
+                                  : "No data changes"}
+                              </small>
+                            )}
+                          {!!tab.changes?.details?.length &&
+                            tab.changes.checked >=
+                              (source.lastSyncStarted || 0) && (
+                              <details>
+                                <summary>
+                                  Changed record positions and columns
+                                </summary>
+                                <small>
+                                  Compared by imported row position, not matched
+                                  business identity.
+                                </small>
+                                {tab.changes.details.map((d) => (
+                                  <small key={d.record}>
+                                    Record {d.record}: {d.columns.join(", ")}
+                                  </small>
+                                ))}
+                                {tab.changes.updated >
+                                  tab.changes.details.length && (
+                                  <small>
+                                    Showing the first{" "}
+                                    {tab.changes.details.length} changed
+                                    positions.
+                                  </small>
+                                )}
+                              </details>
+                            )}
                           {tab.error && (
                             <p className="source-page-error">{tab.error}</p>
                           )}
@@ -1721,7 +1851,7 @@ export function SourceWorkspace({
           title="Review a mapping choice"
           onClose={() => setQuestion(null)}
         >
-          <ErrorBox>{error}</ErrorBox>
+          <ErrorBox>{error || catalog?.error}</ErrorBox>
           <p className="source-muted">
             {sources.find((s) => s.id === question.sourceId)?.title} /{" "}
             {

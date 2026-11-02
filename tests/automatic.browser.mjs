@@ -18,12 +18,14 @@ await scenario(
       "Finance.csv",
       Buffer.from("Date,Revenue,Expenses\n2026-10-29,1200,300"),
     );
-    await expect(page.getByLabel("Automatic preparation")).toContainText(
-      "Your data is ready.",
-    );
+    await expect(page.getByLabel("Automatic preparation")).toHaveCount(0);
+    await expect(page.locator(".source-page")).toHaveCount(0);
     await expect(
       page.getByLabel("Property for Date", { exact: true }),
     ).toHaveCount(0);
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page).toHaveURL(/onboarding\/mapping$/);
+    await expect(page.locator(".source-page")).not.toHaveCount(0);
     await page.getByRole("button", { name: "Continue", exact: true }).click();
     await expect(page).toHaveURL(/onboarding\/priorities$/);
     await confirmFinancial(page, w);
@@ -58,6 +60,9 @@ await scenario(
     await page.reload();
     await page
       .getByRole("button", { name: "Add workbook", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Upload sheet", exact: true })
       .click();
     await expect(page.locator(".auto-ai-consent")).toBeVisible();
     await page.locator(".auto-ai-consent input").check();
@@ -151,6 +156,9 @@ await scenario(
     await page.goto(financial.base + "/settings/connections");
     await page
       .getByRole("button", { name: "Add workbook", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Upload sheet", exact: true })
       .click();
     await page.locator(".auto-ai-consent input").check();
     await upload(

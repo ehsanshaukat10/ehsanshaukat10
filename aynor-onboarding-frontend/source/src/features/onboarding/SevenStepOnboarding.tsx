@@ -298,17 +298,10 @@ export function SevenStepOnboarding({
       skip &&
       !liveSource?.hasSources &&
       !liveSource?.hasSnapshot;
-    const automaticMappingComplete =
-      serverMode &&
-      step === "integrations" &&
-      !skip &&
-      checkedSource?.automaticReady &&
-      checkedSource?.hasSnapshot &&
-      !checkedSource?.needsReviewCount;
     const index = steps.indexOf(step),
       target = reviewEdit
         ? "review"
-        : skipDependentMapping || automaticMappingComplete
+        : skipDependentMapping
           ? "priorities"
           : steps[index + 1] || "complete";
     const next = {
@@ -318,7 +311,6 @@ export function SevenStepOnboarding({
         ...data.steps,
         [step]: skip ? "skipped" : "completed",
         ...(skipDependentMapping ? { mapping: "skipped" as const } : {}),
-        ...(automaticMappingComplete ? { mapping: "completed" as const } : {}),
       },
       ...(step === "review" ? { completed: true } : {}),
     };

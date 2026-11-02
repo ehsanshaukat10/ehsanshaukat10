@@ -49,6 +49,10 @@ await scenario(
     await page
       .getByRole("button", { name: "Add workbook", exact: true })
       .click();
+    await expect(page.locator(".auto-ai-consent")).toHaveCount(0);
+    await page
+      .getByRole("button", { name: "Upload sheet", exact: true })
+      .click();
     await expect(page.locator(".auto-ai-consent input")).toBeChecked();
     await expect(
       page
@@ -120,6 +124,8 @@ await scenario(
         "Request Date,Target Date,Status\nOct 2,Oct 9,Open\nSep 20,Nov 1,Done",
       ),
     );
+    await expect(page.getByLabel("Automatic preparation")).toHaveCount(0);
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
     await page
       .getByRole("button", { name: "Review 2 quick checks", exact: true })
       .click();
@@ -129,12 +135,6 @@ await scenario(
       .getByRole("dialog")
       .getByRole("button", { name: "Decide later", exact: false })
       .click();
-    await page
-      .getByRole("button", { name: "Review mapping", exact: true })
-      .click();
-    await expect(
-      page.getByRole("button", { name: "Review mapping", exact: true }),
-    ).toHaveCount(0);
     const project = page
       .locator(".source-parent")
       .filter({ hasText: "Projects 2026.csv" });

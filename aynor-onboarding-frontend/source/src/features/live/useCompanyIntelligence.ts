@@ -112,10 +112,16 @@ export function useCompanyIntelligence(
     const timer = setInterval(() => void reload(), 15000);
     const focus = () => void reload();
     window.addEventListener("focus", focus);
+    const synced = (event: Event) => {
+      if ((event as CustomEvent).detail?.companyId === company.id)
+        void reload();
+    };
+    window.addEventListener("aynor:source-synced", synced);
     return () => {
       active = false;
       clearInterval(timer);
       window.removeEventListener("focus", focus);
+      window.removeEventListener("aynor:source-synced", synced);
     };
   }, [identity, enabled, revision, sourceRevision]);
   return {

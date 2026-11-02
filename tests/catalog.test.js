@@ -162,6 +162,16 @@ test("source catalog keeps simultaneous methods and unmapped tabs, validates all
   assert.equal(mapped.data.sources.length, 3);
   assert.equal(mapped.data.sources[0].tabs[0].department, "QA");
   assert.equal(mapped.data.sources[0].tabs[1].mapped, false);
+  const parentAssigned = await call(`${root}/${upload.id}/department`, "POST", {
+    department: "QA",
+  });
+  assert.equal(parentAssigned.status, 200);
+  assert.ok(
+    parentAssigned.data.sources
+      .find((s) => s.id === upload.id)
+      .tabs.every((t) => t.department === "QA"),
+  );
+
   app = createApplication({ env, fetchImpl: f.fetchImpl });
   assert.equal((await call(root)).data.sources.length, 3);
   const finance = await call(`${root}/${id}/map`, "POST", {
@@ -193,6 +203,34 @@ test("source catalog keeps simultaneous methods and unmapped tabs, validates all
   assert.equal((await call(`${root}/${id}/sync`, "POST", {})).status, 200);
   const updated = (await call(root)).data.sources.find((s) => s.id === id);
   assert.equal(updated.tabs[0].changes.updated, 1);
+  assert.deepEqual(updated.tabs[0].changes.details, [
+    { record: 1, columns: ["Date", "Revenue", "Expenses"] },
+  ]);
+  const beforeAuto = (await call(root)).data;
+  const beforeCalls = f.control.googleCalls;
+  const unchangedAuto = await call(`${root}/${id}/sync`, "POST", {
+    automatic: true,
+  });
+  assert.equal(unchangedAuto.status, 200);
+  assert.equal(unchangedAuto.data.revision, beforeAuto.revision);
+  assert.equal(f.control.googleCalls, beforeCalls);
+  const clock = Date.now;
+  try {
+    Date.now = () => clock() + 61000;
+    f.control.googleRows = () => [
+      ["Date", "Revenue", "Expenses"],
+      ["2026-10-29", 800, 301],
+    ];
+    const due = await call(`${root}/${id}/sync`, "POST", { automatic: true });
+    assert.equal(due.status, 200, JSON.stringify(due.data));
+    assert.deepEqual(
+      due.data.sources.find((s) => s.id === id).tabs[0].changes.details,
+      [{ record: 1, columns: ["Expenses"] }],
+    );
+  } finally {
+    Date.now = clock;
+  }
+
   f.control.googleRows = () => [
     ["Date", "Revenue", "Expenses"],
     ["bad", 800, 300],

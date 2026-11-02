@@ -62,6 +62,32 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify({ calls: fixture.control.askCalls }));
     return;
   }
+  if (req.url === "/api/__fixture/source-change" && req.method === "POST") {
+    let raw = "";
+    for await (const chunk of req) raw += chunk;
+    const { companyId, csv } = JSON.parse(raw);
+    const row = (
+      await fixture.pg.query(
+        "SELECT data FROM public.aynor_sheet_snapshots WHERE company_id=$1",
+        [companyId],
+      )
+    ).rows[0];
+    if (row) {
+      for (const source of row.data.sources) {
+        source.lastChecked = 0;
+        source.lastSuccess = 0;
+        for (const tab of source.tabs) tab.lastSuccess = 0;
+      }
+      await fixture.pg.query(
+        "UPDATE public.aynor_sheet_snapshots SET data=$1 WHERE company_id=$2",
+        [JSON.stringify(row.data), companyId],
+      );
+    }
+    fixture.control.csv = csv || null;
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: !!row }));
+    return;
+  }
   if (req.url === "/api/__fixture/ai" && req.method === "POST") {
     let raw = "";
     for await (const chunk of req) raw += chunk;

@@ -217,6 +217,7 @@ export function createSourceCatalog({
         source.lastSuccess ||
         null,
       lastChecked: source.lastChecked || null,
+      lastSyncStarted: source.lastSyncStarted || null,
       error: source.error || null,
       changes: source.changes || null,
       automation: source.automation || null,
@@ -1002,6 +1003,10 @@ export function createSourceCatalog({
           } catch (error) {
             fail(422, error.message);
           }
+          if (source.department && !prepared.config.department) {
+            prepared.config.department = source.department;
+            prepared.plan.department = source.department;
+          }
           tab.changes = changes(tab.table, prepared.table);
           tab.table = prepared.table;
           tab.config = prepared.config;
@@ -1223,6 +1228,20 @@ export function createSourceCatalog({
         return list(company, actor);
       }
       if (action === "sync" && method === "POST") {
+        if (body.automatic === true) {
+          const current = getSource((await read(company, actor)).catalog, id);
+          const last = Math.max(
+            current.lastChecked || 0,
+            current.lastSuccess || 0,
+            ...current.tabs.map((t) => t.lastSuccess || 0),
+          );
+          if (
+            current.mode === "upload" ||
+            !current.tabs.some((t) => t.config) ||
+            Date.now() - last < 60000
+          )
+            return list(company, actor);
+        }
         await mutate(
           company,
           actor,
@@ -1233,6 +1252,7 @@ export function createSourceCatalog({
                 409,
                 "Upload the updated workbook to refresh this source. Its other mapped sources stay connected.",
               );
+            source.lastSyncStarted = Date.now();
             if (source.mode === "oauth") {
               const meta = await metadata(company, source.url);
               const old = new Map(source.tabs.map((t) => [t.tabId, t]));
@@ -1303,12 +1323,25 @@ function changes(before, after) {
       checked: Date.now(),
     };
   let updated = 0;
+  const details = [];
   for (let i = 0; i < Math.min(before.rows.length, after.rows.length); i++)
-    if (digest(before.rows[i]) !== digest(after.rows[i])) updated++;
+    if (digest(before.rows[i]) !== digest(after.rows[i])) {
+      updated++;
+      if (details.length < 20)
+        details.push({
+          record: i + 1,
+          columns: after.headers.filter(
+            (_, c) =>
+              digest(before.rows[i][c] ?? null) !==
+              digest(after.rows[i][c] ?? null),
+          ),
+        });
+    }
   return {
     added: Math.max(0, after.rowCount - before.rowCount),
     removed: Math.max(0, before.rowCount - after.rowCount),
     updated,
+    details,
     checked: Date.now(),
   };
 }

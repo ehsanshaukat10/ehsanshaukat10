@@ -16,11 +16,9 @@ await scenario(
     await page.goto(w.base + "/onboarding/integrations");
     await upload(page, "Operations.xlsx", tableWorkbookFixture());
     await expect(page.locator(".source-parent")).toContainText(
-      "2/2 pages mapped",
+      "2 worksheet pages",
     );
-    await page
-      .getByRole("button", { name: "Review mapping", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
     await expect(page).toHaveURL(/onboarding\/mapping$/);
     await map(page, "QA", "QA");
     await page.screenshot({

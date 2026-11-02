@@ -129,7 +129,7 @@ await scenario(
     await expect(parent).toBeVisible();
     await parent.getByRole("button", { name: "Sync now", exact: true }).click();
     await expect(page.locator(".source-notice")).toContainText(
-      "Sync checked all mapped pages at",
+      "Sync checked",
     );
     await expect(page.locator(".source-notice")).toContainText("Asia/Karachi");
     const source = (

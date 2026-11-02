@@ -118,6 +118,9 @@ try {
   const ask = start(["tests/ask.browser.mjs"]);
   if ((await new Promise((resolve) => ask.on("exit", resolve))) !== 0)
     throw Error("Ask browser check failed.");
+  const sessionConnections = start(["tests/session-connections.browser.mjs"]);
+  if ((await new Promise((r) => sessionConnections.on("exit", r))) !== 0)
+    throw Error("Session and connection acceptance failed.");
 } finally {
   await Promise.all(
     children

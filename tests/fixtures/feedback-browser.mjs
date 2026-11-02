@@ -101,7 +101,9 @@ export async function upload(page, name, buffer) {
   await expect(
     page
       .locator(".source-notice")
-      .filter({ hasText: /Your data is ready|already connected/ }),
+      .filter({
+        hasText: /Your data is ready|Workbook connected|already connected/,
+      }),
   ).toBeVisible();
 }
 export async function map(page, title, department = "Finance") {
@@ -183,7 +185,9 @@ export async function privateConnect(page, base) {
     page.locator(".source-parent").filter({ hasText: "Private report" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("status").filter({ hasText: "Your data is ready" }),
+    page
+      .getByRole("status")
+      .filter({ hasText: /Your data is ready|Workbook connected/ }),
   ).toBeVisible();
 }
 export { expect, assert };
