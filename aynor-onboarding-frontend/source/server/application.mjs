@@ -656,7 +656,16 @@ export function createApplication({
         fail(405, "Method not allowed.");
       }
       if (
-        await sheets.handle({ path, url, method, body, user, send, redirect })
+        await sheets.handle({
+          path,
+          url,
+          method,
+          body,
+          user,
+          session,
+          send,
+          redirect,
+        })
       )
         return;
       const route = path.match(

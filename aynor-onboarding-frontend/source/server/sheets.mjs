@@ -1,3 +1,4 @@
+import { createAskService } from "./ask-service.mjs";
 import { createGoalService } from "./goal-service.mjs";
 import { createActionService } from "./action-service.mjs";
 import { createSourceCatalog } from "./source-catalog.mjs";
@@ -34,6 +35,12 @@ export function createServerlessSheets({
   const goals = createGoalService({
     intelligence: catalog.intelligenceService,
     db,
+  });
+  const ask = createAskService({
+    intelligence: catalog.intelligenceService,
+    db,
+    env,
+    fetchImpl,
   });
   function present(c, snapshot) {
     const interrupted =
@@ -303,7 +310,7 @@ export function createServerlessSheets({
   return {
     configured: google.configured,
     status,
-    async handle({ path, url, method, body, user, send, redirect }) {
+    async handle({ path, url, method, body, user, session, send, redirect }) {
       if (path === "/integrations/google/callback") {
         if (method !== "GET") fail(405, "Method not allowed.");
         const state = url.searchParams.get("state") || "";
@@ -378,6 +385,24 @@ export function createServerlessSheets({
         } catch {
           return redirect(back + "?google=failed");
         }
+      }
+      const askRoute = path.match(
+        /^\/companies\/([a-f0-9-]{36})\/intelligence\/ask(?:\/(policy|consent|turn))?$/i,
+      );
+      if (askRoute) {
+        const [, company, operation] = askRoute;
+        if (!session) fail(401, "Session has expired.");
+        if (!operation && method === "GET")
+          return send(
+            await ask.status(company, user.id, session, url.searchParams),
+          );
+        if (method === "POST" && operation === "policy")
+          return send(await ask.policy(company, user.id, session, body));
+        if (method === "POST" && operation === "consent")
+          return send(await ask.consent(company, user.id, session, body));
+        if (method === "POST" && operation === "turn")
+          return send(await ask.turn(company, user.id, session, body));
+        fail(405, "Assistant operation unavailable.");
       }
       const goalRoute = path.match(
         /^\/companies\/([a-f0-9-]{36})\/intelligence\/goals$/i,
