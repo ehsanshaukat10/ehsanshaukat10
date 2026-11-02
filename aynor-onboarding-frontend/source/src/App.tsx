@@ -55,6 +55,7 @@ export default function App() {
       })
       .catch((e) => setError(message(e)));
     const expire = () => {
+      boot = null;
       clearOverviewCache();
       setSignedOut(true);
       setUser(null);
@@ -114,6 +115,7 @@ export default function App() {
       value={{
         user,
         setUser: (next) => {
+          boot = null;
           setUser(next);
           if (next) setSignedOut(false);
         },

@@ -31,10 +31,7 @@ test("customer entry never silently bypasses pending setup, including dashboard 
     ),
     "/companies/pending-id/onboarding/mapping",
   );
-  assert.equal(
-    authenticatedDestination([complete, pending]),
-    "/companies/pending-id/onboarding/mapping",
-  );
+  assert.equal(authenticatedDestination([complete, pending]), "/companies");
   assert.equal(
     authenticatedDestination([complete], "/companies/ready-id/overview"),
     "/companies/ready-id/overview",
@@ -66,4 +63,41 @@ test("customer entry never silently bypasses pending setup, including dashboard 
     "/companies/a\n",
   ])
     assert.equal(safeReturnPath(url), "/entry");
+});
+
+test("multi-company re-login always offers selection; completed review never reopens stale step 3", () => {
+  assert.equal(
+    authenticatedDestination(
+      [complete, pending],
+      "/companies/ready-id/overview",
+    ),
+    "/companies",
+  );
+  assert.equal(
+    authenticatedDestination([complete, pending], "/invite/approved-token"),
+    "/invite/approved-token",
+  );
+  assert.equal(
+    authenticatedDestination([
+      {
+        ...pending,
+        data: {
+          completed: false,
+          step: "integrations",
+          steps: { review: "completed" },
+        },
+      },
+    ]),
+    "/companies/pending-id/overview",
+  );
+});
+
+test("completed company login ignores obsolete onboarding bookmarks", () => {
+  assert.equal(
+    authenticatedDestination(
+      [{ ...complete, data: { completed: true, step: "integrations" } }],
+      "/companies/ready-id/onboarding/integrations",
+    ),
+    "/companies/ready-id/overview",
+  );
 });

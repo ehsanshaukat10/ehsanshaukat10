@@ -295,6 +295,20 @@ export function createApplication({
       const user = session
         ? await db.one("users", { id: "eq." + session.user_id })
         : null;
+      // Persist across browser restarts; refresh an active session at most daily.
+      // CAS prevents an in-flight request from resurrecting a logged-out session.
+      if (user && Number(session.expires) < Date.now() + 29 * 86400000) {
+        const renewed = await db.update(
+          "sessions",
+          {
+            token: "eq." + hash(token),
+            expires: "eq." + session.expires,
+          },
+          { expires: Date.now() + 30 * 86400000 },
+        );
+        if (renewed?.length)
+          cookie = `aynor_session=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000`;
+      }
       async function finishLogin(candidate) {
         const memberships = await db.rows("members", {
           user_id: "eq." + candidate.id,
@@ -317,9 +331,9 @@ export function createApplication({
         await db.insert("sessions", {
           token: hash(next),
           user_id: candidate.id,
-          expires: Date.now() + 604800000,
+          expires: Date.now() + 2592000000,
         });
-        cookie = `aynor_session=${next}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800`;
+        cookie = `aynor_session=${next}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000`;
         return send({ user: safeUser(candidate), destination });
       }
       async function provision(identity) {

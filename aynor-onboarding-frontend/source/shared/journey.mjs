@@ -11,7 +11,11 @@ export function safeReturnPath(value) {
   return url.pathname + url.search + url.hash;
 }
 export function workspaceDestination(company) {
-  if (company.data.completed || !["Owner", "Admin"].includes(company.role))
+  if (
+    company.data.completed ||
+    company.data.steps?.review === "completed" ||
+    !["Owner", "Admin"].includes(company.role)
+  )
     return `/companies/${company.id}/overview`;
   const aliases = {
     sources: "integrations",
@@ -38,13 +42,21 @@ export function workspaceDestination(company) {
 export function authenticatedDestination(companies, requested) {
   const next = safeReturnPath(requested);
   if (next.startsWith("/invite/")) return next;
+  if (companies.length > 1) return "/companies";
   if (!companies.length) return "/companies/new";
   if (next === "/companies" || /^\/companies\/new(?:[?#]|$)/.test(next))
     return next;
   const id = next.match(/^\/companies\/([^/?#]+)/)?.[1];
   const selected = companies.find((company) => company.id === id);
+  if (
+    selected &&
+    (selected.data.completed || selected.data.steps?.review === "completed") &&
+    next.includes("/onboarding/")
+  )
+    return workspaceDestination(selected);
   if (selected)
     return !selected.data.completed &&
+      selected.data.steps?.review !== "completed" &&
       ["Owner", "Admin"].includes(selected.role)
       ? workspaceDestination(selected)
       : next;

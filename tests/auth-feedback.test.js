@@ -10,7 +10,7 @@ test("verified email callbacks create secure sessions and password recovery requ
     SUPABASE_SECRET_KEY: "sb_secret_test_fixture_only",
   };
   let cookie = "";
-  const app = createApplication({ env, fetchImpl: f.fetchImpl });
+  let app = createApplication({ env, fetchImpl: f.fetchImpl });
   async function call(path, method = "GET", body) {
     let status, data, headers;
     await app(
@@ -73,6 +73,23 @@ test("verified email callbacks create secure sessions and password recovery requ
     ).status,
     403,
   );
+  assert.match(confirmed.headers["Set-Cookie"], /Max-Age=2592000/);
+  app = createApplication({ env, fetchImpl: f.fetchImpl });
+  assert.equal((await call("/session")).data.user.id, confirmed.data.user.id);
+  await f.pg.query(
+    "UPDATE public.aynor_sessions SET expires=$1 WHERE user_id=$2",
+    [Date.now() + 86400000, confirmed.data.user.id],
+  );
+  const renewed = await call("/session");
+  assert.equal(renewed.data.user.id, confirmed.data.user.id);
+  assert.match(renewed.headers["Set-Cookie"], /Max-Age=2592000/);
+  const expiry = (
+    await f.pg.query(
+      "SELECT expires FROM public.aynor_sessions WHERE user_id=$1",
+      [confirmed.data.user.id],
+    )
+  ).rows[0].expires;
+  assert.ok(Number(expiry) > Date.now() + 29 * 86400000);
   const oldCookie = cookie;
   assert.equal((await call("/auth/recover", "POST", { email })).status, 200);
   assert.equal(
