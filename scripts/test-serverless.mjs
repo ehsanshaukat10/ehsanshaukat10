@@ -115,6 +115,9 @@ try {
   const goals = start(["tests/goals.browser.mjs"]);
   if ((await new Promise((resolve) => goals.on("exit", resolve))) !== 0)
     throw Error("Goals browser check failed.");
+  const ask = start(["tests/ask.browser.mjs"]);
+  if ((await new Promise((resolve) => ask.on("exit", resolve))) !== 0)
+    throw Error("Ask browser check failed.");
 } finally {
   await Promise.all(
     children

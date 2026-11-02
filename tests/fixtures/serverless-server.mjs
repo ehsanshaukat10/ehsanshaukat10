@@ -40,6 +40,28 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify({ accessToken: token }));
     return;
   }
+  if (req.url === "/api/__fixture/ask" && req.method === "POST") {
+    let raw = "";
+    for await (const chunk of req) raw += chunk;
+    const body = JSON.parse(raw);
+    Object.assign(env, {
+      AYNOR_ASK_ENABLED: "true",
+      OPENROUTER_API_KEY: "fixture-only-key",
+      AYNOR_ASK_MODEL: "fixture/executive:free",
+      AYNOR_ASK_PROVIDER: "fixture",
+      AYNOR_ASK_PRIVACY_APPROVED: "true",
+      AYNOR_ASK_PRIVACY_POLICY_URL: "https://example.test/privacy",
+      AYNOR_ASK_PRIVACY_REVIEWED_AT:
+        env.AYNOR_ASK_PRIVACY_REVIEWED_AT || new Date().toISOString(),
+      AYNOR_ASK_USER_DAILY_LIMIT: body.userLimit ?? "100",
+      AYNOR_ASK_COMPANY_DAILY_LIMIT: "500",
+      AYNOR_AI_APPLICATION_DAILY_LIMIT: "100",
+    });
+    fixture.control.askMode = body.mode || "valid";
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ calls: fixture.control.askCalls }));
+    return;
+  }
   if (req.url === "/api/__fixture/ai" && req.method === "POST") {
     let raw = "";
     for await (const chunk of req) raw += chunk;

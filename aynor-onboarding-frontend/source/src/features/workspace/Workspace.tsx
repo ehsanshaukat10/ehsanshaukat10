@@ -1,3 +1,4 @@
+import { scopeAskMemory } from "../live/ask-memory";
 import { connectionsLink, businessLink } from "../live/dashboard-navigation";
 import { serverMode } from "../../lib/runtime";
 import { LiveOverview } from "../live/LiveOverview";
@@ -82,7 +83,9 @@ export function Workspace({
     for (const key of ["state", "period"])
       if (current.has(key)) params.set(key, current.get(key)!);
     if (
-      /\/(departments|actions|overview|dependencies|goals)(?:\/|$)/.test(path)
+      /\/(departments|actions|overview|dependencies|goals|ask)(?:\/|$)/.test(
+        path,
+      )
     )
       return businessLink(id!, path, location.search);
     return connectionsLink(
@@ -150,6 +153,7 @@ export function Workspace({
     [loading, setLoading] = useState(true),
     [help, setHelp] = useState(false);
   const { toast, user } = useApp();
+  useEffect(() => scopeAskMemory(user?.id || "", id || ""), [user?.id, id]);
   useEffect(() => {
     const media = matchMedia("(max-width:760px)");
     const resize = () => {

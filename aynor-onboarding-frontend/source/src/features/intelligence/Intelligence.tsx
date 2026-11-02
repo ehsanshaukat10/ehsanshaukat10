@@ -1,3 +1,4 @@
+import { GovernedAsk } from "../live/GovernedAsk";
 import { GovernedGoals } from "../live/GovernedGoals";
 import { GovernedDependencies } from "../live/GovernedDependencies";
 import { serverMode } from "../../lib/runtime";
@@ -35,7 +36,9 @@ export function Intelligence(props: ModuleProps) {
                   ? GovernedActions
                   : Actions
                 : module === "ask"
-                  ? Ask
+                  ? serverMode
+                    ? GovernedAsk
+                    : Ask
                   : Settings;
   return <Component key={location.pathname} {...props} />;
 }

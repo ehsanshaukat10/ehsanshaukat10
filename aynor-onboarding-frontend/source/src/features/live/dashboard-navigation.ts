@@ -75,7 +75,7 @@ export function moduleReturn(
       return null;
     const route = u.pathname.slice(prefix.length);
     if (
-      !/^(overview|departments(?:\/[^/]+(?:\/metrics\/[^/]+)?)?|actions(?:\/[^/]+)?|goals(?:\/[^/]+)?|dependencies(?:\/[^/]+(?:\/evidence)?)?)$/.test(
+      !/^(overview|departments(?:\/[^/]+(?:\/metrics\/[^/]+)?)?|ask|actions(?:\/[^/]+)?|goals(?:\/[^/]+)?|dependencies(?:\/[^/]+(?:\/evidence)?)?)$/.test(
         route,
       )
     )

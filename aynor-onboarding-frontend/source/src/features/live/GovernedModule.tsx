@@ -1,3 +1,4 @@
+import { AskContextLink } from "./AskContextLink";
 import { useLocation, useSearchParams, Link } from "react-router-dom";
 import type { Company } from "../../lib/api";
 import { Button, ErrorBox } from "../../components/ui";
@@ -71,7 +72,25 @@ export function GovernedModule({
       governed
       showPeriod={false}
       back={back}
-      actions={actions}
+      actions={
+        <>
+          {actions}
+          {!m.origin.split("?")[0].endsWith("/ask") && (
+            <AskContextLink
+              companyId={m.company.id}
+              search={m.query.toString()}
+              origin={m.origin}
+              focus={
+                m.origin.includes("/metrics/")
+                  ? decodeURIComponent(
+                      m.origin.split("/metrics/")[1].split("?")[0],
+                    )
+                  : m.origin.split("?")[0].split("/")[4]
+              }
+            />
+          )}
+        </>
+      }
     >
       <ErrorBox>{m.error}</ErrorBox>
       {m.error && (
