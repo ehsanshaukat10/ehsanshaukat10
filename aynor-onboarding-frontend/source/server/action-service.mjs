@@ -129,83 +129,80 @@ export function recommendations(report) {
       };
     });
 }
-export function createActionService({ intelligence, db }) {
-  function listFrom({ report, policy, records }) {
-    const current = recommendations(report),
-      map = new Map(current.map((x) => [x.id, x]));
-    for (const record of records) {
-      const d = record.data;
-      if (!policy.canReadAction(d.protection)) continue;
-      if (
-        report.context.department &&
-        d.department !== report.context.department
-      )
-        continue;
-      if (report.context.scope && d.scope !== report.context.scope) continue;
-      if (record.kind === "task")
+export function projectActions({ report, policy, records }) {
+  const current = recommendations(report),
+    map = new Map(current.map((x) => [x.id, x]));
+  for (const record of records) {
+    const d = record.data;
+    if (!policy.canReadAction(d.protection)) continue;
+    if (report.context.department && d.department !== report.context.department)
+      continue;
+    if (report.context.scope && d.scope !== report.context.scope) continue;
+    if (record.kind === "task")
+      map.set(record.id, {
+        id: record.id,
+        origin: "user",
+        title: d.title,
+        note: d.note,
+        department: d.department,
+        scope: d.scope,
+        status: d.status,
+        version: record.version,
+        current: true,
+        support: "manual",
+        updatedAt: record.updated,
+      });
+    else {
+      const active = map.get(record.id);
+      if (active)
         map.set(record.id, {
-          id: record.id,
-          origin: "user",
-          title: d.title,
-          note: d.note,
-          department: d.department,
-          scope: d.scope,
+          ...active,
           status: d.status,
+          note: d.note,
+          reason: d.reason,
           version: record.version,
-          current: true,
-          support: "manual",
+          evidenceChanged: active.fingerprint !== d.fingerprint,
           updatedAt: record.updated,
         });
-      else {
-        const active = map.get(record.id);
-        if (active)
-          map.set(record.id, {
-            ...active,
-            status: d.status,
-            note: d.note,
-            reason: d.reason,
-            version: record.version,
-            evidenceChanged: active.fingerprint !== d.fingerprint,
-            updatedAt: record.updated,
-          });
-        else
-          map.set(record.id, {
-            ...d.snapshot,
-            id: record.id,
-            status: d.status,
-            note: d.note,
-            reason: d.reason,
-            version: record.version,
-            current: false,
-            support: "historical",
-            evidenceHref: null,
-            evidenceRevision: null,
-            updatedAt: record.updated,
-          });
-      }
+      else
+        map.set(record.id, {
+          ...d.snapshot,
+          id: record.id,
+          status: d.status,
+          note: d.note,
+          reason: d.reason,
+          version: record.version,
+          current: false,
+          support: "historical",
+          evidenceHref: null,
+          evidenceRevision: null,
+          updatedAt: record.updated,
+        });
     }
-    const rows = [...map.values()].filter(
-      (x) =>
-        (!report.context.scope || x.scope === report.context.scope) &&
-        (!report.context.department ||
-          x.department === report.context.department),
-    );
-    return {
-      version: 1,
-      companyId: report.companyId,
-      datasetRevision: report.datasetRevision,
-      authorization: report.authorization,
-      context: report.context,
-      items: rows,
-    };
   }
+  const rows = [...map.values()].filter(
+    (x) =>
+      (!report.context.scope || x.scope === report.context.scope) &&
+      (!report.context.department ||
+        x.department === report.context.department),
+  );
+  return {
+    version: 1,
+    companyId: report.companyId,
+    datasetRevision: report.datasetRevision,
+    authorization: report.authorization,
+    context: report.context,
+    items: rows,
+  };
+}
+export function createActionService({ intelligence, db }) {
   return {
     async list(company, actor, context) {
       return intelligence.withAuthorizedState(
         company,
         actor,
         context,
-        listFrom,
+        projectActions,
       );
     },
     async task(company, actor, body) {

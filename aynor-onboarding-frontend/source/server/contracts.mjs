@@ -1,8 +1,10 @@
+import { askPolicyStored } from "./ask-contracts.mjs";
 import { storedGoalsSchema } from "./goal-definition.mjs";
 import { relationshipContractsSchema } from "./relationship-intelligence.mjs";
 import { intelligenceAccessSchema } from "./intelligence-policy.mjs";
 import { z } from "zod";
 export const workspaceSchema = z.object({
+  askPolicy: askPolicyStored.optional(),
   governedGoals: storedGoalsSchema.optional(),
   relationshipContracts: relationshipContractsSchema.optional(),
   intelligenceAccess: intelligenceAccessSchema.optional(),

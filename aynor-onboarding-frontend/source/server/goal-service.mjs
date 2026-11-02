@@ -124,74 +124,73 @@ export function assessGoal(goal, metric, { binding, department, today }) {
         : null,
   };
 }
+const records = (state) => {
+  const r = storedGoalsSchema.safeParse(state.companyData.governedGoals || []);
+  return r.success ? r.data : [];
+};
+export function projectGoals(state, now = () => Date.now()) {
+  const { report, policy } = state,
+    company = report.companyId;
+  const items = records(state)
+    .filter(
+      (g) =>
+        policy.canReadProtectedFact(g.protection) &&
+        (!report.context.scope || report.context.scope === g.scope) &&
+        (!report.context.department ||
+          (g.level === "department"
+            ? g.department
+            : g.protection.department) === report.context.department),
+    )
+    .map((g) => {
+      const entry = policy.scopes.get(g.scope),
+        metric = report.metrics.find(
+          (m) => m.scope === g.scope && m.metricId === g.metricId,
+        );
+      const assessment = assessGoal(g, metric, {
+        binding: {
+          namespace: entry?.tab.semantic?.entityNamespace,
+          entity: entry?.tab.semantic?.entity,
+        },
+        department: entry?.department || "",
+        today: dateInTimezone(state.timezone, now()),
+      });
+      const { protection, binding, ...definition } = g;
+      return {
+        ...definition,
+        ...assessment,
+        metricName:
+          metricRegistry.find((m) => m.id === g.metricId)?.name || g.metricId,
+        metricDefinition: metric?.definition || null,
+        metricState: metric?.state || "unavailable",
+        sourcePeriod: metric?.period || null,
+        evidenceHref:
+          metric?.state === "validated"
+            ? `/companies/${company}/overview?scope=${encodeURIComponent(g.scope)}&evidence=${g.metricId}&source=${entry.source.id}&tab=${entry.tab.tabId}&revision=${report.datasetRevision}`
+            : null,
+      };
+    });
+  return {
+    version: 1,
+    companyId: company,
+    companyVersion: state.companyVersion,
+    authorization: report.authorization,
+    datasetRevision: report.datasetRevision,
+    context: report.context,
+    items,
+  };
+}
 export function createGoalService({
   intelligence,
   db,
   now = () => Date.now(),
 }) {
-  const records = (state) => {
-    const r = storedGoalsSchema.safeParse(
-      state.companyData.governedGoals || [],
-    );
-    return r.success ? r.data : [];
-  };
   return {
     async list(company, actor, context) {
       return intelligence.withAuthorizedState(
         company,
         actor,
         context,
-        (state) => {
-          const { report, policy } = state;
-          const items = records(state)
-            .filter(
-              (g) =>
-                policy.canReadProtectedFact(g.protection) &&
-                (!report.context.scope || report.context.scope === g.scope) &&
-                (!report.context.department ||
-                  (g.level === "department"
-                    ? g.department
-                    : g.protection.department) === report.context.department),
-            )
-            .map((g) => {
-              const entry = policy.scopes.get(g.scope),
-                metric = report.metrics.find(
-                  (m) => m.scope === g.scope && m.metricId === g.metricId,
-                );
-              const assessment = assessGoal(g, metric, {
-                binding: {
-                  namespace: entry?.tab.semantic?.entityNamespace,
-                  entity: entry?.tab.semantic?.entity,
-                },
-                department: entry?.department || "",
-                today: dateInTimezone(state.timezone, now()),
-              });
-              const { protection, binding, ...definition } = g;
-              return {
-                ...definition,
-                ...assessment,
-                metricName:
-                  metricRegistry.find((m) => m.id === g.metricId)?.name ||
-                  g.metricId,
-                metricDefinition: metric?.definition || null,
-                metricState: metric?.state || "unavailable",
-                sourcePeriod: metric?.period || null,
-                evidenceHref:
-                  metric?.state === "validated"
-                    ? `/companies/${company}/overview?scope=${encodeURIComponent(g.scope)}&evidence=${g.metricId}&source=${entry.source.id}&tab=${entry.tab.tabId}&revision=${report.datasetRevision}`
-                    : null,
-              };
-            });
-          return {
-            version: 1,
-            companyId: company,
-            companyVersion: state.companyVersion,
-            authorization: report.authorization,
-            datasetRevision: report.datasetRevision,
-            context: report.context,
-            items,
-          };
-        },
+        (state) => projectGoals(state, now),
       );
     },
     async save(company, actor, body) {

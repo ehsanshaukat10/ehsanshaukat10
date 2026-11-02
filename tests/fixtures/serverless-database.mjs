@@ -10,6 +10,7 @@ export async function fixtureDatabase() {
     "202610270002_serverless_operations.sql",
     "202611010001_intelligence_read.sql",
     "202611010002_governed_actions.sql",
+    "202611020001_ask_runtime.sql",
   ])
     await pg.exec(
       readFileSync(
@@ -27,6 +28,11 @@ export async function fixtureDatabase() {
     tokenLifetime: 3600,
     fail: false,
     aiCalls: 0,
+    askCalls: 0,
+    askPayloads: [],
+    askMode: "valid",
+    askReply: null,
+    askHold: null,
     aiMode: "valid",
     aiMetadata: null,
     authUsers: new Map(),
@@ -149,13 +155,103 @@ export async function fixtureDatabase() {
         return Response.json({
           data: [
             {
+              id: "fixture/executive:free",
+              pricing: { prompt: "0", completion: "0", request: "0" },
+            },
+            {
               id: "fixture/classifier:free",
               pricing: { prompt: "0", completion: "0", request: "0" },
             },
           ],
         });
-      control.aiCalls++;
       const input = JSON.parse(options.body);
+      if (input.messages[0].content.includes("executive reasoning planner")) {
+        control.askCalls++;
+        const payload = JSON.parse(input.messages[1].content);
+        control.askPayloads.push({
+          payload,
+          provider: input.provider,
+          model: input.model,
+        });
+        if (control.askHold) await control.askHold;
+        if (control.askMode === "quota")
+          return Response.json(
+            { error: "private provider diagnostic" },
+            { status: 429 },
+          );
+        if (control.askMode === "failure")
+          return Response.json(
+            { error: "private provider diagnostic" },
+            { status: 503 },
+          );
+        let answer;
+        if (control.askReply) answer = control.askReply(payload);
+        else if (control.askMode === "invalid")
+          answer = {
+            facts: ["F9999"],
+            reasoning: [],
+            clarification: "none",
+            text: "Fabricated revenue 999999",
+          };
+        else if (
+          payload.mode === "catalogue" ||
+          (control.askMode === "select" && payload.previousFacts === undefined)
+        )
+          answer = {
+            select: (payload.catalogue || payload.facts)
+              .slice(0, 3)
+              .map((f) => f.id),
+          };
+        else {
+          const fs = payload.facts;
+          const finance = fs.filter(
+            (f) =>
+              f.kind === "metric" &&
+              /^finance\.(revenue|expenses|profit|margin)$/.test(f.metricId),
+          );
+          const goals = fs.filter((f) => f.kind === "goal"),
+            deps = fs.filter((f) =>
+              ["dependency", "relationship"].includes(f.kind),
+            );
+          answer = {
+            facts: fs.slice(0, 4).map((f) => f.id),
+            reasoning:
+              finance.length > 1
+                ? [
+                    {
+                      type: "financial_bridge",
+                      facts: finance.map((f) => f.id),
+                    },
+                  ]
+                : goals.length
+                  ? [
+                      {
+                        type: "goal_progress",
+                        facts: goals.slice(0, 2).map((f) => f.id),
+                      },
+                    ]
+                  : deps.length
+                    ? [
+                        {
+                          type: "shared_dependency",
+                          facts: deps.slice(0, 2).map((f) => f.id),
+                        },
+                      ]
+                    : [],
+            clarification: /forecast|predict/i.test(payload.question)
+              ? "forecast_not_supported"
+              : /why|cause/i.test(payload.question)
+                ? "cause_not_established"
+                : "none",
+          };
+        }
+        return Response.json({
+          model: input.model,
+          usage: { prompt_tokens: 300, completion_tokens: 100 },
+          choices: [{ message: { content: JSON.stringify(answer) } }],
+        });
+      }
+      control.aiCalls++;
       control.aiMetadata = JSON.parse(input.messages[1].content);
       if (control.aiMode === "quota")
         return Response.json({ error: "quota" }, { status: 429 });
