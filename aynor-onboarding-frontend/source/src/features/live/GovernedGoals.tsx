@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import type { Company } from "../../lib/api";
+import type { Company, Goal } from "../../lib/api";
 import { Button, ErrorBox, Field, Modal } from "../../components/ui";
 import { serverRequest } from "../../lib/runtime";
 import { Panel, Blank, Status } from "../intelligence/shared";
@@ -24,6 +24,7 @@ const definitionKeys = [
   "id",
   "version",
   "title",
+  "description",
   "level",
   "department",
   "scope",
@@ -58,6 +59,7 @@ export function GovernedGoals({ company }: { company: Company }) {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [refresh, setRefresh] = useState(0);
+  const [onboardingDraft, setOnboardingDraft] = useState<Goal | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null),
     [saving, setSaving] = useState(false),
     [writeError, setWriteError] = useState(""),
@@ -71,9 +73,11 @@ export function GovernedGoals({ company }: { company: Company }) {
     : "";
   const view = stored?.key === key ? stored.view : null,
     goal = view?.items.find((g) => g.id === id),
+    onboardingGoal = view?.onboarding?.find((g) => g.id === id),
     admin = m.report?.authorization.canManageSources || false;
   useEffect(() => {
     setDraft(null);
+    setOnboardingDraft(null);
     setWriteError("");
     setSuccess("");
   }, [company.id, id]);
@@ -137,6 +141,27 @@ export function GovernedGoals({ company }: { company: Company }) {
       setSaving(false);
     }
   }
+  async function saveOnboarding() {
+    if (!onboardingDraft || !view || saving) return;
+    setSaving(true);
+    setWriteError("");
+    try {
+      await serverRequest(api + "/onboarding", "POST", {
+        ...onboardingDraft,
+        companyVersion: view.companyVersion,
+      });
+      setOnboardingDraft(null);
+      setSuccess(
+        "Goal definition saved. Metric confirmation is still required before calculating progress.",
+      );
+      m.retry();
+      setRefresh((v) => v + 1);
+    } catch (e) {
+      setWriteError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
   function start() {
     setWriteError("");
     setDraft({
@@ -159,6 +184,32 @@ export function GovernedGoals({ company }: { company: Company }) {
       lifecycle: "Active",
     });
   }
+  function confirmOnboarding(g: Goal) {
+    start();
+    setDraft((d) =>
+      d
+        ? {
+            ...d,
+            id: g.id,
+            title: g.name,
+            description: g.description || "",
+            owner: g.owner,
+            deadline: g.deadline,
+            target: /^-?(?:\d+(?:\.\d+)?|\.\d+)$/.test(g.target.trim())
+              ? g.target.trim()
+              : "",
+          }
+        : d,
+    );
+  }
+  const pendingGoals = (view?.onboarding || []).filter(
+    (g) =>
+      (!m.query.get("status") || m.query.get("status") === "All") &&
+      (!m.query.get("q") ||
+        `${g.name} ${g.owner} ${g.kpi}`
+          .toLowerCase()
+          .includes(m.query.get("q")!.toLowerCase())),
+  );
   const filtered = (view?.items || []).filter(
     (g) =>
       (!m.query.get("status") ||
@@ -171,7 +222,7 @@ export function GovernedGoals({ company }: { company: Company }) {
   );
   return (
     <GovernedModule
-      title={goal?.title || "Goals"}
+      title={goal?.title || onboardingGoal?.name || "Goals"}
       description="Targets and validated business performance."
       module={m}
       back={id ? m.back || m.link(root) : undefined}
@@ -251,6 +302,23 @@ export function GovernedGoals({ company }: { company: Company }) {
               <p>
                 {scopeName(goal.scope)} · {displayPeriod(goal.period)}
               </p>
+              {goal.description && <p>{goal.description}</p>}
+              {goal.onboardingDefinition && (
+                <details>
+                  <summary>Original onboarding definition</summary>
+                  <p>Target as entered: {goal.onboardingDefinition.target}</p>
+                  <p>
+                    Measure as entered:{" "}
+                    {goal.onboardingDefinition.kpi || "Not specified"}
+                  </p>
+                  <p>{goal.onboardingDefinition.description}</p>
+                  <p>
+                    Owner as entered:{" "}
+                    {goal.onboardingDefinition.owner || "Not specified"} ·
+                    Deadline: {goal.onboardingDefinition.deadline}
+                  </p>
+                </details>
+              )}
               {goal.currency && <p>Currency context: {goal.currency}</p>}
               <p>
                 Deadline: {goal.deadline}
@@ -340,6 +408,40 @@ export function GovernedGoals({ company }: { company: Company }) {
               </Panel>
             )}
           </>
+        ) : onboardingGoal ? (
+          <Panel title="Goal definition — metric confirmation needed">
+            <p>Target as entered: {onboardingGoal.target}</p>
+            {onboardingGoal.description && <p>{onboardingGoal.description}</p>}
+            {onboardingGoal.kpi && (
+              <p>Measure as entered: {onboardingGoal.kpi}</p>
+            )}
+            <p>Deadline: {onboardingGoal.deadline}</p>
+            {onboardingGoal.owner && (
+              <p>Owner (administrator assigned): {onboardingGoal.owner}</p>
+            )}
+            <p>
+              This saved onboarding goal has no confirmed metric, unit or
+              reporting period. Actual performance and progress are not
+              calculated.
+            </p>
+            <ErrorBox>{!onboardingDraft && !draft ? writeError : ""}</ErrorBox>
+            <div className="intel-footer-actions">
+              <Button
+                onClick={() => {
+                  setWriteError("");
+                  setOnboardingDraft({ ...onboardingGoal });
+                }}
+              >
+                Edit goal definition
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => confirmOnboarding(onboardingGoal)}
+              >
+                Confirm goal metric
+              </Button>
+            </div>
+          </Panel>
         ) : !pending && !error ? (
           <Blank
             title="Goal unavailable"
@@ -386,7 +488,25 @@ export function GovernedGoals({ company }: { company: Company }) {
                 <Status>{g.assessment}</Status>
               </Link>
             ))}
-            {!filtered.length && !pending && !error && (
+            {pendingGoals.map((g) => (
+              <Link
+                className="intel-row"
+                key={g.id}
+                to={m.link(root + "/" + g.id, m.origin)}
+              >
+                <span>
+                  {g.name}
+                  <small>
+                    Target as entered: {g.target} · Due {g.deadline}
+                  </small>
+                  {g.owner && (
+                    <small>Owner (administrator assigned): {g.owner}</small>
+                  )}
+                </span>
+                <Status>Metric confirmation needed</Status>
+              </Link>
+            ))}
+            {!filtered.length && !pendingGoals.length && !pending && !error && (
               <Blank
                 title={
                   view?.items.length
@@ -403,6 +523,83 @@ export function GovernedGoals({ company }: { company: Company }) {
           </Panel>
         </>
       )}
+      {onboardingDraft && (
+        <Modal
+          title="Edit onboarding goal definition"
+          onClose={() => {
+            if (!saving) setOnboardingDraft(null);
+          }}
+        >
+          <ErrorBox>{writeError}</ErrorBox>
+          <Field
+            label="Goal name"
+            value={onboardingDraft.name}
+            disabled={saving}
+            onChange={(e) =>
+              setOnboardingDraft({ ...onboardingDraft, name: e.target.value })
+            }
+          />
+          <Field
+            label="Target as entered"
+            value={onboardingDraft.target}
+            disabled={saving}
+            onChange={(e) =>
+              setOnboardingDraft({ ...onboardingDraft, target: e.target.value })
+            }
+          />
+          <Field
+            label="Measure as entered (optional)"
+            value={onboardingDraft.kpi}
+            disabled={saving}
+            onChange={(e) =>
+              setOnboardingDraft({ ...onboardingDraft, kpi: e.target.value })
+            }
+          />
+          <Field
+            label="Goal description (optional)"
+            value={onboardingDraft.description || ""}
+            disabled={saving}
+            onChange={(e) =>
+              setOnboardingDraft({
+                ...onboardingDraft,
+                description: e.target.value,
+              })
+            }
+          />
+          <Field
+            label="Goal owner (optional)"
+            value={onboardingDraft.owner}
+            disabled={saving}
+            onChange={(e) =>
+              setOnboardingDraft({ ...onboardingDraft, owner: e.target.value })
+            }
+          />
+          <Field
+            label="Goal deadline"
+            type="date"
+            value={onboardingDraft.deadline}
+            disabled={saving}
+            onChange={(e) =>
+              setOnboardingDraft({
+                ...onboardingDraft,
+                deadline: e.target.value,
+              })
+            }
+          />
+          <div className="modal-actions">
+            <Button
+              variant="secondary"
+              disabled={saving}
+              onClick={() => setOnboardingDraft(null)}
+            >
+              Cancel
+            </Button>
+            <Button busy={saving} onClick={() => void saveOnboarding()}>
+              Save goal definition
+            </Button>
+          </div>
+        </Modal>
+      )}
       {draft && (
         <Modal
           title={draft.version ? "Edit governed goal" : "Create governed goal"}
@@ -417,6 +614,24 @@ export function GovernedGoals({ company }: { company: Company }) {
             disabled={saving}
             onChange={(e) => setDraft({ ...draft, title: e.target.value })}
           />
+          <Field
+            label="Goal description (optional)"
+            value={draft.description || ""}
+            disabled={saving}
+            onChange={(e) =>
+              setDraft({ ...draft, description: e.target.value })
+            }
+          />
+          {onboardingGoal && (
+            <p>
+              Original target: {onboardingGoal.target}
+              {onboardingGoal.kpi
+                ? ` · Measure as entered: ${onboardingGoal.kpi}`
+                : ""}
+              . Confirm the numeric target, direction, unit and period
+              explicitly. The original definition is retained.
+            </p>
+          )}
           <label className="field">
             <span>Goal level</span>
             <select

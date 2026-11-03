@@ -1,4 +1,8 @@
 import {
+  onboardingGoals,
+  onboardingGoalEditSchema,
+} from "./onboarding-goal.mjs";
+import {
   goalInputSchema,
   storedGoalsSchema,
   goalFields,
@@ -177,6 +181,12 @@ export function projectGoals(state, now = () => Date.now()) {
     datasetRevision: report.datasetRevision,
     context: report.context,
     items,
+    onboarding:
+      policy.admin && !report.context.scope && !report.context.department
+        ? onboardingGoals(state).filter(
+            (g) => !records(state).some((x) => x.id === g.id),
+          )
+        : [],
   };
 }
 export function createGoalService({
@@ -193,6 +203,47 @@ export function createGoalService({
         (state) => projectGoals(state, now),
       );
     },
+    async editOnboarding(company, actor, body) {
+      const parsed = onboardingGoalEditSchema.safeParse(body);
+      if (!parsed.success) fail(400, "Review the onboarding goal fields.");
+      const { companyVersion, ...goal } = parsed.data;
+      if (!goal.name.trim() || !goal.target.trim())
+        fail(400, "Add a goal name and target.");
+      return intelligence.withAuthorizedState(
+        company,
+        actor,
+        {},
+        async (state) => {
+          if (!state.policy.admin)
+            fail(403, "An Owner or Admin manages goals.");
+          if (records(state).some((g) => g.id === goal.id))
+            fail(
+              409,
+              "This goal already has a confirmed metric. Edit it in Goals.",
+            );
+          if (!onboardingGoals(state).some((g) => g.id === goal.id))
+            fail(404, "Onboarding goal unavailable.");
+          if (companyVersion !== state.companyVersion)
+            fail(
+              409,
+              "Goal or company configuration changed. Refresh before saving.",
+            );
+          await db.rpc("company_update", {
+            p_actor: actor,
+            p_company: company,
+            p_version: companyVersion,
+            p_payload: {
+              ...state.companyData,
+              goals: state.companyData.goals.map((g) =>
+                g.id === goal.id ? goal : g,
+              ),
+            },
+            p_profile: false,
+          });
+          return { id: goal.id, companyVersion: companyVersion + 1 };
+        },
+      );
+    },
     async save(company, actor, body) {
       const parsed = goalInputSchema.safeParse(body);
       if (!parsed.success)
@@ -206,7 +257,8 @@ export function createGoalService({
           const { policy, report } = state;
           if (!policy.admin) fail(403, "An Owner or Admin manages goals.");
           const all = records(state),
-            existing = all.find((g) => g.id === input.id);
+            existing = all.find((g) => g.id === input.id),
+            onboarding = onboardingGoals(state).find((g) => g.id === input.id);
           const statusOnly =
             existing &&
             input.lifecycle !== existing.lifecycle &&
@@ -275,10 +327,19 @@ export function createGoalService({
             protection: statusOnly ? existing.protection : entry.protection,
             createdAt: existing?.createdAt || now(),
             updatedAt: now(),
+            ...(existing?.onboardingDefinition || onboarding
+              ? {
+                  onboardingDefinition:
+                    existing?.onboardingDefinition || onboarding,
+                }
+              : {}),
           };
           const data = {
             ...state.companyData,
             governedGoals: [...all.filter((g) => g.id !== input.id), saved],
+            goals: (state.companyData.goals || []).filter(
+              (g) => g.id !== input.id,
+            ),
           };
           await db.rpc("company_update", {
             p_actor: actor,

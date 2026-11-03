@@ -405,9 +405,16 @@ export function createServerlessSheets({
         fail(405, "Assistant operation unavailable.");
       }
       const goalRoute = path.match(
-        /^\/companies\/([a-f0-9-]{36})\/intelligence\/goals$/i,
+        /^\/companies\/([a-f0-9-]{36})\/intelligence\/goals(?:\/(onboarding))?$/i,
       );
       if (goalRoute) {
+        if (goalRoute[2]) {
+          if (method === "POST")
+            return send(
+              await goals.editOnboarding(goalRoute[1], user.id, body),
+            );
+          fail(405, "Goal operation unavailable.");
+        }
         if (method === "GET")
           return send(
             await goals.list(goalRoute[1], user.id, url.searchParams),

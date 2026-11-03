@@ -1,3 +1,4 @@
+import { onboardingGoalSchema } from "./onboarding-goal.mjs";
 import { askPolicyStored } from "./ask-contracts.mjs";
 import { storedGoalsSchema } from "./goal-definition.mjs";
 import { relationshipContractsSchema } from "./relationship-intelligence.mjs";
@@ -43,18 +44,12 @@ export const workspaceSchema = z.object({
     )
     .max(100),
   goals: z
-    .array(
-      z.object({
-        id: z.string().uuid(),
-        description: z.string().max(2000).optional(),
-        name: z.string().min(1).max(150),
-        kpi: z.string().max(100),
-        target: z.string().max(50),
-        deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        owner: z.string().max(100),
-      }),
-    )
-    .max(100),
+    .array(onboardingGoalSchema)
+    .max(100)
+    .refine(
+      (v) => new Set(v.map((g) => g.id)).size === v.length,
+      "Goal IDs must be unique.",
+    ),
   steps: z.record(
     z.string().max(30),
     z.enum([

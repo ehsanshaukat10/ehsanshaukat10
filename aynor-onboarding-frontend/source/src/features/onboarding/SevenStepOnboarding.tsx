@@ -143,6 +143,25 @@ export function SevenStepOnboarding({
     [editing, setEditing] = useState<number | null>(null);
   const { source: liveSource } = useSheetStatus(company.id, serverMode);
   const [mappingPage, setMappingPage] = useState(0);
+  const confirmedGoals = (data.governedGoals || []) as {
+    id: string;
+    title: string;
+    target: number;
+    owner: string;
+    deadline: string;
+    description?: string;
+  }[];
+  const reviewGoals = [
+    ...data.goals.filter((g) => !confirmedGoals.some((v) => v.id === g.id)),
+    ...confirmedGoals.map((g) => ({
+      id: g.id,
+      name: g.title,
+      target: String(g.target),
+      owner: g.owner,
+      deadline: g.deadline,
+      description: g.description,
+    })),
+  ];
   const dirty = JSON.stringify(data) !== JSON.stringify(company.data);
   const returnKind = new URLSearchParams(location.search).get("return");
   const returnBase =
@@ -415,7 +434,11 @@ export function SevenStepOnboarding({
       );
     }
   }
-  function saveGoal(e: React.FormEvent) {
+  async function saveGoal(e: React.FormEvent) {
+    if (busy || working) {
+      e.preventDefault();
+      return;
+    }
     e.preventDefault();
     if (!goal.name.trim() || !goal.target.trim() || !goal.deadline) {
       setError("Add a goal name, target and deadline.");
@@ -426,12 +449,22 @@ export function SevenStepOnboarding({
       name: goal.name.trim(),
       id: editing === null ? crypto.randomUUID() : data.goals[editing].id,
     };
-    update(
-      "goals",
-      editing === null
-        ? [...data.goals, next]
-        : data.goals.map((g, i) => (i === editing ? next : g)),
-    );
+    const nextData = {
+      ...data,
+      goals:
+        editing === null
+          ? [...data.goals, next]
+          : data.goals.map((g, i) => (i === editing ? next : g)),
+    };
+    if (serverMode) {
+      setWorking(true);
+      try {
+        if (!(await save(nextData))) return;
+      } finally {
+        setWorking(false);
+      }
+    }
+    setData(nextData);
     setGoal(freshGoal);
     setEditing(null);
     setError("");
@@ -844,46 +877,67 @@ export function SevenStepOnboarding({
       {step === "goals" && (
         <>
           <div className="seven-goals-list">
-            {data.goals.map((g, i) => (
+            {data.goals.map(
+              (g, i) =>
+                !confirmedGoals.some((v) => v.id === g.id) && (
+                  <article key={g.id}>
+                    <Target size={23} />
+                    <div>
+                      <h3>{g.name}</h3>
+                      {g.description && (
+                        <p className="goal-description-copy">{g.description}</p>
+                      )}
+                      <p>
+                        Target: {g.target} · Due {g.deadline}
+                      </p>
+                      {g.owner && <small>Owner: {g.owner}</small>}
+                    </div>
+                    <button
+                      className="icon-button"
+                      aria-label={`Edit goal ${g.name}`}
+                      onClick={() => {
+                        setGoal({ ...g, description: g.description || "" });
+                        setEditing(i);
+                        document
+                          .getElementById("inline-goal")
+                          ?.scrollIntoView({
+                            block: "center",
+                            behavior: "smooth",
+                          });
+                      }}
+                    >
+                      <Pencil size={17} />
+                    </button>
+                    <button
+                      className="icon-button"
+                      aria-label={`Remove goal ${g.name}`}
+                      onClick={() => {
+                        update(
+                          "goals",
+                          data.goals.filter((_, j) => j !== i),
+                        );
+                        setGoal(freshGoal);
+                        setEditing(null);
+                      }}
+                    >
+                      <Trash2 size={17} />
+                    </button>
+                  </article>
+                ),
+            )}
+            {confirmedGoals.map((g) => (
               <article key={g.id}>
                 <Target size={23} />
                 <div>
-                  <h3>{g.name}</h3>
-                  {g.description && (
-                    <p className="goal-description-copy">{g.description}</p>
-                  )}
+                  <h3>{g.title}</h3>
                   <p>
                     Target: {g.target} · Due {g.deadline}
                   </p>
                   {g.owner && <small>Owner: {g.owner}</small>}
+                  <Link to={`/companies/${company.id}/goals/${g.id}`}>
+                    Review or edit in Goals
+                  </Link>
                 </div>
-                <button
-                  className="icon-button"
-                  aria-label={`Edit goal ${g.name}`}
-                  onClick={() => {
-                    setGoal({ ...g, description: g.description || "" });
-                    setEditing(i);
-                    document
-                      .getElementById("inline-goal")
-                      ?.scrollIntoView({ block: "center", behavior: "smooth" });
-                  }}
-                >
-                  <Pencil size={17} />
-                </button>
-                <button
-                  className="icon-button"
-                  aria-label={`Remove goal ${g.name}`}
-                  onClick={() => {
-                    update(
-                      "goals",
-                      data.goals.filter((_, j) => j !== i),
-                    );
-                    setGoal(freshGoal);
-                    setEditing(null);
-                  }}
-                >
-                  <Trash2 size={17} />
-                </button>
               </article>
             ))}
           </div>
@@ -952,7 +1006,12 @@ export function SevenStepOnboarding({
               >
                 Clear form
               </button>
-              <Button type="submit" variant="secondary">
+              <Button
+                type="submit"
+                variant="secondary"
+                busy={working}
+                disabled={busy || working}
+              >
                 <Check size={16} />
                 {editing === null ? "Save goal" : "Update goal"}
               </Button>
@@ -983,7 +1042,7 @@ export function SevenStepOnboarding({
                     : data.sources.length,
                   "Sources",
                 ],
-                [data.goals.length, "Goals"],
+                [reviewGoals.length, "Goals"],
               ].map(([n, l]) => (
                 <div key={String(l)}>
                   <strong>{n}</strong>
@@ -1108,10 +1167,10 @@ export function SevenStepOnboarding({
               s: "goals",
               icon: CheckCircle2,
               title: "Business goals",
-              subtitle: data.goals[0]?.name || "Room for your next ambition",
-              body: data.goals.length ? (
+              subtitle: reviewGoals[0]?.name || "Room for your next ambition",
+              body: reviewGoals.length ? (
                 <ul className="seven-review-goals">
-                  {data.goals.map((g) => (
+                  {reviewGoals.map((g) => (
                     <li key={g.id}>
                       <strong>{g.name}</strong>
                       {g.description && <p>{g.description}</p>}

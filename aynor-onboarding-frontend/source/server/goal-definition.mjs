@@ -1,3 +1,4 @@
+import { onboardingGoalSchema } from "./onboarding-goal.mjs";
 import { z } from "zod";
 const date = z
   .string()
@@ -21,6 +22,7 @@ export const goalPeriod = z.discriminatedUnion("kind", [
 const fields = {
   id: z.string().uuid(),
   title: z.string().trim().min(1).max(150),
+  description: z.string().max(2000).default(""),
   level: z.enum(["company", "department"]),
   department: z.string().max(80).default(""),
   scope: z.string().min(1).max(160),
@@ -112,6 +114,7 @@ export const storedGoalSchema = z
       .strict(),
     createdAt: z.number(),
     updatedAt: z.number(),
+    onboardingDefinition: onboardingGoalSchema.optional(),
   })
   .strict()
   .superRefine(validDefinition);

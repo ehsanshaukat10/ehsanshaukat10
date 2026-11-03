@@ -1,8 +1,10 @@
+import type { Goal } from "../../lib/api";
 import type { SemanticPeriod } from "./semantic-types";
 export type GoalDefinition = {
   id: string;
   version: number;
   title: string;
+  description?: string;
   level: "company" | "department";
   department: string;
   scope: string;
@@ -19,6 +21,7 @@ export type GoalDefinition = {
   lifecycle: "Active" | "Paused" | "Archived";
 };
 export type GovernedGoal = GoalDefinition & {
+  onboardingDefinition?: Goal;
   actual: number | null;
   available: boolean;
   assessment: string;
@@ -42,4 +45,5 @@ export type GoalView = {
   authorization: { fingerprint: string };
   context: { key: string };
   items: GovernedGoal[];
+  onboarding?: Goal[];
 };
