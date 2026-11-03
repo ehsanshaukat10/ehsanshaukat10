@@ -689,7 +689,7 @@ export function createApplication({
         const [, id, resource, item] = route;
         if (!resource && method === "GET") return send(await view(id, user.id));
         if ((!resource || resource === "profile") && method === "PATCH") {
-          await member(id, user.id, true);
+          const membership = await member(id, user.id, true);
           if (!Number.isInteger(body.version) || body.version < 1)
             fail(400, "Workspace version required.");
           let payload;
@@ -698,6 +698,24 @@ export function createApplication({
             const parsed = workspaceSchema.safeParse(body.data);
             if (!parsed.success) fail(400, "Invalid workspace configuration.");
             payload = parsed.data;
+            // Old setup clients must not drop already-governed goal records.
+            if (
+              payload.governedGoals === undefined &&
+              membership.company.data.governedGoals
+            )
+              payload.governedGoals = membership.company.data.governedGoals;
+            if (
+              membership.company.data.departments.some(
+                (d) => !payload.departments.includes(d),
+              ) &&
+              !(await db.one("schema_versions", {
+                version: "eq.202611030001_workflow_integrity",
+              }))
+            )
+              fail(
+                503,
+                "Department removal is protected until the approved workflow-integrity database update is applied.",
+              );
             if (payload.demo || payload.sources.length)
               fail(
                 400,

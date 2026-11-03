@@ -99,6 +99,12 @@ type Source = {
   };
 };
 type Catalog = {
+  invalidDepartments?: {
+    sourceId: string;
+    tabId: number;
+    title: string;
+    department: string;
+  }[];
   sources: Source[];
   account: { email: string | null; connected: boolean } | null;
   googleSetup: GoogleSetup;
@@ -755,7 +761,13 @@ export function SourceWorkspace({
           )}
         </div>
       )}
-      <ErrorBox>{error || catalog?.error}</ErrorBox>
+      <ErrorBox>
+        {error ||
+          catalog?.error ||
+          (catalog?.invalidDepartments?.length
+            ? "Some worksheets refer to removed departments. Reassign their departments below; saved source data is retained."
+            : "")}
+      </ErrorBox>
       {message && (
         <p className="source-notice" role="status">
           <CheckCircle2 size={16} />
@@ -1851,7 +1863,13 @@ export function SourceWorkspace({
           title="Review a mapping choice"
           onClose={() => setQuestion(null)}
         >
-          <ErrorBox>{error || catalog?.error}</ErrorBox>
+          <ErrorBox>
+            {error ||
+              catalog?.error ||
+              (catalog?.invalidDepartments?.length
+                ? "Some worksheets refer to removed departments. Reassign their departments below; saved source data is retained."
+                : "")}
+          </ErrorBox>
           <p className="source-muted">
             {sources.find((s) => s.id === question.sourceId)?.title} /{" "}
             {

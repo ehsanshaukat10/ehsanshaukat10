@@ -11,6 +11,7 @@ export async function fixtureDatabase() {
     "202611010001_intelligence_read.sql",
     "202611010002_governed_actions.sql",
     "202611020001_ask_runtime.sql",
+    "202611030001_workflow_integrity.sql",
   ])
     await pg.exec(
       readFileSync(

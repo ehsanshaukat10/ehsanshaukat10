@@ -229,6 +229,14 @@ export function createSourceCatalog({
         skipped: !!tab.skipped,
         rowCount: tab.table?.rowCount || tab.financial?.rowCount || 0,
         config: tab.config || null,
+        mappedFieldCount: tab.config
+          ? (tab.table?.headers?.length ??
+            new Set(
+              ["date", "revenue", "expenses"]
+                .map((k) => tab.config.legacyMapping?.[k])
+                .filter(Boolean),
+            ).size)
+          : 0,
         error: tab.error || null,
         lastSuccess: tab.lastSuccess || null,
         changes: tab.changes || null,
@@ -257,7 +265,19 @@ export function createSourceCatalog({
   }
   async function list(company, actor) {
     const state = await read(company, actor);
+    const allowed =
+      (await member(company, actor, true)).company.data.departments || [];
     return {
+      invalidDepartments: state.catalog.sources
+        .flatMap((source) =>
+          source.tabs.map((tab) => ({
+            sourceId: source.id,
+            tabId: tab.tabId,
+            title: tab.title,
+            department: tab.department ?? source.department ?? "",
+          })),
+        )
+        .filter((tab) => tab.department && !allowed.includes(tab.department)),
       sources: state.catalog.sources.map(summary),
       account: await account(company),
       revision: state.connection?.revision || 0,
