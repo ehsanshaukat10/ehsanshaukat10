@@ -70,7 +70,6 @@ export function SemanticReview({
     [end, setEnd] = useState(""),
     [asOf, setAsOf] = useState(dateInTimezone(timezone)),
     [statusGroups, setStatusGroups] = useState<Record<string, string>>({}),
-    [confirmed, setConfirmed] = useState(false),
     [included, setIncluded] = useState(true),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -122,7 +121,7 @@ export function SemanticReview({
               ? "reporting_date"
               : "identifier"),
         );
-        setCurrency(c?.currency || "");
+        setCurrency(c?.currency || p.currency || "");
         if (c?.period.kind === "interval") {
           setStart(c.period.start);
           setEnd(c.period.endExclusive);
@@ -224,7 +223,6 @@ export function SemanticReview({
               " ",
             ),
         );
-        setConfirmed(false);
       } else onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -276,7 +274,6 @@ export function SemanticReview({
                       "Business reporting",
                   );
                 setKind(e.target.value);
-                setConfirmed(false);
               }}
             >
               {kinds.map(([id, name]) => (
@@ -292,7 +289,6 @@ export function SemanticReview({
               disabled={busy}
               onChange={(e) => {
                 setLabel(e.target.value);
-                setConfirmed(false);
               }}
             />
             {!["reference", "other"].includes(purpose) && (
@@ -304,7 +300,6 @@ export function SemanticReview({
                     disabled={busy}
                     onChange={(e) => {
                       setIdentity(e.target.value);
-                      setConfirmed(false);
                     }}
                   >
                     <option value="identifier">A unique record ID</option>
@@ -332,7 +327,6 @@ export function SemanticReview({
                           disabled={busy}
                           onChange={(e) => {
                             setFields({ ...fields, [field]: e.target.value });
-                            setConfirmed(false);
                           }}
                         >
                           <option value="">Not available</option>
@@ -366,7 +360,6 @@ export function SemanticReview({
                     disabled={busy}
                     onChange={(e) => {
                       setCurrency(e.target.value.toUpperCase());
-                      setConfirmed(false);
                     }}
                     hint="Confirm the currency used by these amounts. Different currencies are not combined."
                   />
@@ -379,7 +372,6 @@ export function SemanticReview({
                     disabled={busy}
                     onChange={(e) => {
                       setAsOf(e.target.value);
-                      setConfirmed(false);
                     }}
                   />
                 ) : (
@@ -391,7 +383,6 @@ export function SemanticReview({
                       disabled={busy}
                       onChange={(e) => {
                         setStart(e.target.value);
-                        setConfirmed(false);
                       }}
                     />
                     <Field
@@ -416,7 +407,6 @@ export function SemanticReview({
                                 .slice(0, 10)
                             : "",
                         );
-                        setConfirmed(false);
                       }}
                     />
                   </div>
@@ -435,7 +425,6 @@ export function SemanticReview({
                               ...statusGroups,
                               [value]: e.target.value,
                             });
-                            setConfirmed(false);
                           }}
                         >
                           <option value="">Choose a meaning</option>
@@ -458,32 +447,20 @@ export function SemanticReview({
                   disabled={busy}
                   onChange={(event) => {
                     setIncluded(event.target.checked);
-                    setConfirmed(false);
                   }}
                 />
                 <span>Include validated measures in Overview</span>
               </label>
             )}
-            <label className="auto-ai-consent">
-              <input
-                type="checkbox"
-                checked={confirmed}
-                disabled={busy}
-                onChange={(e) => setConfirmed(e.target.checked)}
-              />
-              <span>
-                {["reference", "other"].includes(purpose)
-                  ? "Keep this worksheet for reference, outside executive calculations."
-                  : "These field meanings, units and reporting dates match my data."}
-              </span>
-            </label>
             <div className="intel-inline-links">
               <Button
                 busy={busy}
-                disabled={!confirmed || !label.trim() || busy}
+                disabled={!label.trim() || busy}
                 onClick={() => void save()}
               >
-                Confirm business meanings
+                {["reference", "other"].includes(purpose)
+                  ? "Keep outside Overview"
+                  : "Confirm and use in Overview"}
               </Button>
               <Button variant="text" disabled={busy} onClick={onClose}>
                 Cancel

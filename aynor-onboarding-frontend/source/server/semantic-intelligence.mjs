@@ -153,7 +153,7 @@ function dataVersion(table) {
 export function schemaOf(table) {
   return JSON.stringify([table.headers || [], table.types || []]);
 }
-export function proposeSemantics(table, settings = {}) {
+export function proposeSemantics(table, settings = {}, hints = {}) {
   const fields = {},
     ambiguous = [];
   for (const [field, names] of Object.entries(aliases)) {
@@ -173,6 +173,16 @@ export function proposeSemantics(table, settings = {}) {
     if (matches.length === 1) fields[field] = matches[0];
     else if (matches.length > 1) ambiguous.push(field);
   }
+  // Reuse explicit column mapping instead of asking the user to map the same
+  // business fields twice. These hints can propose, but never confirm, meaning.
+  const mapped = { date: "date", money_in: "revenue", money_out: "expense" };
+  for (const [property, field] of Object.entries(mapped)) {
+    const indexes = (hints.properties || [])
+      .map((value, index) => (value === property ? index : -1))
+      .filter((index) => index >= 0 && index < table.headers.length);
+    if (indexes.length === 1 && !fields[field])
+      fields[field] = table.headers[indexes[0]];
+  }
   // Purpose requires a field signature and populated values, never the sheet name.
   const candidates = Object.entries(signatures)
     .filter(([, patterns]) =>
@@ -190,8 +200,12 @@ export function proposeSemantics(table, settings = {}) {
         v,
       ),
   ).length;
+  const instructionalTitle =
+    /^(start here|read me|instructions?|getting started|setup guide)$/i.test(
+      String(hints.title || "").trim(),
+    );
   const purpose =
-    referenceEvidence >= 2
+    instructionalTitle || referenceEvidence >= 2
       ? "reference"
       : values.length && candidates.length === 1
         ? candidates[0]
@@ -206,7 +220,9 @@ export function proposeSemantics(table, settings = {}) {
       ambiguousFields: ambiguous,
       candidates,
       referenceEvidence,
+      instructionalTitle,
     },
+    currency: table.currency || null,
     requiresConfirmation: true,
   };
 }
@@ -533,7 +549,10 @@ export function evaluateSemantics({
   for (const { source, tab, semantic: s } of all) {
     const table = tab.table,
       scope = `${source.id}:${tab.tabId}`;
-    const proposal = proposeSemantics(table, settings);
+    const proposal = proposeSemantics(table, settings, {
+      title: tab.title,
+      properties: tab.config?.properties,
+    });
     const confirmed =
       s?.version === SEMANTIC_VERSION && s.schema === schemaOf(table);
     worksheets.push({

@@ -40,7 +40,11 @@ export type SemanticWorksheet = {
   sourceId: string;
   tabId: number;
   department: string | null;
-  proposal: { purpose: string; fields: Record<string, string> };
+  proposal: {
+    purpose: string;
+    fields: Record<string, string>;
+    currency?: string | null;
+  };
   availableFields: { name: string; type: string; values: string[] }[];
   dateRange: { start: string; endExclusive: string } | null;
   confirmation: SemanticMapping | null;

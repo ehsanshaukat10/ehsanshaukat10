@@ -105,6 +105,28 @@ test("company terminology proposes fields without automatically confirming them"
     validateSemanticSettings({ fieldAliases: { profit: ["Made up"] } }),
   );
 });
+test("saved column mappings prefill semantic review and instruction tabs stay outside KPIs", () => {
+  const t = finance();
+  t.currency = "USD";
+  const proposal = proposeSemantics(
+    t,
+    {},
+    {
+      title: "01 Cash ledger",
+      properties: ["text", "date", "money_in", "money_out"],
+    },
+  );
+  assert.equal(proposal.purpose, "finance");
+  assert.equal(proposal.fields.date, "Booked");
+  assert.equal(proposal.fields.revenue, "Turnover");
+  assert.equal(proposal.fields.expense, "Spend");
+  assert.equal(proposal.currency, "USD");
+  assert.equal(
+    proposeSemantics(t, {}, { title: "START HERE" }).purpose,
+    "reference",
+  );
+  assert.equal(proposal.requiresConfirmation, true);
+});
 test("confirmed finance has exact monetary results, period, source lineage and no company default currency", () => {
   const out = run(finance(), financialMeaning);
   assert.equal(metric(out, "finance.revenue").value, 300.3);
