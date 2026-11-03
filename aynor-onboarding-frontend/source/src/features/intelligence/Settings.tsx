@@ -1,7 +1,7 @@
 import { moduleReturn } from "../live/dashboard-navigation";
-import { serverMode } from "../../lib/runtime";
+import { serverMode, serverRequest } from "../../lib/runtime";
 import { SheetsConnection } from "../live/SheetsConnection";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import { ArrowUpRight, Check, RefreshCw } from "lucide-react";
 import { Button, ErrorBox, Field, Modal, Select } from "../../components/ui";
@@ -75,42 +75,7 @@ export function Settings(props: ModuleProps) {
       ) : panel === "profile" ? (
         <Profile {...props} />
       ) : panel === "departments" ? (
-        <Panel title="Configured departments">
-          {props.company.data.departments.length ? (
-            props.company.data.departments.map((d) => (
-              <div className="intel-row" key={d}>
-                <span>{d}</span>
-                <small>
-                  {
-                    props.company.data.mappings.filter(
-                      (m) => m.department === d && !m.ignored,
-                    ).length
-                  }{" "}
-                  mapped fields
-                </small>
-                <Link
-                  to={e.link(
-                    e.base + "/departments/" + encodeURIComponent(d),
-                    e.origin,
-                  )}
-                >
-                  Inspect <ArrowUpRight size={12} />
-                </Link>
-              </div>
-            ))
-          ) : (
-            <Blank
-              title="No departments configured"
-              text="Add the teams your company needs to understand."
-            />
-          )}
-          <Link
-            className="button secondary"
-            to={setupRoute(e, "departments", "settings-departments")}
-          >
-            Configure departments <ArrowUpRight size={13} />
-          </Link>
-        </Panel>
+        <ConfiguredDepartments company={props.company} />
       ) : panel === "preferences" ? (
         <PreferenceSettings {...props} />
       ) : (
@@ -125,6 +90,96 @@ export function Settings(props: ModuleProps) {
         />
       )}
     </ModulePage>
+  );
+}
+function ConfiguredDepartments({ company }: { company: Company }) {
+  const e = useExecutive(company);
+  const [saved, setSaved] = useState<{
+      company: string;
+      counts: Record<string, number>;
+    } | null>(null),
+    [error, setError] = useState(""),
+    [retry, setRetry] = useState(0);
+  useEffect(() => {
+    if (!serverMode) return;
+    let active = true;
+    const load = () =>
+      serverRequest<{
+        sources: { tabs: { department: string; mappedFieldCount: number }[] }[];
+      }>(`/companies/${company.id}/sources`)
+        .then((value) => {
+          if (!active) return;
+          const counts: Record<string, number> = {};
+          for (const source of value.sources)
+            for (const tab of source.tabs) {
+              if (
+                !Number.isSafeInteger(tab.mappedFieldCount) ||
+                tab.mappedFieldCount < 0
+              )
+                throw Error(
+                  "Mapping counts are unavailable. Reload after the server update.",
+                );
+              counts[tab.department] =
+                (counts[tab.department] || 0) + tab.mappedFieldCount;
+            }
+          setSaved({ company: company.id, counts });
+          setError("");
+        })
+        .catch((err) => {
+          if (active) setError(err.message);
+        });
+    void load();
+    window.addEventListener("focus", load);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", load);
+    };
+  }, [company.id, company.version, retry]);
+  const counts = saved?.company === company.id ? saved.counts : null;
+  return (
+    <Panel title="Configured departments">
+      <ErrorBox>{error}</ErrorBox>
+      {error && (
+        <Button variant="secondary" onClick={() => setRetry((v) => v + 1)}>
+          Retry mapping counts
+        </Button>
+      )}
+      {company.data.departments.length ? (
+        company.data.departments.map((d) => (
+          <div className="intel-row" key={d}>
+            <span>{d}</span>
+            <small>
+              {serverMode
+                ? error
+                  ? "Mapping count unavailable"
+                  : counts
+                    ? `${counts[d] || 0} mapped fields`
+                    : "Loading mappings…"
+                : `${company.data.mappings.filter((m) => m.department === d && !m.ignored).length} mapped fields`}
+            </small>
+            <Link
+              to={e.link(
+                e.base + "/departments/" + encodeURIComponent(d),
+                e.origin,
+              )}
+            >
+              Inspect <ArrowUpRight size={12} />
+            </Link>
+          </div>
+        ))
+      ) : (
+        <Blank
+          title="No departments configured"
+          text="Add the teams your company needs to understand."
+        />
+      )}
+      <Link
+        className="button secondary"
+        to={setupRoute(e, "departments", "settings-departments")}
+      >
+        Configure departments <ArrowUpRight size={13} />
+      </Link>
+    </Panel>
   );
 }
 export function DataConnections(props: ModuleProps) {

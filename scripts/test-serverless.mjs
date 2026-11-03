@@ -121,6 +121,9 @@ try {
   const sessionConnections = start(["tests/session-connections.browser.mjs"]);
   if ((await new Promise((r) => sessionConnections.on("exit", r))) !== 0)
     throw Error("Session and connection acceptance failed.");
+  const sprintA = start(["tests/sprint-a.browser.mjs"]);
+  if ((await new Promise((r) => sprintA.on("exit", r))) !== 0)
+    throw Error("Sprint A integrity browser check failed.");
 } finally {
   await Promise.all(
     children
