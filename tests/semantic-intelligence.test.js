@@ -107,13 +107,15 @@ test("company terminology proposes fields without automatically confirming them"
 });
 test("saved column mappings prefill semantic review and instruction tabs stay outside KPIs", () => {
   const t = finance();
-  t.currency = "USD";
+  t.headers.push("Currency Code");
+  t.types.push("text");
+  t.rows.forEach((row) => row.push("USD"));
   const proposal = proposeSemantics(
     t,
     {},
     {
       title: "01 Cash ledger",
-      properties: ["text", "date", "money_in", "money_out"],
+      properties: ["text", "date", "money_in", "money_out", "text"],
     },
   );
   assert.equal(proposal.purpose, "finance");
@@ -126,6 +128,12 @@ test("saved column mappings prefill semantic review and instruction tabs stay ou
     "reference",
   );
   assert.equal(proposal.requiresConfirmation, true);
+  assert.equal(
+    run(t).metrics.some(
+      (metric) => metric.metricId === "finance.overdue_receivables",
+    ),
+    false,
+  );
 });
 test("confirmed finance has exact monetary results, period, source lineage and no company default currency", () => {
   const out = run(finance(), financialMeaning);

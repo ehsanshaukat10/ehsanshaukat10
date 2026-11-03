@@ -210,6 +210,20 @@ export function proposeSemantics(table, settings = {}, hints = {}) {
       : values.length && candidates.length === 1
         ? candidates[0]
         : "other";
+  const currencyIndex = table.headers.findIndex((header) =>
+    /^currency(?: code)?$/i.test(String(header).trim()),
+  );
+  const explicitCurrencies = new Set(
+    currencyIndex < 0
+      ? []
+      : table.rows
+          .map((row) =>
+            String(row[currencyIndex] || "")
+              .trim()
+              .toUpperCase(),
+          )
+          .filter((value) => currencies.has(value)),
+  );
   return {
     version: SEMANTIC_VERSION,
     purpose,
@@ -222,7 +236,9 @@ export function proposeSemantics(table, settings = {}, hints = {}) {
       referenceEvidence,
       instructionalTitle,
     },
-    currency: table.currency || null,
+    currency:
+      table.currency ||
+      (explicitCurrencies.size === 1 ? [...explicitCurrencies][0] : null),
     requiresConfirmation: true,
   };
 }
@@ -603,9 +619,22 @@ export function evaluateSemantics({
         !tab.skipped
       ),
     });
+    const proposedEntity =
+      proposal.purpose === "finance"
+        ? proposal.fields.outstanding_amount
+          ? "invoice"
+          : "transaction"
+        : proposal.purpose === "sales"
+          ? "deal"
+          : proposal.purpose === "delivery"
+            ? "project"
+            : proposal.purpose === "resources"
+              ? "resource"
+              : "other";
     const defs = metricRegistry.filter(
       (m) =>
         m.purpose === (s?.purpose || proposal.purpose) &&
+        m.entity === (s?.entity || proposedEntity) &&
         (!settings.enabledMetrics || settings.enabledMetrics.includes(m.id)),
     );
     for (const metric of defs) {
