@@ -12,7 +12,11 @@ export function reportingContext(input = {}) {
         );
   const filters = {};
   for (const [key, value] of entries) {
-    if (["view", "revision", "metricId", "sourceId", "tabId"].includes(key))
+    if (
+      ["route", "view", "revision", "metricId", "sourceId", "tabId"].includes(
+        key,
+      )
+    )
       continue;
     if (
       ![

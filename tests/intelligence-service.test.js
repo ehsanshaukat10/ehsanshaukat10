@@ -4,6 +4,18 @@ import { fixtureDatabase } from "./fixtures/serverless-database.mjs";
 import { createApplication } from "../aynor-onboarding-frontend/source/server/application.mjs";
 import { evaluateSemantics } from "../aynor-onboarding-frontend/source/server/semantic-intelligence.mjs";
 import { buildExecutiveReport } from "../aynor-onboarding-frontend/source/server/executive-presentation.mjs";
+import { reportingContext } from "../aynor-onboarding-frontend/source/server/intelligence-service.mjs";
+
+test("Vercel route metadata is never interpreted as reporting context", () => {
+  const params = new URLSearchParams({
+    route: "companies/company-id/intelligence/context",
+    scope: "",
+  });
+  const context = reportingContext(params);
+  assert.equal(context.scope, "");
+  assert.deepEqual(context.filters, { scope: [""] });
+});
+
 test("shared intelligence preserves exact metrics and enforces categories, confidentiality, scopes, revisions and record projection", async (t) => {
   const f = await fixtureDatabase();
   t.after(() => f.close());
