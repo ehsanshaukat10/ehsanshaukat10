@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import type { Company, Goal } from "../../lib/api";
+import { api as workspaceApi, type Company, type Goal } from "../../lib/api";
 import { Button, ErrorBox, Field, Modal } from "../../components/ui";
 import { serverRequest } from "../../lib/runtime";
 import { Panel, Blank, Status } from "../intelligence/shared";
@@ -47,7 +47,13 @@ const toDraft = (g: GoalDefinition): Draft => ({
   target: String(g.target),
   baseline: g.baseline === null ? "" : String(g.baseline),
 });
-export function GovernedGoals({ company }: { company: Company }) {
+export function GovernedGoals({
+  company,
+  updateCompany,
+}: {
+  company: Company;
+  updateCompany?: (company: Company) => void;
+}) {
   const m = useGovernedModule(company),
     location = useLocation(),
     id = location.pathname.split("/")[4] || "",
@@ -129,6 +135,10 @@ export function GovernedGoals({ company }: { company: Company }) {
         ...input,
         companyVersion: view.companyVersion,
       });
+      if (updateCompany)
+        await workspaceApi<Company>(m.base)
+          .then(updateCompany)
+          .catch(() => {});
       setDraft(null);
       setSuccess(
         "Goal saved. Performance is assessed from validated source data.",
@@ -150,6 +160,10 @@ export function GovernedGoals({ company }: { company: Company }) {
         ...onboardingDraft,
         companyVersion: view.companyVersion,
       });
+      if (updateCompany)
+        await workspaceApi<Company>(m.base)
+          .then(updateCompany)
+          .catch(() => {});
       setOnboardingDraft(null);
       setSuccess(
         "Goal definition saved. Metric confirmation is still required before calculating progress.",
