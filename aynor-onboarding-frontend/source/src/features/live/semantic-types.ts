@@ -77,6 +77,19 @@ export type ExecutiveReport = {
   }[];
   additional: (ExecutiveScope & { metrics: SemanticMetric[] })[];
   dataStatus: string | null;
+  diagnostics: {
+    sourceId: string;
+    tabId: number;
+    state: "ready" | "blocked" | "confirmation_required";
+    reasons: string[];
+  }[];
+  resolution: {
+    title: string;
+    explanation: string;
+    reasons: string[];
+    actionLabel: string;
+    href: string;
+  } | null;
   reviewHref: string;
   summary: string | null;
 };

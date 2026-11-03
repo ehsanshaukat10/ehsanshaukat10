@@ -93,6 +93,29 @@ try {
     api.once("exit", resolve);
     api.kill();
   });
+  const correctionApi = start(["tests/fixtures/serverless-server.mjs"]);
+  for (let attempt = 0; attempt < 150; attempt++) {
+    if (correctionApi.exitCode !== null)
+      throw Error("Overview correction fixture failed to start");
+    try {
+      if ((await fetch("http://127.0.0.1:3194/api/health")).ok) break;
+    } catch {}
+    if (attempt === 149) throw Error("Overview correction fixture timeout");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  const reportingCorrection = start([
+    "tests/overview-reporting-correction.browser.mjs",
+  ]);
+  if (
+    (await new Promise((resolve) =>
+      reportingCorrection.on("exit", resolve),
+    )) !== 0
+  )
+    throw Error("Overview reporting correction browser check failed.");
+  await new Promise((resolve) => {
+    correctionApi.once("exit", resolve);
+    correctionApi.kill();
+  });
   const permissionApi = start(["tests/fixtures/serverless-server.mjs"]);
   for (let attempt = 0; attempt < 150; attempt++) {
     if (permissionApi.exitCode !== null)

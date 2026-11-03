@@ -6,6 +6,7 @@ import {
   map,
   save,
   expect,
+  assert,
   responsive,
 } from "./fixtures/feedback-browser.mjs";
 await scenario(
@@ -24,6 +25,16 @@ await scenario(
     ).toBeVisible();
     await expect(page.locator(".source-page")).toContainText("No data changes");
     await confirmFinancial(page, w);
+    await page.getByRole("button", { name: "Sync now", exact: true }).click();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Sync checked" }),
+    ).toBeVisible();
+    const afterSync = await (
+      await page.request.get(w.sources + "/intelligence")
+    ).json();
+    assert.ok(afterSync.worksheets[0].confirmation);
+    assert.equal(afterSync.worksheets[0].state, "confirmed");
+    assert.equal(afterSync.executive.state, "ready");
     await page.goto(w.base + "/overview");
     await expect(
       page.locator(".intel-kpi").filter({ hasText: "Revenue" }),

@@ -584,6 +584,9 @@ export function SourceWorkspace({
       setMessage(
         `${saved} worksheet page${saved === 1 ? "" : "s"} mapped. Unmapped pages can be added later from Data connections.`,
       );
+      window.dispatchEvent(
+        new CustomEvent("aynor:source-synced", { detail: { companyId } }),
+      );
       setSelected("");
       setShowPages(true);
     });
@@ -1246,6 +1249,11 @@ export function SourceWorkspace({
                               {},
                             );
                             applyCatalog(value);
+                            window.dispatchEvent(
+                              new CustomEvent("aynor:source-synced", {
+                                detail: { companyId },
+                              }),
+                            );
                             const current = value.sources.find(
                               (s) => s.id === source.id,
                             );
@@ -1855,6 +1863,11 @@ export function SourceWorkspace({
               "Business meanings saved. Overview shows only measures that pass validation.",
             );
             window.dispatchEvent(new Event("aynor:sheet-change"));
+            window.dispatchEvent(
+              new CustomEvent("aynor:source-synced", {
+                detail: { companyId },
+              }),
+            );
           }}
         />
       )}

@@ -16,11 +16,13 @@ export async function serverRequest<T = any>(
   method = "GET",
   body?: unknown,
   headers: Record<string, string> = {},
+  options: { signal?: AbortSignal } = {},
 ): Promise<T> {
   const response = await fetch("/api" + path, {
     method,
     credentials: "same-origin",
     headers: { "Content-Type": "application/json", ...headers },
+    signal: options.signal,
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   let result;

@@ -52,33 +52,25 @@ export function GovernedOverview({
           title={
             readOnly
               ? "No authorized business measures"
-              : report.state === "not_selected"
-                ? "No executive reporting selected"
-                : report.state === "empty"
-                  ? "Connect your first spreadsheet"
-                  : report.dataStatus === "Data needs refresh"
-                    ? "Refresh your business data"
-                    : report.dataStatus === "Insufficient data"
-                      ? "Business data is incomplete"
-                      : "Confirm your business reporting"
+              : report.resolution?.title || "Confirm your business reporting"
           }
         >
           <p>
             {readOnly
               ? "An administrator can review your permitted business categories and data configuration."
-              : report.state === "not_selected"
-                ? "Your source data remains available. Include a supported business report when you are ready."
-                : report.state === "empty"
-                  ? "Connect business data to build your executive overview."
-                  : "No validated business measures are available for this reporting scope."}
+              : report.resolution?.explanation ||
+                "No validated business measures are available for this reporting scope."}
           </p>
+          {!readOnly && !!report.resolution?.reasons.length && (
+            <ul aria-label="Reporting issues">
+              {report.resolution.reasons.slice(0, 4).map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          )}
           {!readOnly && (
             <Link className="button secondary" to={reviewHref}>
-              {report.state === "empty"
-                ? "Connect data"
-                : report.dataStatus === "Data needs refresh"
-                  ? "Review data connection"
-                  : "Review business meanings"}
+              {report.resolution?.actionLabel || "Review business meanings"}
             </Link>
           )}
         </Panel>

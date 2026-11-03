@@ -294,6 +294,115 @@ export function buildExecutiveReport(view, company, catalog, requestedScope) {
           metric.lineage.tabId === sheet.tabId,
       ),
     );
+  const diagnostics = view.worksheets.map((worksheet) => {
+    const scope = `${worksheet.sourceId}:${worksheet.tabId}`,
+      metrics = view.metrics.filter((metric) => metric.scope === scope),
+      reasons = [
+        ...new Set(
+          metrics
+            .filter((metric) => metric.state !== "validated")
+            .flatMap((metric) => metric.reasons || []),
+        ),
+      ];
+    if (!worksheet.confirmation)
+      reasons.unshift(
+        "Confirm this worksheet's business purpose and field meanings.",
+      );
+    else if (worksheet.confirmation.enabled === false)
+      reasons.unshift("This worksheet is excluded from executive reporting.");
+    else if (!worksheet.executiveEligible && !reasons.length)
+      reasons.push(
+        "No supported business measure passed validation for this worksheet.",
+      );
+    return {
+      sourceId: worksheet.sourceId,
+      tabId: worksheet.tabId,
+      state: worksheet.executiveEligible
+        ? "ready"
+        : worksheet.state === "confirmed"
+          ? "blocked"
+          : "confirmation_required",
+      reasons,
+    };
+  });
+  const blockedReasons = [
+    ...new Set(
+      diagnostics
+        .filter((item) => item.state !== "ready")
+        .flatMap((item) => item.reasons),
+    ),
+  ];
+  const reviewHref =
+    base +
+    (needsColumns
+      ? "/connections?map=1"
+      : dataStatus === "Data needs refresh"
+        ? "/connections?refresh=1"
+        : "/connections?business=1") +
+    (reviewTarget
+      ? `&source=${encodeURIComponent(reviewTarget.sourceId)}&tab=${reviewTarget.tabId}`
+      : "");
+  const resolution =
+    state === "ready"
+      ? null
+      : state === "empty"
+        ? {
+            title: "Connect your first spreadsheet",
+            explanation:
+              "Aynor needs imported business records before it can calculate an executive report.",
+            reasons: [],
+            actionLabel: "Connect data",
+            href: reviewHref,
+          }
+        : state === "not_selected"
+          ? {
+              title: "No executive reporting selected",
+              explanation:
+                "Your imported worksheets are available, but they are currently excluded from executive reporting.",
+              reasons: blockedReasons,
+              actionLabel: "Review business meanings",
+              href: reviewHref,
+            }
+          : needsColumns
+            ? {
+                title: "Review column mapping",
+                explanation:
+                  "At least one imported worksheet has not produced a usable table, so supported measures cannot be validated.",
+                reasons: blockedReasons,
+                actionLabel: "Review column mapping",
+                href: reviewHref,
+              }
+            : dataStatus === "Data needs refresh"
+              ? {
+                  title: "Refresh your business data",
+                  explanation:
+                    "The last imported records remain available, but Aynor will not present stale calculations as current performance.",
+                  reasons: blockedReasons,
+                  actionLabel: "Review data connection",
+                  href: reviewHref,
+                }
+              : unresolved.length
+                ? {
+                    title: "Confirm your business reporting",
+                    explanation:
+                      "Aynor has imported the worksheet, but it needs confirmation of its business meaning before calculating executive measures.",
+                    reasons: blockedReasons,
+                    actionLabel: "Review business meanings",
+                    href: reviewHref,
+                  }
+                : {
+                    title: "Business data is incomplete",
+                    explanation:
+                      "The worksheet is connected and mapped, but no supported measure passed all required field, period, entity, and freshness checks.",
+                    reasons:
+                      blockedReasons.length > 0
+                        ? blockedReasons
+                        : [
+                            "No reportable worksheet data reached semantic validation. Review the imported worksheet and its business meaning.",
+                          ],
+                    actionLabel: "Review business meanings",
+                    href: reviewHref,
+                  };
   return {
     version: 1,
     state,
@@ -311,17 +420,11 @@ export function buildExecutiveReport(view, company, catalog, requestedScope) {
           .slice(0, 2)
           .map((m) => ({ ...m, label: labels[m.metricId] })),
       })),
-    dataStatus,
-    reviewHref:
-      base +
-      (needsColumns
-        ? "/connections?map=1"
-        : dataStatus === "Data needs refresh"
-          ? "/connections?refresh=1"
-          : "/connections?business=1") +
-      (reviewTarget
-        ? `&source=${encodeURIComponent(reviewTarget.sourceId)}&tab=${reviewTarget.tabId}`
-        : ""),
+    dataStatus:
+      state === "not_selected" ? null : dataStatus || resolution?.title || null,
+    diagnostics,
+    resolution,
+    reviewHref,
     summary: issues.length
       ? `${issues.length} supported ${issues.length === 1 ? "issue needs" : "issues need"} attention across confirmed reporting scopes.`
       : null,

@@ -46,18 +46,43 @@ export function useCompanyIntelligence(
   useEffect(() => {
     if (!enabled || !user) return;
     let active = true,
-      sequence = 0;
+      running = false,
+      queued = false,
+      failed = false,
+      controller: AbortController | null = null;
     const root = `/companies/${company.id}/intelligence`;
-    async function reload() {
-      const current = ++sequence,
-        valid = () => active && current === sequence;
+    async function request<T>(path: string) {
+      controller = new AbortController();
+      const timeout = window.setTimeout(() => controller?.abort(), 12000);
+      try {
+        return await serverRequest<T>(
+          path,
+          "GET",
+          undefined,
+          {},
+          {
+            signal: controller.signal,
+          },
+        );
+      } finally {
+        window.clearTimeout(timeout);
+        controller = null;
+      }
+    }
+    async function reload(force = true) {
+      if (running) {
+        queued = true;
+        return;
+      }
+      if (!force && failed) return;
+      running = true;
       setBusy(true);
       let authorized = false;
       try {
-        const proof = await serverRequest<IntelligenceAuthority>(
+        const proof = await request<IntelligenceAuthority>(
           root + "/context?" + query,
         );
-        if (!valid()) return;
+        if (!active) return;
         authorized = true;
         const saved = readOverviewCache(
           intelligenceCacheKey(user!.id, company.id, proof),
@@ -76,10 +101,8 @@ export function useCompanyIntelligence(
           clearOverviewCache();
           last.current = null;
         }
-        const report = await serverRequest<IntelligenceSnapshot>(
-          root + "?" + query,
-        );
-        if (!valid()) return;
+        const report = await request<IntelligenceSnapshot>(root + "?" + query);
+        if (!active) return;
         last.current = { identity, report };
         setView({ identity, report });
         writeOverviewCache(
@@ -88,10 +111,16 @@ export function useCompanyIntelligence(
           report,
         );
         setError("");
+        failed = false;
       } catch (e) {
-        if (!valid()) return;
+        if (!active) return;
         const denied =
-          e instanceof ApiError && [401, 403, 404].includes(e.status);
+            e instanceof ApiError && [401, 403, 404].includes(e.status),
+          setupIncomplete =
+            e instanceof ApiError &&
+            e.status === 503 &&
+            e.message ===
+              "Business intelligence setup is incomplete. Apply the pending AYNOR intelligence-read migration.";
         if (!authorized || denied) {
           clearOverviewCache();
           last.current = null;
@@ -100,16 +129,26 @@ export function useCompanyIntelligence(
         setError(
           denied
             ? "Business reporting is unavailable for your current access."
-            : !authorized
-              ? "Unable to verify reporting access. Retry."
-              : "Unable to refresh business reporting. Retry.",
+            : setupIncomplete
+              ? "Aynor’s reporting database update has not been installed. Your connected spreadsheet is safe. An administrator must install the reporting update, then retry."
+              : e instanceof DOMException && e.name === "AbortError"
+                ? "Business reporting took too long to respond. Retry."
+                : !authorized
+                  ? "Unable to verify reporting access. Retry."
+                  : "Unable to refresh business reporting. Retry.",
         );
+        failed = true;
       } finally {
-        if (valid()) setBusy(false);
+        running = false;
+        if (active) setBusy(false);
+        if (active && queued) {
+          queued = false;
+          queueMicrotask(() => void reload(true));
+        }
       }
     }
     void reload();
-    const timer = setInterval(() => void reload(), 15000);
+    const timer = setInterval(() => void reload(false), 60000);
     const focus = () => void reload();
     window.addEventListener("focus", focus);
     const synced = (event: Event) => {
@@ -119,6 +158,7 @@ export function useCompanyIntelligence(
     window.addEventListener("aynor:source-synced", synced);
     return () => {
       active = false;
+      controller?.abort();
       clearInterval(timer);
       window.removeEventListener("focus", focus);
       window.removeEventListener("aynor:source-synced", synced);

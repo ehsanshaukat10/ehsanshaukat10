@@ -241,6 +241,11 @@ test("an explicitly configured profit metric with missing expense inputs shows a
     false,
   );
   assert.match(report.reviewHref, /source=a&tab=0/);
+  assert.ok(
+    report.diagnostics[0].reasons.some((reason) =>
+      /Missing confirmed fields: expense/.test(reason),
+    ),
+  );
 });
 
 test("deliberately excluded reporting is retained without a false mapping warning", () => {
@@ -251,6 +256,43 @@ test("deliberately excluded reporting is retained without a false mapping warnin
   assert.equal(r.state, "not_selected");
   assert.equal(r.primary.length, 0);
   assert.equal(r.dataStatus, null);
+});
+
+test("a connected source can never return Panther's unexplained review and null-status combination", () => {
+  const report = buildExecutiveReport(
+    { worksheets: [], metrics: [], registry: [] },
+    { id: "company", data: {} },
+    { sources: [{ id: "connected", tabs: [] }] },
+  );
+  assert.equal(report.state, "review");
+  assert.notEqual(report.dataStatus, null);
+  assert.equal(report.resolution.title, "Business data is incomplete");
+  assert.match(report.resolution.explanation, /connected and mapped/);
+  assert.match(report.resolution.reasons[0], /semantic validation/);
+  assert.match(report.resolution.href, /connections\?business=1/);
+});
+
+test("confirmed business meanings are reused after a same-schema synchronization", () => {
+  const { catalog } = fixture();
+  const tab = catalog.sources[0].tabs[0];
+  const confirmed = tab.semantic;
+  tab.table.rows.push(["2026-10-20", 5000, 1000]);
+  tab.lastSuccess += 1000;
+  const view = evaluateSemantics({ catalog, companyId: "company", now });
+  const report = buildExecutiveReport(
+    view,
+    { id: "company", data: {} },
+    catalog,
+    "a:0",
+  );
+  assert.equal(tab.semantic, confirmed);
+  assert.equal(view.worksheets[0].state, "confirmed");
+  assert.equal(report.state, "ready");
+  assert.equal(
+    report.primary.find((metric) => metric.metricId === "finance.revenue")
+      .value,
+    35000,
+  );
 });
 
 test("only validated planned utilization strictly above 100% creates a capacity concern without severity scores", () => {
