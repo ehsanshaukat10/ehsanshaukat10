@@ -68,6 +68,11 @@ test("shared intelligence preserves exact metrics and enforces categories, confi
   ).data;
   const root = `/companies/${c.id}/sources`,
     api = `/companies/${c.id}/intelligence`;
+  const rewrittenContext = await call(
+    `/handler.js?route=${api.slice(1)}/context&scope=`,
+  );
+  assert.equal(rewrittenContext.status, 200);
+  assert.equal(rewrittenContext.data.companyId, c.id);
   const upload = await call(root, "POST", {
     mode: "upload",
     name: "Mixed.xlsx",

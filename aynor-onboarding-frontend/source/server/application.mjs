@@ -191,10 +191,14 @@ export function createApplication({
         req.url,
         "https://" + (req.headers.host || "localhost"),
       );
-      const path =
-        url.pathname === "/api/handler" || url.pathname === "/api/handler.js"
-          ? "/" + (url.searchParams.get("route") || "")
-          : url.pathname.replace(/^\/api/, "");
+      const rewritten =
+        url.pathname === "/api/handler" || url.pathname === "/api/handler.js";
+      const path = rewritten
+        ? "/" + (url.searchParams.get("route") || "")
+        : url.pathname.replace(/^\/api/, "");
+      // `route` is Vercel's internal rewrite parameter, never reporting context.
+      // Leaving it in the query makes otherwise valid Overview requests fail.
+      if (rewritten) url.searchParams.delete("route");
       const method = req.method || "GET";
       const bodyLimit =
         /^\/companies\/[a-f0-9-]{36}\/(?:sheets\/(?:upload|tables)|sources)$/i.test(
