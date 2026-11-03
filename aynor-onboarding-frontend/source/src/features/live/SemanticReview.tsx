@@ -112,7 +112,9 @@ export function SemanticReview({
             kinds.find(([id]) => id === nextKind)?.[1] ||
             "Business reporting",
         );
-        setFields(c?.fields || p.fields);
+        // Preserve confirmed choices while allowing improved deterministic/AI
+        // proposals to fill fields that an older incomplete review omitted.
+        setFields({ ...p.fields, ...(c?.fields || {}) });
         setIdentity(
           c?.identityMode ||
             (!p.fields.entity_id &&
