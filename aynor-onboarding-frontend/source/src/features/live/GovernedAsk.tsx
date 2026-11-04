@@ -272,15 +272,51 @@ export function GovernedAsk({ company }: { company: Company }) {
       })}
     </span>
   );
+  const composer = (active: boolean) => (
+    <form
+      className={`intel-assistant-composer${active ? " is-active" : ""}`}
+      onSubmit={(e) => {
+        e.preventDefault();
+        void submit();
+      }}
+    >
+      <label className="field">
+        <span className="sr-only">Your question</span>
+        <textarea
+          aria-label="Your question"
+          rows={2}
+          maxLength={2000}
+          value={question}
+          disabled={sending}
+          onChange={(e) => setQuestion(e.target.value)}
+          placeholder="Ask Aynor about performance, goals, risks, or evidence…"
+        />
+      </label>
+      <div className="intel-composer-meta" aria-hidden="true">
+        Authorized company data
+      </div>
+      <div className="intel-footer-actions">
+        <Button
+          type="submit"
+          busy={sending}
+          disabled={!question.trim()}
+          aria-label="Ask Aynor"
+        >
+          <Send size={14} />
+          <span>Ask Aynor</span>
+        </Button>
+      </div>
+    </form>
+  );
   return (
     <GovernedModule
       title="Ask Aynor"
       description="Executive questions, grounded in your authorized business evidence."
       module={m}
       back={m.back || undefined}
-      contentClassName="intel-ask-shell"
+      contentClassName={`intel-ask-shell ${messages.length ? "is-active" : "is-welcome"}`}
       showContextFilters={false}
-      actions={
+      actions={messages.length ? (
         <Button
           variant="secondary"
           onClick={() => {
@@ -290,7 +326,7 @@ export function GovernedAsk({ company }: { company: Company }) {
         >
           New conversation
         </Button>
-      }
+      ) : undefined}
     >
       {loadError && !m.error && (
         <>
@@ -388,21 +424,51 @@ export function GovernedAsk({ company }: { company: Company }) {
             aria-label="Executive conversation"
           >
             {!messages.length && !sending && (
-              <div className="intel-question-list">
-                {[
-                  "Summarize the performance and concerns in my reporting scope.",
-                  "How are our goals progressing, and what should I investigate?",
-                  "Which confirmed dependencies need attention?",
-                ].map((q) => (
-                  <button key={q} onClick={() => setQuestion(q)}>
-                    <Sparkles size={15} />
-                    {q}
-                  </button>
-                ))}
+              <div className="intel-ask-welcome">
+                <div className="intel-ask-intro">
+                  <span className="intel-ask-mark" aria-hidden="true">
+                    <Sparkles size={20} />
+                  </span>
+                  <h2>What would you like to understand?</h2>
+                  <p>
+                    Ask about {company.name}&apos;s validated performance,
+                    goals, dependencies, and supporting evidence.
+                  </p>
+                </div>
+                {composer(false)}
+                <div className="intel-question-list" aria-label="Suggested questions">
+                  {[
+                    {
+                      title: "Executive summary",
+                      text: "Summarize performance and concerns in my reporting scope.",
+                    },
+                    {
+                      title: "Goal progress",
+                      text: "How are our goals progressing, and what should I investigate?",
+                    },
+                    {
+                      title: "Dependencies",
+                      text: "Which confirmed dependencies need attention?",
+                    },
+                  ].map((prompt) => (
+                    <button
+                      key={prompt.title}
+                      onClick={() => setQuestion(prompt.text)}
+                    >
+                      <Sparkles size={14} />
+                      <span>
+                        <strong>{prompt.title}</strong>
+                        <small>{prompt.text}</small>
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
-            {messages.map((message, i) => (
-              <article className="intel-answer" key={i}>
+            {(messages.length > 0 || sending || requestError) && (
+              <div className="intel-message-stream" aria-live="polite">
+                {messages.map((message, i) => (
+                  <article className="intel-answer" key={i}>
                 <h2>{message.question}</h2>
                 <Status>
                   {message.answer.mode === "ai"
@@ -458,18 +524,20 @@ export function GovernedAsk({ company }: { company: Company }) {
                     <p>No business action is executed.</p>
                   </Panel>
                 )}
-              </article>
-            ))}
-            {sending && (
-              <p role="status">
-                Retrieving authorized facts and preparing a grounded answer…
-              </p>
-            )}
-            <ErrorBox>{requestError}</ErrorBox>
-            {requestError && (
-              <Button variant="secondary" onClick={() => submit(true)}>
-                Retry question
-              </Button>
+                  </article>
+                ))}
+                {sending && (
+                  <p role="status">
+                    Retrieving authorized facts and preparing a grounded answer…
+                  </p>
+                )}
+                <ErrorBox>{requestError}</ErrorBox>
+                {requestError && (
+                  <Button variant="secondary" onClick={() => submit(true)}>
+                    Retry question
+                  </Button>
+                )}
+              </div>
             )}
             {messages.length >= status.limits.maxTurns ? (
               <Blank
@@ -479,39 +547,7 @@ export function GovernedAsk({ company }: { company: Company }) {
                   <Button onClick={() => clear()}>New conversation</Button>
                 }
               />
-            ) : (
-              <form
-                className="intel-assistant-composer"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void submit();
-                }}
-              >
-                <label className="field">
-                  <span>Your question</span>
-                  <textarea
-                    aria-label="Your question"
-                    style={{ width: "100%" }}
-                    rows={2}
-                    maxLength={2000}
-                    value={question}
-                    disabled={sending}
-                    onChange={(e) => setQuestion(e.target.value)}
-                    placeholder="Ask about performance, goals, dependencies or the supporting evidence…"
-                  />
-                </label>
-                <div className="intel-footer-actions">
-                  <Button
-                    type="submit"
-                    busy={sending}
-                    disabled={!question.trim()}
-                  >
-                    <Send size={14} />
-                    Ask Aynor
-                  </Button>
-                </div>
-              </form>
-            )}
+            ) : messages.length || sending ? composer(true) : null}
             <p className="intel-muted">
               Conversations stay in this browser’s memory for this session.
               Source and permission changes reset earlier answers. Do not enter
