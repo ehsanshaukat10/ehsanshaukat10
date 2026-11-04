@@ -21,12 +21,31 @@ const departmentWords = {
   finance: /finance|account|revenue|expenses|costs|profit|budget/i,
   sales: /sales|leads?|pipeline|deals?|prospects?|crm/i,
   qa: /\bqa\b|test|bug|defect|quality/i,
-  operations: /operations?|delivery|logistics|supply/i,
+  delivery: /delivery|projects?|deadlines?|milestones?/i,
+  operations: /operations?|logistics|supply/i,
   engineering: /engineering|development|sprint|software/i,
+  design: /design|creative|ux|ui/i,
+  product: /product management|roadmap|feature|product team/i,
+  support: /customer success|customer support|support tickets?|service desk/i,
   marketing: /marketing|campaign|advert|traffic|seo/i,
   people: /people|human resources|\bhr\b|employees?|payroll|hiring/i,
   inventory: /inventory|stock|warehouse|products?|sku/i,
 };
+const departmentLabels = {
+  finance: "Finance",
+  sales: "Sales",
+  delivery: "Delivery",
+  qa: "Quality Assurance",
+  operations: "Operations",
+  engineering: "Engineering",
+  design: "Design",
+  product: "Product",
+  support: "Customer Success",
+  marketing: "Marketing",
+  people: "People",
+  inventory: "Inventory",
+};
+const standardDepartments = new Set(Object.values(departmentLabels));
 function departmentFor(title, headers, departments) {
   if (departments.length === 1) return departments[0];
   const titleMatches = departments.filter((d) =>
@@ -48,8 +67,18 @@ function departmentFor(title, headers, departments) {
       };
     })
     .sort((a, b) => b.score - a.score);
-  return scores[0]?.score > 0 && scores[0].score > (scores[1]?.score || 0)
-    ? scores[0].department
+  if (scores[0]?.score > 0 && scores[0].score > (scores[1]?.score || 0))
+    return scores[0].department;
+  const detected = Object.entries(departmentWords)
+    .map(([name, pattern]) => ({
+      name,
+      score:
+        (pattern.test(title) ? 3 : 0) +
+        headers.filter((header) => pattern.test(header)).length,
+    }))
+    .sort((a, b) => b.score - a.score);
+  return detected[0]?.score > 0 && detected[0].score > (detected[1]?.score || 0)
+    ? departmentLabels[detected[0].name]
     : "";
 }
 function dateOrder(values) {
@@ -295,7 +324,11 @@ export function finalizePlan(values, proposal, departments) {
     plan.properties.length !== headers.length
   )
     throw Error("The column suggestions do not match this table.");
-  if (plan.department && !departments.includes(plan.department))
+  if (
+    plan.department &&
+    !departments.includes(plan.department) &&
+    !standardDepartments.has(plan.department)
+  )
     throw Error("The suggested department is not in this workspace.");
   if (!["ymd", "dmy", "mdy", "excel"].includes(plan.dateFormat))
     throw Error("The date format needs review.");

@@ -14,6 +14,8 @@ const kinds = [
   ["sales:deal", "Sales opportunities"],
   ["delivery:project", "Projects & delivery"],
   ["resources:resource", "People & capacity"],
+  ["marketing:campaign", "Marketing campaigns"],
+  ["operations:inventory", "Inventory operations"],
   ["reference:other", "Instructions / reference"],
   ["other:other", "Other — keep out of executive reporting"],
 ];
@@ -32,6 +34,11 @@ const roles: Record<string, string> = {
   due_date: "Due date",
   assigned_hours: "Assigned hours",
   available_hours: "Available hours",
+  spend: "Campaign spend",
+  leads: "Generated leads",
+  qualified_leads: "Qualified leads (optional)",
+  on_hand: "Units on hand",
+  reorder_level: "Reorder level",
 };
 const required: Record<string, string[]> = {
   "finance:transaction": ["entity_id", "date", "revenue", "expense"],
@@ -44,6 +51,8 @@ const required: Record<string, string[]> = {
     "assigned_hours",
     "available_hours",
   ],
+  "marketing:campaign": ["entity_id", "date", "spend", "leads"],
+  "operations:inventory": ["entity_id", "date", "on_hand", "reorder_level"],
 };
 export function SemanticReview({
   companyId,
@@ -104,7 +113,11 @@ export function SemanticReview({
                 ? "project"
                 : p.purpose === "resources"
                   ? "resource"
-                  : "other");
+                  : p.purpose === "marketing"
+                    ? "campaign"
+                    : p.purpose === "operations"
+                      ? "inventory"
+                      : "other");
         const nextKind = `${c?.purpose || p.purpose}:${entity}`;
         setKind(nextKind);
         setLabel(
@@ -159,7 +172,7 @@ export function SemanticReview({
     entity === "invoice" ||
     entity === "project" ||
     ["reference", "other"].includes(purpose);
-  const money = purpose === "finance" || purpose === "sales";
+  const money = ["finance", "sales", "marketing"].includes(purpose);
   const statuses = [
     ...new Set(
       (

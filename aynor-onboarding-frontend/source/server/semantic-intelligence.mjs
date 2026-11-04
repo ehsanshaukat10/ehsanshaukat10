@@ -18,6 +18,8 @@ export const entities = [
   "deal",
   "project",
   "resource",
+  "campaign",
+  "inventory",
   "other",
 ];
 const aliases = {
@@ -34,6 +36,8 @@ const aliases = {
     "project id",
     "employee id",
     "resource id",
+    "campaign id",
+    "sku",
   ],
   date: [
     "date",
@@ -41,6 +45,8 @@ const aliases = {
     "transaction date",
     "closed date",
     "close date",
+    "start date",
+    "snapshot date",
   ],
   revenue: ["revenue", "recognized revenue", "sales revenue"],
   expense: ["expenses", "operating expenses", "costs"],
@@ -61,6 +67,11 @@ const aliases = {
   due_date: ["due date", "deadline", "target date"],
   assigned_hours: ["assigned hours", "allocated hours", "scheduled hours"],
   available_hours: ["available hours", "capacity hours"],
+  spend: ["spend", "marketing spend", "campaign spend"],
+  leads: ["leads", "generated leads"],
+  qualified_leads: ["qualified leads", "marketing qualified leads"],
+  on_hand: ["on hand", "stock on hand", "quantity on hand"],
+  reorder_level: ["reorder level", "reorder point", "minimum stock"],
 };
 const numeric = new Set([
   "revenue",
@@ -69,6 +80,11 @@ const numeric = new Set([
   "outstanding_amount",
   "assigned_hours",
   "available_hours",
+  "spend",
+  "leads",
+  "qualified_leads",
+  "on_hand",
+  "reorder_level",
 ]);
 const currencies = new Set(Intl.supportedValuesOf("currency"));
 const normalize = (value) =>
@@ -103,6 +119,8 @@ const signatures = {
   sales: [["amount", "status", "date"]],
   delivery: [["entity_id", "status", "due_date"]],
   resources: [["entity_id", "assigned_hours", "available_hours"]],
+  marketing: [["entity_id", "date", "spend", "leads"]],
+  operations: [["entity_id", "date", "on_hand", "reorder_level"]],
 };
 export function validateSemanticSettings(input) {
   if (
@@ -403,7 +421,14 @@ export function automaticallyConfirmSemantics(
   const proposal = proposeSemantics(table, {}, { title, properties });
   if (
     proposal.evidence.ambiguousFields.length ||
-    !["finance", "sales", "delivery", "resources"].includes(proposal.purpose)
+    ![
+      "finance",
+      "sales",
+      "delivery",
+      "resources",
+      "marketing",
+      "operations",
+    ].includes(proposal.purpose)
   )
     return null;
   const entity =
@@ -415,7 +440,11 @@ export function automaticallyConfirmSemantics(
         ? "deal"
         : proposal.purpose === "delivery"
           ? "project"
-          : "resource";
+          : proposal.purpose === "resources"
+            ? "resource"
+            : proposal.purpose === "marketing"
+              ? "campaign"
+              : "inventory";
   const required =
     entity === "transaction"
       ? ["entity_id", "date", "revenue", "expense"]
@@ -425,7 +454,11 @@ export function automaticallyConfirmSemantics(
           ? ["entity_id", "date", "amount", "status"]
           : entity === "project"
             ? ["entity_id", "status", "due_date"]
-            : ["entity_id", "assigned_hours", "available_hours"];
+            : entity === "resource"
+              ? ["entity_id", "assigned_hours", "available_hours"]
+              : entity === "campaign"
+                ? ["entity_id", "date", "spend", "leads"]
+                : ["entity_id", "date", "on_hand", "reorder_level"];
   if (required.some((field) => !proposal.fields[field])) return null;
   const idIndex = table.headers.indexOf(proposal.fields.entity_id);
   const ids = table.rows.map((row) => row[idIndex]);
@@ -435,7 +468,9 @@ export function automaticallyConfirmSemantics(
     new Set(ids.map((id) => JSON.stringify(id))).size !== ids.length
   )
     return null;
-  const needsCurrency = ["transaction", "invoice", "deal"].includes(entity);
+  const needsCurrency = ["transaction", "invoice", "deal", "campaign"].includes(
+    entity,
+  );
   if (needsCurrency && !proposal.currency) return null;
   const dateIndex = proposal.fields.date
     ? table.headers.indexOf(proposal.fields.date)
@@ -445,7 +480,12 @@ export function automaticallyConfirmSemantics(
       ? []
       : table.rows.map((row) => row[dateIndex]).filter(validDate);
   if (dateIndex >= 0 && dates.length !== table.rows.length) return null;
-  const period = ["transaction", "deal", "resource"].includes(entity)
+  // Inventory is a point-in-time measure. Combining rows from different
+  // snapshots would overstate stock, so leave mixed snapshots for review.
+  if (entity === "inventory" && new Set(dates).size !== 1) return null;
+  const period = ["transaction", "deal", "resource", "campaign"].includes(
+    entity,
+  )
     ? dates.length
       ? {
           kind: "interval",
@@ -453,7 +493,13 @@ export function automaticallyConfirmSemantics(
           endExclusive: addDay([...dates].sort().at(-1)),
         }
       : null
-    : { kind: "snapshot", asOf: dateInTimezone(timezone, now) };
+    : {
+        kind: "snapshot",
+        asOf:
+          entity === "inventory"
+            ? dates[0]
+            : dateInTimezone(timezone, now),
+      };
   if (!period) return null;
   const statusValues = {};
   if (proposal.fields.status) {
@@ -644,6 +690,61 @@ export const metricRegistry = [
     "interval",
     "utilization",
   ),
+  definition(
+    "marketing.spend",
+    "Campaign spend",
+    "marketing",
+    "campaign",
+    ["entity_id", "date", "spend"],
+    "currency",
+    "Sum of confirmed campaign spend in the reporting interval",
+    "interval",
+    "marketing_spend",
+  ),
+  definition(
+    "marketing.leads",
+    "Generated leads",
+    "marketing",
+    "campaign",
+    ["entity_id", "date", "leads"],
+    "count",
+    "Sum of recorded leads across unique campaigns in the reporting interval",
+    "interval",
+    "leads",
+  ),
+  definition(
+    "marketing.qualified_leads",
+    "Qualified leads",
+    "marketing",
+    "campaign",
+    ["entity_id", "date", "qualified_leads"],
+    "count",
+    "Sum of recorded qualified leads across unique campaigns in the reporting interval",
+    "interval",
+    "qualified_leads",
+  ),
+  definition(
+    "operations.on_hand",
+    "Units on hand",
+    "operations",
+    "inventory",
+    ["entity_id", "on_hand"],
+    "count",
+    "Sum of recorded on-hand units across unique inventory items at the snapshot date",
+    "snapshot",
+    "on_hand",
+  ),
+  definition(
+    "operations.reorder_items",
+    "Items below reorder level",
+    "operations",
+    "inventory",
+    ["entity_id", "on_hand", "reorder_level"],
+    "count",
+    "Count of unique inventory items whose on-hand units are below their recorded reorder level",
+    "snapshot",
+    "reorder_items",
+  ),
 ];
 export function evaluateSemantics({
   catalog,
@@ -764,11 +865,17 @@ export function evaluateSemantics({
             ? "project"
             : proposal.purpose === "resources"
               ? "resource"
-              : "other";
+              : proposal.purpose === "marketing"
+                ? "campaign"
+                : proposal.purpose === "operations"
+                  ? "inventory"
+                  : "other";
     const defs = metricRegistry.filter(
       (m) =>
         m.purpose === (s?.purpose || proposal.purpose) &&
         m.entity === (s?.entity || proposedEntity) &&
+        (m.id !== "marketing.qualified_leads" ||
+          !!(s?.fields.qualified_leads || proposal.fields.qualified_leads)) &&
         (!settings.enabledMetrics || settings.enabledMetrics.includes(m.id)),
     );
     for (const metric of defs) {
@@ -1014,7 +1121,13 @@ export function evaluateSemantics({
       if (["receivables", "overdue"].includes(metric.operation))
         rows = rows.filter(({ row }) => row[indices.due_date] < s.period.asOf);
       const monetaryFields = metric.requiredFields.filter((f) =>
-        ["revenue", "expense", "amount", "outstanding_amount"].includes(f),
+        [
+          "revenue",
+          "expense",
+          "amount",
+          "outstanding_amount",
+          "spend",
+        ].includes(f),
       );
       const scale = s.currency
         ? 10 **
@@ -1067,6 +1180,15 @@ export function evaluateSemantics({
             ? null
             : ((sum("revenue") - sum("expense")) / sum("revenue")) * 100;
       else if (metric.operation === "won_value") value = sum("amount");
+      else if (metric.operation === "marketing_spend") value = sum("spend");
+      else if (
+        ["leads", "qualified_leads", "on_hand"].includes(metric.operation)
+      )
+        value = sum(metric.operation);
+      else if (metric.operation === "reorder_items")
+        value = rows.filter(
+          ({ row }) => row[indices.on_hand] < row[indices.reorder_level],
+        ).length;
       else if (metric.operation === "receivables")
         value = rows.some(({ row }) => row[indices.outstanding_amount] < 0)
           ? null

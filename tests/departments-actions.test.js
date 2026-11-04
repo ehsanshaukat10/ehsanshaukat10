@@ -201,7 +201,15 @@ test("Departments and Actions share exact governed facts; decisions/tasks persis
     version: current.version,
     data: {
       ...current.data,
-      departments: ["Finance", "Studio", "People", "Empty"],
+      departments: [
+        ...new Set([
+          ...current.data.departments,
+          "Finance",
+          "Studio",
+          "People",
+          "Empty",
+        ]),
+      ],
       intelligenceAccess: policy,
     },
   });

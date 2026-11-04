@@ -123,6 +123,11 @@ test("shared intelligence preserves exact metrics and enforces categories, confi
   assert.equal(upload.status, 200);
   const id = upload.data.selectedId;
   await call(root + `/${id}/prepare`, "POST", { allowAi: false });
+  const detectedDepartments = (await call(`/companies/${c.id}`)).data.data
+    .departments;
+  assert.ok(detectedDepartments.includes("Finance"));
+  assert.ok(detectedDepartments.includes("Delivery"));
+  assert.ok(detectedDepartments.includes("People"));
   const asOf = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Karachi",
     year: "numeric",

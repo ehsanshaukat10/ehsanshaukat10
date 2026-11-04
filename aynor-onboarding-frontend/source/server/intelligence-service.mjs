@@ -119,10 +119,23 @@ export function createIntelligenceService({ read, now = () => Date.now() }) {
     };
     const policy = intelligencePolicy(state, actor),
       context = reportingContext(input);
+    const reportingDepartments = [
+        ...new Set(
+          [...policy.scopes.values()]
+            .map((scope) => scope.department)
+            .filter(Boolean),
+        ),
+      ],
+      knownDepartments = [
+        ...new Set([
+          ...(state.company.data.departments || []),
+          ...reportingDepartments,
+        ]),
+      ];
     if (context.scope) policy.require(context.scope);
     if (
       context.department &&
-      (!state.company.data.departments?.includes(context.department) ||
+      (!knownDepartments.includes(context.department) ||
         (!policy.admin &&
           policy.role !== "Executive" &&
           !state.membership.scope?.includes(context.department)))
@@ -250,12 +263,19 @@ export function createIntelligenceService({ read, now = () => Date.now() }) {
           ),
       metrics: view.metrics.map(decorate),
       executive,
-      departments: (s.state.company.data.departments || []).filter(
-        (d) =>
-          s.policy.admin ||
-          s.policy.role === "Executive" ||
-          s.state.membership.scope?.includes(d),
-      ),
+      departments: [
+        ...new Set([
+          ...(s.state.company.data.departments || []),
+          ...[...s.visible.values()].map((scope) => scope.department),
+        ]),
+      ]
+        .filter(Boolean)
+        .filter(
+          (d) =>
+            s.policy.admin ||
+            s.policy.role === "Executive" ||
+            s.state.membership.scope?.includes(d),
+        ),
       ...metadata(s),
     };
   }

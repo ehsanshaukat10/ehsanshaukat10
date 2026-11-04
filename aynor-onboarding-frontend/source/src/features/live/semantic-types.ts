@@ -70,6 +70,11 @@ export type ExecutiveReport = {
     kind: string;
     metrics: SemanticMetric[];
     series: { date: string; revenue: number; costs: number }[];
+    capacity?: {
+      assignedHours: number;
+      availableHours: number;
+      remainingHours: number;
+    } | null;
   } | null;
   issues: {
     id: string;
@@ -159,6 +164,13 @@ export type IntelligenceSnapshot = ExecutiveSnapshot &
     metrics: (Omit<SemanticMetric, "period"> & {
       period: SemanticPeriod | null;
     })[];
+    worksheets: {
+      sourceId: string;
+      tabId: number;
+      department: string | null;
+      state: string;
+      executiveEligible: boolean;
+    }[];
     departments: string[];
     concerns: ExecutiveReport["issues"];
     scopes: ExecutiveScope[];

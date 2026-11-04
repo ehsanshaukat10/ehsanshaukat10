@@ -678,9 +678,29 @@ test("exact supported multi-department mappings populate Overview without a seco
       title: "Marketing - Campaigns",
       department: "Marketing",
       table: table(
-        ["Campaign ID", "Spend", "Impressions"],
-        ["text", "number", "number"],
-        [["M-1", 100, 1000]],
+        [
+          "Campaign ID",
+          "Start Date",
+          "Spend",
+          "Leads",
+          "Qualified Leads",
+          "Currency Code",
+        ],
+        ["text", "date", "number", "number", "number", "text"],
+        [["M-1", "2026-10-01", 100, 20, 8, "USD"]],
+      ),
+    },
+    {
+      tabId: "operations",
+      title: "Operations - Inventory",
+      department: "Operations",
+      table: table(
+        ["SKU", "Snapshot Date", "On Hand", "Reorder Level"],
+        ["text", "date", "number", "number"],
+        [
+          ["SKU-1", "2026-10-31", 5, 10],
+          ["SKU-2", "2026-10-31", 20, 10],
+        ],
       ),
     },
   ].map((tab) => ({ ...tab, lastSuccess: now }));
@@ -696,15 +716,16 @@ test("exact supported multi-department mappings populate Overview without a seco
   assert.equal(metric(out, "delivery.active_projects").value, 1);
   assert.equal(metric(out, "delivery.overdue_projects").value, 1);
   assert.equal(metric(out, "resources.utilization").value, 95);
+  assert.equal(metric(out, "marketing.spend").value, 100);
+  assert.equal(metric(out, "marketing.leads").value, 20);
+  assert.equal(metric(out, "marketing.qualified_leads").value, 8);
+  assert.equal(metric(out, "operations.on_hand").value, 25);
+  assert.equal(metric(out, "operations.reorder_items").value, 1);
   assert.deepEqual(
     out.worksheets
       .filter((worksheet) => worksheet.executiveEligible)
       .map((w) => w.tabId),
-    ["finance", "sales", "delivery", "people"],
-  );
-  assert.equal(
-    out.worksheets.find((w) => w.tabId === "marketing").executiveEligible,
-    false,
+    ["finance", "sales", "delivery", "people", "marketing", "operations"],
   );
   assert.ok(out.metrics.every((item) => item.lineage.snapshotRevision === 3));
 });

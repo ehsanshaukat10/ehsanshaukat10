@@ -4,6 +4,8 @@ const purposeLabels = {
   sales: "Sales performance",
   delivery: "Project delivery",
   resources: "Resource capacity",
+  marketing: "Marketing performance",
+  operations: "Inventory operations",
 };
 const priorityPurpose = (text) =>
   /cash|profit|margin|financial|expense|revenue/i.test(text)
@@ -14,7 +16,11 @@ const priorityPurpose = (text) =>
         ? "delivery"
         : /resource|capacity|people|utilization|team/i.test(text)
           ? "resources"
-          : null;
+          : /marketing|campaign|leads?|acquisition/i.test(text)
+            ? "marketing"
+            : /operations|inventory|stock|logistics/i.test(text)
+              ? "operations"
+              : null;
 const labels = {
   "finance.revenue": "Revenue",
   "finance.expenses": "Operating expenses",
@@ -26,6 +32,11 @@ const labels = {
   "delivery.active_projects": "Active projects",
   "delivery.overdue_projects": "Overdue projects",
   "resources.utilization": "Planned utilization",
+  "marketing.spend": "Campaign spend",
+  "marketing.leads": "Generated leads",
+  "marketing.qualified_leads": "Qualified leads",
+  "operations.on_hand": "Units on hand",
+  "operations.reorder_items": "Items below reorder level",
 };
 export function buildExecutiveReport(view, company, catalog, requestedScope) {
   const valid = view.metrics.filter(
@@ -105,7 +116,15 @@ export function buildExecutiveReport(view, company, catalog, requestedScope) {
         ? ["sales.won_value", "sales.won_deals"]
         : selected?.purpose === "delivery"
           ? ["delivery.active_projects", "delivery.overdue_projects"]
-          : ["resources.utilization"];
+          : selected?.purpose === "marketing"
+            ? [
+                "marketing.spend",
+                "marketing.leads",
+                "marketing.qualified_leads",
+              ]
+            : selected?.purpose === "operations"
+              ? ["operations.on_hand", "operations.reorder_items"]
+              : ["resources.utilization"];
   const configuredIds = selectedMetrics
     .filter(
       (m) =>
@@ -222,14 +241,42 @@ export function buildExecutiveReport(view, company, catalog, requestedScope) {
         .map((m) => ({ ...m, label: labels[m.metricId] })),
       series: [],
     };
-  else if (selected?.purpose === "resources" && find("resources.utilization"))
+  else if (selected?.purpose === "resources" && find("resources.utilization")) {
+    const utilization = find("resources.utilization"),
+      source = catalog.sources.find((s) => s.id === selected.sourceId),
+      table = source?.tabs.find((t) => t.tabId === selected.tabId)?.table,
+      assignedIndex = table?.headers.indexOf(
+        utilization.lineage.fields.assigned_hours,
+      ),
+      availableIndex = table?.headers.indexOf(
+        utilization.lineage.fields.available_hours,
+      );
+    const assignedHours = table
+        ? utilization.lineage.contributingRows.reduce(
+            (sum, index) => sum + table.rows[index][assignedIndex],
+            0,
+          )
+        : null,
+      availableHours = table
+        ? utilization.lineage.contributingRows.reduce(
+            (sum, index) => sum + table.rows[index][availableIndex],
+            0,
+          )
+        : null;
     performance = {
       kind: "resources",
-      metrics: [
-        { ...find("resources.utilization"), label: "Planned utilization" },
-      ],
+      metrics: [{ ...utilization, label: "Planned utilization" }],
       series: [],
+      capacity:
+        assignedHours !== null && availableHours !== null
+          ? {
+              assignedHours,
+              availableHours,
+              remainingHours: availableHours - assignedHours,
+            }
+          : null,
     };
+  }
   const unresolved = view.worksheets.filter(
     (w) =>
       w.confirmation?.enabled !== false &&

@@ -50,6 +50,25 @@ test("automatic preparation validates full data, preserves identifiers and asks 
   );
   assert.equal(ready.plan.questions.length, 0);
   assert.equal(ready.table.financial.totals.profit, 1200);
+  const marketing = detectTable(
+    [
+      ["Campaign ID", "Start Date", "Spend", "Leads"],
+      ["C-1", "2026-10-01", 100, 20],
+    ],
+    { title: "Marketing campaigns", tabId: 4, departments: [] },
+  );
+  assert.equal(marketing.department, "Marketing");
+  assert.equal(
+    finalizePlan(
+      [
+        ["Campaign ID", "Start Date", "Spend", "Leads"],
+        ["C-1", "2026-10-01", 100, 20],
+      ],
+      marketing,
+      [],
+    ).config.department,
+    "Marketing",
+  );
   const ambiguous = [
     ["Date", "Revenue", "Expenses"],
     ["03/04/2026", 1000, 200],

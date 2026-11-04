@@ -141,6 +141,30 @@ export function GovernedOverview({
                     Planned allocation relative to available hours. 100% means
                     full planned capacity.
                   </p>
+                  {performance.capacity && (
+                    <table className="live-records">
+                      <tbody>
+                        <tr>
+                          <td>Assigned hours</td>
+                          <td>
+                            {performance.capacity.assignedHours.toLocaleString()}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>Available hours</td>
+                          <td>
+                            {performance.capacity.availableHours.toLocaleString()}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>Remaining capacity</td>
+                          <td>
+                            {performance.capacity.remainingHours.toLocaleString()}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               ) : (
                 <div className="table-profile-bars">

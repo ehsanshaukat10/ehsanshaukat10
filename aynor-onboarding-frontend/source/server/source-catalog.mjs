@@ -905,7 +905,7 @@ export function createSourceCatalog({
                 tab.automatic?.version === AUTO_VERSION &&
                 JSON.stringify(tab.config.headers) ===
                   JSON.stringify(columns(values.slice(tab.config.headerRow))) &&
-                (!tab.department || departments.includes(tab.department))
+                tab.config.department === tab.department
               ) {
                 const table = refreshTable(values, tab.config, tab.table);
                 tab.changes = changes(tab.table, table);
@@ -1020,6 +1020,32 @@ export function createSourceCatalog({
                 preparedAt: Date.now(),
               };
             }
+          }
+          const detectedDepartments = [
+            ...new Set(
+              source.tabs.map((tab) => tab.department).filter(Boolean),
+            ),
+          ].filter(
+            (department) =>
+              !access.company.data.departments.includes(department),
+          );
+          if (detectedDepartments.length) {
+            const data = {
+              ...access.company.data,
+              departments: [
+                ...access.company.data.departments,
+                ...detectedDepartments,
+              ],
+            };
+            await db.rpc("company_update", {
+              p_actor: actor,
+              p_company: company,
+              p_version: access.company.version,
+              p_payload: data,
+              p_profile: false,
+            });
+            access.company.data = data;
+            access.company.version += 1;
           }
           source.automation = {
             version: AUTO_VERSION,
@@ -1172,7 +1198,11 @@ export function createSourceCatalog({
               continue;
             }
             try {
-              if (config.department && !departments.includes(config.department))
+              if (
+                config.department &&
+                !departments.includes(config.department) &&
+                config.department !== tab.department
+              )
                 throw Error("Choose one of your workspace departments.");
               const values = await rows(company, source, tab);
               const props = config.properties;
