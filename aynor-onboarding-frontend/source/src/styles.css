@@ -1677,7 +1677,7 @@ input::placeholder {
 .workspace-footer {
   margin-top: auto;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: 20px;
   padding: 18px 42px;

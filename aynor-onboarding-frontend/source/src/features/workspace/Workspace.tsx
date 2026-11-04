@@ -744,7 +744,6 @@ export function Workspace({
           </main>
         )}
         <footer className="workspace-footer">
-          <span>AYNOR · A CLEARER PERSPECTIVE</span>
           <span>
             <LockKeyhole size={11} /> Private workspace
           </span>
