@@ -621,3 +621,104 @@ test("original currency symbols and numeric identifier loss are observed before 
   );
   assert.equal(loss.identifierLoss, true);
 });
+
+test("exact supported multi-department mappings populate Overview without a second confirmation", () => {
+  const tabs = [
+    {
+      tabId: "finance",
+      title: "Finance - Ledger",
+      department: "Finance",
+      table: table(
+        ["Entry ID", "Date", "Revenue", "Expenses", "Currency Code"],
+        ["text", "date", "number", "number", "text"],
+        [["F-1", "2026-10-01", 1000, 400, "USD"]],
+      ),
+    },
+    {
+      tabId: "sales",
+      title: "Sales - Deals",
+      department: "Sales",
+      table: table(
+        ["Deal ID", "Closed Date", "Amount", "Stage", "Currency Code"],
+        ["text", "date", "number", "text", "text"],
+        [
+          ["D-1", "2026-10-02", 500, "Won", "USD"],
+          ["D-2", "2026-10-03", 700, "Open", "USD"],
+        ],
+      ),
+    },
+    {
+      tabId: "delivery",
+      title: "Delivery - Projects",
+      department: "Delivery",
+      table: table(
+        ["Project ID", "Status", "Due Date"],
+        ["text", "text", "date"],
+        [
+          ["P-1", "In Progress", "2026-10-20"],
+          ["P-2", "Completed", "2026-11-10"],
+        ],
+      ),
+    },
+    {
+      tabId: "people",
+      title: "People - Capacity",
+      department: "People",
+      table: table(
+        ["Employee ID", "Reporting Date", "Assigned Hours", "Available Hours"],
+        ["text", "date", "number", "number"],
+        [
+          ["E-1", "2026-10-01", 36, 40],
+          ["E-2", "2026-10-01", 40, 40],
+        ],
+      ),
+    },
+    {
+      tabId: "marketing",
+      title: "Marketing - Campaigns",
+      department: "Marketing",
+      table: table(
+        ["Campaign ID", "Spend", "Impressions"],
+        ["text", "number", "number"],
+        [["M-1", 100, 1000]],
+      ),
+    },
+  ].map((tab) => ({ ...tab, lastSuccess: now }));
+  const out = evaluateSemantics({
+    companyId: "company",
+    now,
+    catalog: { revision: 3, sources: [{ id: "workbook", tabs }] },
+  });
+  assert.equal(metric(out, "finance.revenue").value, 1000);
+  assert.equal(metric(out, "finance.profit").value, 600);
+  assert.equal(metric(out, "sales.won_value").value, 500);
+  assert.equal(metric(out, "sales.won_deals").value, 1);
+  assert.equal(metric(out, "delivery.active_projects").value, 1);
+  assert.equal(metric(out, "delivery.overdue_projects").value, 1);
+  assert.equal(metric(out, "resources.utilization").value, 95);
+  assert.deepEqual(
+    out.worksheets
+      .filter((worksheet) => worksheet.executiveEligible)
+      .map((w) => w.tabId),
+    ["finance", "sales", "delivery", "people"],
+  );
+  assert.equal(
+    out.worksheets.find((w) => w.tabId === "marketing").executiveEligible,
+    false,
+  );
+  assert.ok(out.metrics.every((item) => item.lineage.snapshotRevision === 3));
+});
+
+test("automatic promotion refuses ambiguous identities, currencies and statuses", () => {
+  const mixed = table(
+    ["Deal ID", "Closed Date", "Amount", "Stage", "Currency Code"],
+    ["text", "date", "number", "text", "text"],
+    [
+      ["D-1", "2026-10-01", 100, "Won", "USD"],
+      ["D-1", "2026-10-02", 200, "Maybe", "EUR"],
+    ],
+  );
+  const out = run(mixed);
+  assert.ok(out.metrics.every((item) => item.state === "provisional"));
+  assert.equal(out.worksheets[0].confirmation, null);
+});

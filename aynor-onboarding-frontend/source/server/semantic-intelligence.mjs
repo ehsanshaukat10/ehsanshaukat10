@@ -27,6 +27,7 @@ const aliases = {
   resource_name: ["employee name", "resource name", "person name"],
   entity_id: [
     "id",
+    "entry id",
     "transaction id",
     "invoice id",
     "deal id",
@@ -387,6 +388,126 @@ export function confirmSemantics(input, table, actor, now = Date.now()) {
     confirmedAt: now,
   };
 }
+
+const addDay = (value) =>
+  new Date(Date.parse(value + "T00:00:00Z") + 86400000)
+    .toISOString()
+    .slice(0, 10);
+
+// Promote only deterministic mappings. Custom terminology and ambiguous data
+// remain proposals until a person confirms them.
+export function automaticallyConfirmSemantics(
+  table,
+  { sourceId, tabId, title, properties, timezone = "UTC", now = Date.now() },
+) {
+  const proposal = proposeSemantics(table, {}, { title, properties });
+  if (
+    proposal.evidence.ambiguousFields.length ||
+    !["finance", "sales", "delivery", "resources"].includes(proposal.purpose)
+  )
+    return null;
+  const entity =
+    proposal.purpose === "finance"
+      ? proposal.fields.outstanding_amount
+        ? "invoice"
+        : "transaction"
+      : proposal.purpose === "sales"
+        ? "deal"
+        : proposal.purpose === "delivery"
+          ? "project"
+          : "resource";
+  const required =
+    entity === "transaction"
+      ? ["entity_id", "date", "revenue", "expense"]
+      : entity === "invoice"
+        ? ["entity_id", "due_date", "outstanding_amount", "status"]
+        : entity === "deal"
+          ? ["entity_id", "date", "amount", "status"]
+          : entity === "project"
+            ? ["entity_id", "status", "due_date"]
+            : ["entity_id", "assigned_hours", "available_hours"];
+  if (required.some((field) => !proposal.fields[field])) return null;
+  const idIndex = table.headers.indexOf(proposal.fields.entity_id);
+  const ids = table.rows.map((row) => row[idIndex]);
+  if (
+    !ids.length ||
+    ids.some((id) => id === null || id === undefined || !String(id).trim()) ||
+    new Set(ids.map((id) => JSON.stringify(id))).size !== ids.length
+  )
+    return null;
+  const needsCurrency = ["transaction", "invoice", "deal"].includes(entity);
+  if (needsCurrency && !proposal.currency) return null;
+  const dateIndex = proposal.fields.date
+    ? table.headers.indexOf(proposal.fields.date)
+    : -1;
+  const dates =
+    dateIndex < 0
+      ? []
+      : table.rows.map((row) => row[dateIndex]).filter(validDate);
+  if (dateIndex >= 0 && dates.length !== table.rows.length) return null;
+  const period = ["transaction", "deal", "resource"].includes(entity)
+    ? dates.length
+      ? {
+          kind: "interval",
+          start: [...dates].sort()[0],
+          endExclusive: addDay([...dates].sort().at(-1)),
+        }
+      : null
+    : { kind: "snapshot", asOf: dateInTimezone(timezone, now) };
+  if (!period) return null;
+  const statusValues = {};
+  if (proposal.fields.status) {
+    const index = table.headers.indexOf(proposal.fields.status);
+    const observed = [
+      ...new Set(table.rows.map((row) => normalize(row[index]))),
+    ];
+    const groups = {
+      won: new Set(["won", "signed", "closed won"]),
+      lost: new Set(["lost", "cancelled", "canceled", "dropped"]),
+      active: new Set([
+        "active",
+        "open",
+        "in progress",
+        "negotiation",
+        "qualified",
+        "blocked",
+        "unpaid",
+        "overdue",
+      ]),
+      closed: new Set(["closed", "completed", "paid", "settled"]),
+    };
+    for (const value of observed) {
+      const group = Object.entries(groups).find(([, values]) =>
+        values.has(value),
+      );
+      if (!group) return null;
+      (statusValues[group[0]] ||= []).push(value);
+    }
+    if (entity === "deal" && !statusValues.won?.length) return null;
+    if (["invoice", "project"].includes(entity) && !statusValues.active?.length)
+      return null;
+  }
+  try {
+    return confirmSemantics(
+      {
+        purpose: proposal.purpose,
+        label: title || proposal.purpose,
+        entity,
+        entityNamespace: `auto:${sourceId}:${tabId}`.slice(0, 80),
+        fields: proposal.fields,
+        currency: needsCurrency ? proposal.currency : null,
+        period,
+        statusValues,
+        enabled: true,
+      },
+      table,
+      "automatic",
+      now,
+    );
+  } catch {
+    return null;
+  }
+}
 const definition = (
   id,
   name,
@@ -537,7 +658,24 @@ export function evaluateSemantics({
   const all = catalog.sources.flatMap((source) =>
     source.tabs
       .filter((tab) => tab.table)
-      .map((tab) => ({ source, tab, semantic: tab.semantic })),
+      .map((tab) => ({
+        source,
+        tab,
+        proposal: proposeSemantics(tab.table, settings, {
+          title: tab.title,
+          properties: tab.config?.properties,
+        }),
+        semantic:
+          tab.semantic ||
+          automaticallyConfirmSemantics(tab.table, {
+            sourceId: source.id,
+            tabId: tab.tabId,
+            title: tab.title,
+            properties: tab.config?.properties,
+            timezone,
+            now,
+          }),
+      })),
   );
   // Shared namespaces are opt-in. Overlap is blocked rather than guessed/deduplicated.
   const identities = new Map(),
@@ -562,13 +700,9 @@ export function evaluateSemantics({
       } else identities.set(key, owner);
     }
   }
-  for (const { source, tab, semantic: s } of all) {
+  for (const { source, tab, semantic: s, proposal } of all) {
     const table = tab.table,
       scope = `${source.id}:${tab.tabId}`;
-    const proposal = proposeSemantics(table, settings, {
-      title: tab.title,
-      properties: tab.config?.properties,
-    });
     const confirmed =
       s?.version === SEMANTIC_VERSION && s.schema === schemaOf(table);
     worksheets.push({
