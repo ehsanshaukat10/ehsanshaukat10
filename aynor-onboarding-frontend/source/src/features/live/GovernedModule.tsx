@@ -109,7 +109,7 @@ export function GovernedModule({
           </Button>
         </>
       )}
-      {m.busy && (
+      {m.busy && showContextFilters && (
         <p role="status">
           {m.report
             ? "Updating report…"

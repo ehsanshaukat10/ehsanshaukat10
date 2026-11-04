@@ -1118,7 +1118,8 @@
 
 /* Ask Aynor is a focused conversation surface, not a loose form. */
 .intel-ask-shell {
-  width: min(100%, 1040px);
+  width: min(100%, 1180px);
+  margin: 0;
 }
 .intel-ask-status {
   padding: 10px 12px;
@@ -1146,19 +1147,50 @@
   padding: 16px;
 }
 .intel-ask-shell .intel-assistant-composer {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 12px;
+  position: relative;
+  display: block;
   margin: 0;
-  padding: 20px 0 0;
+  padding: 15px 16px 14px;
+  min-height: 132px;
+  border: 1px solid #e4dfed;
+  border-radius: 10px;
+  background: #fff;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.intel-ask-shell .intel-assistant-composer:focus-within {
+  border-color: #aaa0d5;
+  box-shadow: 0 0 0 3px #8d7fc412;
+}
+.intel-ask-shell .intel-assistant-composer .field {
+  margin: 0;
+}
+.intel-ask-shell .intel-assistant-composer .field > span {
+  margin: 0 0 9px;
+  font-size: 12px;
+  color: #676d7e;
 }
 .intel-ask-shell .intel-assistant-composer textarea {
-  min-height: 92px;
-  padding: 13px 14px;
+  display: block;
+  width: 100%;
+  min-height: 72px;
+  padding: 0 142px 27px 0;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  resize: none;
+  background: transparent;
+  color: #343849;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.intel-ask-shell .intel-assistant-composer textarea::placeholder {
+  color: #9a9daf;
 }
 .intel-ask-shell .intel-assistant-composer .intel-footer-actions {
-  margin: 0 0 1px;
+  position: absolute;
+  right: 14px;
+  bottom: 13px;
+  margin: 0;
 }
 .intel-ask-shell .intel-assistant-composer .button {
   min-width: 116px;
@@ -1166,6 +1198,37 @@
 }
 .intel-ask-shell .intel-muted {
   margin: 10px 0 0;
+}
+
+/* Consistent text controls across Actions, Goals, Settings and dialogs. */
+.intel-page .field textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 11px 13px;
+  border: 1px solid #e2dfea;
+  border-radius: 7px;
+  background: #fff;
+  color: #343849;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.55;
+  resize: vertical;
+}
+.intel-page .field textarea::placeholder {
+  color: #a1a3b0;
+}
+.intel-page .field textarea:focus {
+  border-color: #aaa0d5;
+  box-shadow: 0 0 0 3px #8d7fc412;
+}
+/* The assistant composer intentionally owns its single-container border. */
+.intel-page .intel-assistant-composer .field textarea {
+  min-height: 72px;
+  padding: 0 142px 27px 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  resize: none;
 }
 
 @media (max-width: 700px) {
@@ -1191,11 +1254,16 @@
     grid-template-columns: 1fr;
   }
   .intel-ask-shell .intel-assistant-composer {
-    grid-template-columns: 1fr;
+    min-height: 150px;
+    padding: 14px;
   }
   .intel-ask-shell .intel-assistant-composer .intel-footer-actions {
-    display: flex;
-    justify-content: flex-end;
+    right: 12px;
+    bottom: 11px;
+  }
+  .intel-page .intel-assistant-composer .field textarea {
+    padding-right: 0;
+    padding-bottom: 52px;
   }
 }
 
