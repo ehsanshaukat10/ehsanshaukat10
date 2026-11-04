@@ -224,21 +224,26 @@ export function GovernedGoals({
           .toLowerCase()
           .includes(m.query.get("q")!.toLowerCase())),
   );
-  const filtered = (view?.items || []).filter(
-    (g) =>
-      (!m.query.get("status") ||
-        m.query.get("status") === "All" ||
-        g.lifecycle === m.query.get("status")) &&
+  const filtered = (view?.items || []).filter((g) => {
+    const status = m.query.get("status");
+    return (
+      (!status ||
+        status === "All" ||
+        (status === "Completed"
+          ? g.assessment === "Target met"
+          : g.lifecycle === status)) &&
       (!m.query.get("q") ||
         `${g.title} ${g.metricName} ${g.owner}`
           .toLowerCase()
-          .includes(m.query.get("q")!.toLowerCase())),
-  );
+          .includes(m.query.get("q")!.toLowerCase()))
+    );
+  });
   return (
     <GovernedModule
       title={goal?.title || onboardingGoal?.name || "Goals"}
       description="Targets and validated business performance."
       module={m}
+      showContextFilters={false}
       back={id ? m.back || m.link(root) : undefined}
       actions={
         admin && !id ? <Button onClick={start}>Create goal</Button> : undefined
@@ -464,6 +469,34 @@ export function GovernedGoals({
         ) : null
       ) : (
         <>
+          <div className="intel-kpi-grid" aria-label="Goal status summary">
+            <div className="intel-kpi">
+              <span>Active</span>
+              <strong>
+                {(view?.items || []).filter((g) => g.lifecycle === "Active")
+                  .length + (view?.onboarding || []).length}
+              </strong>
+            </div>
+            <div className="intel-kpi">
+              <span>Completed</span>
+              <strong>
+                {
+                  (view?.items || []).filter(
+                    (g) => g.assessment === "Target met",
+                  ).length
+                }
+              </strong>
+            </div>
+            <div className="intel-kpi">
+              <span>Archived</span>
+              <strong>
+                {
+                  (view?.items || []).filter((g) => g.lifecycle === "Archived")
+                    .length
+                }
+              </strong>
+            </div>
+          </div>
           <div className="intel-toolbar">
             <input
               aria-label="Find a goal"
@@ -476,7 +509,7 @@ export function GovernedGoals({
               value={m.query.get("status") || "All"}
               onChange={(e) => m.change("status", e.target.value)}
             >
-              {["All", "Active", "Paused", "Archived"].map((s) => (
+              {["All", "Active", "Completed", "Paused", "Archived"].map((s) => (
                 <option key={s}>{s}</option>
               ))}
             </select>

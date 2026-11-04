@@ -31,7 +31,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Sparkles,
-  Users,
   Settings2,
   Database,
 } from "lucide-react";
@@ -551,28 +550,12 @@ export function Workspace({
           )}
           {editable && (
             <Link
-              {...hint("Workspace setup")}
-              aria-label="Workspace setup"
-              className={!overview && !members && !intelligence ? "active" : ""}
-              to={`/companies/${id}/onboarding/${company?.data.step || "departments"}`}
+              {...hint("Manage companies")}
+              aria-label="Manage companies"
+              to="/companies"
             >
               <Compass size={18} />
-              <span className="nav-label">Workspace setup</span>
-              <span className="nav-count">
-                {completed}/{steps.length - 1}
-              </span>
-            </Link>
-          )}
-          {editable && (
-            <Link
-              {...hint("Team & permissions")}
-              aria-label="Team & permissions"
-              aria-current={members ? "page" : undefined}
-              className={members ? "active" : ""}
-              to={`/companies/${id}/settings/members`}
-            >
-              <Users size={18} />
-              <span className="nav-label">Team & permissions</span>
+              <span className="nav-label">Manage companies</span>
             </Link>
           )}
         </nav>

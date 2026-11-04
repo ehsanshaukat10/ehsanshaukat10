@@ -278,6 +278,8 @@ export function GovernedAsk({ company }: { company: Company }) {
       description="Executive questions, grounded in your authorized business evidence."
       module={m}
       back={m.back || undefined}
+      contentClassName="intel-ask-shell"
+      showContextFilters={false}
       actions={
         <Button
           variant="secondary"
@@ -304,73 +306,83 @@ export function GovernedAsk({ company }: { company: Company }) {
       )}
       {ready && (
         <>
-          <Panel title="External AI">
-            <Status>
-              {status.consented && status.provider.configured
-                ? "Consented · free-only"
-                : "Built-in answers available"}
-            </Status>
-            <p>
-              {status.consented
-                ? "Your consent applies to the approved categories until you revoke it or their approval changes."
-                : "External AI needs both company authorization and your consent. Built-in answers do not send your question to a provider."}
-            </p>
-            {status.categories.length > 0 && (
+          <details className="intel-ask-settings">
+            <summary>
+              <span>AI and privacy settings</span>
+              <Status>
+                {status.consented && status.provider.configured
+                  ? "External AI enabled"
+                  : "Built-in answers"}
+              </Status>
+            </summary>
+            <Panel title="External processing">
+              <Status>
+                {status.consented && status.provider.configured
+                  ? "Consented · free-only"
+                  : "Built-in answers available"}
+              </Status>
               <p>
-                Categories:{" "}
-                {status.categories.map((c) => categoryLabels[c]).join(" · ")}
+                {status.consented
+                  ? "Your consent applies to the approved categories until you revoke it or their approval changes."
+                  : "External AI needs both company authorization and your consent. Built-in answers do not send your question to a provider."}
               </p>
-            )}
-            {!status.memoryAvailable && (
-              <p>
-                Secure conversation state is not configured; built-in answers
-                remain available.
-              </p>
-            )}
-            {!status.provider.configured && (
-              <p>Live AI is unavailable: {status.provider.reason}</p>
-            )}
-            <ErrorBox>{!dialog ? consentError : ""}</ErrorBox>
-            <div className="intel-footer-actions">
-              {status.authorization.canManageSources && (
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setCategories(status.companyPolicy.categories);
-                    setPolicyEnabled(status.companyPolicy.enabled);
-                    setConsentError("");
-                    setDialog("policy");
-                  }}
-                >
-                  Authorize data categories
-                </Button>
+              {status.categories.length > 0 && (
+                <p>
+                  Categories:{" "}
+                  {status.categories.map((c) => categoryLabels[c]).join(" · ")}
+                </p>
               )}
-              {status.consented ? (
-                <Button
-                  variant="text"
-                  busy={consentBusy}
-                  onClick={() => changeConsent(false)}
-                >
-                  Revoke external AI consent
-                </Button>
-              ) : (
-                <Button
-                  variant="secondary"
-                  disabled={
-                    !status.categories.length ||
-                    !status.provider.configured ||
-                    !status.memoryAvailable
-                  }
-                  onClick={() => {
-                    setConsentError("");
-                    setDialog("consent");
-                  }}
-                >
-                  Allow external AI
-                </Button>
+              {!status.memoryAvailable && (
+                <p>
+                  Secure conversation state is not configured; built-in answers
+                  remain available.
+                </p>
               )}
-            </div>
-          </Panel>
+              {!status.provider.configured && (
+                <p>Live AI is unavailable: {status.provider.reason}</p>
+              )}
+              <ErrorBox>{!dialog ? consentError : ""}</ErrorBox>
+              <div className="intel-footer-actions">
+                {status.authorization.canManageSources && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setCategories(status.companyPolicy.categories);
+                      setPolicyEnabled(status.companyPolicy.enabled);
+                      setConsentError("");
+                      setDialog("policy");
+                    }}
+                  >
+                    Authorize data categories
+                  </Button>
+                )}
+                {status.consented ? (
+                  <Button
+                    variant="text"
+                    busy={consentBusy}
+                    onClick={() => changeConsent(false)}
+                  >
+                    Revoke external AI consent
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    disabled={
+                      !status.categories.length ||
+                      !status.provider.configured ||
+                      !status.memoryAvailable
+                    }
+                    onClick={() => {
+                      setConsentError("");
+                      setDialog("consent");
+                    }}
+                  >
+                    Allow external AI
+                  </Button>
+                )}
+              </div>
+            </Panel>
+          </details>
           <section
             className="intel-conversation"
             aria-label="Executive conversation"
@@ -469,6 +481,7 @@ export function GovernedAsk({ company }: { company: Company }) {
               />
             ) : (
               <form
+                className="intel-assistant-composer"
                 onSubmit={(e) => {
                   e.preventDefault();
                   void submit();
@@ -479,7 +492,7 @@ export function GovernedAsk({ company }: { company: Company }) {
                   <textarea
                     aria-label="Your question"
                     style={{ width: "100%" }}
-                    rows={3}
+                    rows={2}
                     maxLength={2000}
                     value={question}
                     disabled={sending}

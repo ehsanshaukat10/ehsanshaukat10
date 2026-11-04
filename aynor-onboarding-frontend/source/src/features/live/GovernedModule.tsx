@@ -49,6 +49,8 @@ export function GovernedModule({
   actions,
   children,
   reportingScopes,
+  contentClassName,
+  showContextFilters = true,
 }: {
   title: string;
   reportingScopes?: { id: string; label: string; currency?: string | null }[];
@@ -57,6 +59,8 @@ export function GovernedModule({
   back?: string;
   actions?: ReactNode;
   children: ReactNode;
+  contentClassName?: string;
+  showContextFilters?: boolean;
 }) {
   const m = module;
   return (
@@ -113,42 +117,44 @@ export function GovernedModule({
         </p>
       )}
       {m.report && (
-        <>
-          <div className="intel-toolbar">
-            <select
-              aria-label="Reporting scope"
-              value={m.query.get("scope") || ""}
-              onChange={(e) => m.change("scope", e.target.value)}
-            >
-              <option value="">All authorized reporting scopes</option>
-              {(reportingScopes || m.report.scopes).map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                  {s.currency ? ` · ${s.currency}` : ""}
-                </option>
-              ))}
-            </select>
-            {!m.routeDepartment && (
+        <div className={contentClassName}>
+          {showContextFilters && (
+            <div className="intel-toolbar">
               <select
-                aria-label="Department filter"
-                value={m.query.get("department") || ""}
-                onChange={(e) => {
-                  const next = new URLSearchParams(m.query);
-                  next.delete("scope");
-                  if (e.target.value) next.set("department", e.target.value);
-                  else next.delete("department");
-                  m.setQuery(next);
-                }}
+                aria-label="Reporting scope"
+                value={m.query.get("scope") || ""}
+                onChange={(e) => m.change("scope", e.target.value)}
               >
-                <option value="">All authorized departments</option>
-                {m.report.departments.map((d) => (
-                  <option key={d}>{d}</option>
+                <option value="">All authorized reporting scopes</option>
+                {(reportingScopes || m.report.scopes).map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                    {s.currency ? ` · ${s.currency}` : ""}
+                  </option>
                 ))}
               </select>
-            )}
-          </div>
+              {!m.routeDepartment && (
+                <select
+                  aria-label="Department filter"
+                  value={m.query.get("department") || ""}
+                  onChange={(e) => {
+                    const next = new URLSearchParams(m.query);
+                    next.delete("scope");
+                    if (e.target.value) next.set("department", e.target.value);
+                    else next.delete("department");
+                    m.setQuery(next);
+                  }}
+                >
+                  <option value="">All authorized departments</option>
+                  {m.report.departments.map((d) => (
+                    <option key={d}>{d}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
           {children}
-        </>
+        </div>
       )}
     </ModulePage>
   );

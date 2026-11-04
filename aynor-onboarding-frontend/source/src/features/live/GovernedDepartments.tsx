@@ -209,7 +209,13 @@ export function GovernedDepartments({ company }: { company: Company }) {
             .map((d) => {
               const ds = metrics.filter((v) => v.department === d),
                 valid = ds.filter((v) => v.state === "validated"),
-                issues = concerns.filter((c) => c.department === d);
+                issues = concerns.filter((c) => c.department === d),
+                assignedPages = report.worksheets.filter(
+                  (worksheet) => worksheet.department === d,
+                ),
+                assignedSources = new Set(
+                  assignedPages.map((worksheet) => worksheet.sourceId),
+                ).size;
               return (
                 <Link
                   className="intel-row"
@@ -223,8 +229,10 @@ export function GovernedDepartments({ company }: { company: Company }) {
                     {d}
                     <small>
                       {valid.length
-                        ? `${valid.length} validated measures · ${issues.length} supported concerns`
-                        : "No validated business reporting in this scope"}
+                        ? `${assignedSources} assigned ${assignedSources === 1 ? "source" : "sources"} · ${assignedPages.length} worksheet ${assignedPages.length === 1 ? "page" : "pages"} · ${valid.length} validated measures · ${issues.length} supported concerns`
+                        : assignedPages.length
+                          ? `${assignedSources} assigned ${assignedSources === 1 ? "source" : "sources"} · measures need review`
+                          : "No reporting source assigned"}
                     </small>
                   </span>
                   <span>

@@ -1582,6 +1582,11 @@ export function SourceWorkspace({
               </Button>
             </div>
           </header>
+          <p className="source-muted">
+            Column mapping controls how worksheet values are imported. Review
+            reporting controls how those validated columns become business
+            measures in Overview and other modules.
+          </p>
           <Select
             label="Department for this worksheet"
             value={activeDraft.department}
@@ -1589,6 +1594,12 @@ export function SourceWorkspace({
             onChange={(e) => changeDraft({ department: e.target.value })}
           >
             <option value="">Unassigned · choose later</option>
+            {activeDraft.department &&
+              !departments.includes(activeDraft.department) && (
+                <option value={activeDraft.department}>
+                  {activeDraft.department} · detected from this page
+                </option>
+              )}
             {departments.map((d) => (
               <option key={d}>{d}</option>
             ))}

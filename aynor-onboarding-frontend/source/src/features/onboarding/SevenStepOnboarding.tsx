@@ -170,7 +170,7 @@ export function SevenStepOnboarding({
       : returnKind === "settings-connections"
         ? `/companies/${company.id}/connections`
         : returnKind === "settings-departments"
-          ? `/companies/${company.id}/settings/departments`
+          ? `/companies/${company.id}/departments`
           : returnKind === "settings-profile"
             ? `/companies/${company.id}/settings/profile`
             : null;
@@ -898,12 +898,10 @@ export function SevenStepOnboarding({
                       onClick={() => {
                         setGoal({ ...g, description: g.description || "" });
                         setEditing(i);
-                        document
-                          .getElementById("inline-goal")
-                          ?.scrollIntoView({
-                            block: "center",
-                            behavior: "smooth",
-                          });
+                        document.getElementById("inline-goal")?.scrollIntoView({
+                          block: "center",
+                          behavior: "smooth",
+                        });
                       }}
                     >
                       <Pencil size={17} />

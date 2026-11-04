@@ -37,9 +37,8 @@ export function Settings(props: ModuleProps) {
     panel = location.pathname.split("/")[4] || "profile";
   const tabs = [
     ["profile", "Company profile"],
-    ["departments", "Departments"],
-    ["members", "Team & permissions"],
     ["preferences", "Dashboard preferences"],
+    ["members", "Team & permissions"],
   ];
   if (panel === "connections")
     return <Navigate to={e.base + "/connections" + location.search} replace />;
@@ -74,8 +73,6 @@ export function Settings(props: ModuleProps) {
         />
       ) : panel === "profile" ? (
         <Profile {...props} />
-      ) : panel === "departments" ? (
-        <ConfiguredDepartments company={props.company} />
       ) : panel === "preferences" ? (
         <PreferenceSettings {...props} />
       ) : (
