@@ -26,7 +26,6 @@ import {
   CircleHelp,
   Compass,
   LayoutDashboard,
-  LockKeyhole,
   Plus,
   PanelLeftClose,
   PanelLeftOpen,
@@ -743,11 +742,6 @@ export function Workspace({
             )}
           </main>
         )}
-        <footer className="workspace-footer">
-          <span>
-            <LockKeyhole size={11} /> Private workspace
-          </span>
-        </footer>
       </div>
       {commandOpen && (
         <Modal

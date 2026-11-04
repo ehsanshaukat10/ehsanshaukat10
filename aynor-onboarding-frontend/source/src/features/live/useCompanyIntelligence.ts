@@ -76,7 +76,9 @@ export function useCompanyIntelligence(
       }
       if (!force && failed) return;
       running = true;
-      setBusy(true);
+      const hasCurrentReport =
+        last.current?.identity === identity && !!last.current.report;
+      setBusy(!hasCurrentReport);
       let authorized = false;
       try {
         const proof = await request<IntelligenceAuthority>(
@@ -126,17 +128,20 @@ export function useCompanyIntelligence(
           last.current = null;
           setView({ identity, report: null });
         }
-        setError(
-          denied
-            ? "Business reporting is unavailable for your current access."
-            : setupIncomplete
-              ? "Aynor’s reporting database update has not been installed. Your connected spreadsheet is safe. An administrator must install the reporting update, then retry."
-              : e instanceof DOMException && e.name === "AbortError"
-                ? "Business reporting took too long to respond. Retry."
-                : !authorized
-                  ? "Unable to verify reporting access. Retry."
-                  : "Unable to refresh business reporting. Retry.",
-        );
+        if (hasCurrentReport && authorized && !denied && !setupIncomplete)
+          setError("");
+        else
+          setError(
+            denied
+              ? "Business reporting is unavailable for your current access."
+              : setupIncomplete
+                ? "Aynor’s reporting database update has not been installed. Your connected spreadsheet is safe. An administrator must install the reporting update, then retry."
+                : e instanceof DOMException && e.name === "AbortError"
+                  ? "Business reporting took too long to respond. Retry."
+                  : !authorized
+                    ? "Unable to verify reporting access. Retry."
+                    : "Unable to refresh business reporting. Retry.",
+          );
         failed = true;
       } finally {
         running = false;

@@ -309,7 +309,6 @@ export function GovernedAsk({ company }: { company: Company }) {
   return (
     <GovernedModule
       title="Ask Aynor"
-      description="Executive questions, grounded in your authorized business evidence."
       module={m}
       back={m.back || undefined}
       contentClassName={`intel-ask-shell ${messages.length ? "is-active" : "is-welcome"}`}

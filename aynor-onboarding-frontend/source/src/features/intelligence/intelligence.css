@@ -1070,7 +1070,7 @@
   align-items: flex-start;
   padding-bottom: 22px;
   margin-bottom: 22px;
-  border-bottom: 1px solid #ece9f2;
+  border-bottom: 0;
 }
 .intel-heading-actions {
   min-height: 40px;
@@ -1093,7 +1093,7 @@
   width: 100%;
   padding: 0 0 20px;
   margin: 0 0 24px;
-  border-bottom: 1px solid #ece9f2;
+  border-bottom: 0;
 }
 .intel-toolbar select,
 .intel-toolbar input {
