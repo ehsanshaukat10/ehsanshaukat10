@@ -12,6 +12,7 @@ import { connectionsLink } from "./dashboard-navigation";
 import { useLocation } from "react-router-dom";
 import { GovernedOverview } from "./GovernedOverview";
 import { BusinessEvidence } from "./BusinessEvidence";
+import { AskContextLink } from "./AskContextLink";
 import "../dashboard/dashboard.css";
 import "../intelligence/intelligence.css";
 import "./operational-overview.css";
@@ -57,29 +58,37 @@ export function LiveOverview({ company }: { company: Company }) {
         <div>
           <h1>Overview.</h1>
         </div>
-        <details className="overview-source-details intel-notice">
-          <summary>
-            <Database size={14} />
-            Data status{busy ? " · Updating…" : ""}
-          </summary>
-          {Number.isFinite(checked) && (
-            <p>
-              Reporting data checked{" "}
-              <time dateTime={new Date(checked).toISOString()}>
-                {formatSyncTime(checked, company.timezone)}
-              </time>
-            </p>
-          )}
-          <Link
-            to={connectionsLink(
-              company.id,
-              `/companies/${company.id}/connections`,
-              location.pathname + location.search + location.hash,
+        <div className="intel-heading-actions">
+          <AskContextLink
+            companyId={company.id}
+            search={location.search}
+            origin={location.pathname + location.search}
+            focus="overview"
+          />
+          <details className="overview-source-details intel-notice">
+            <summary>
+              <Database size={14} />
+              Data status{busy ? " · Updating…" : ""}
+            </summary>
+            {Number.isFinite(checked) && (
+              <p>
+                Reporting data checked{" "}
+                <time dateTime={new Date(checked).toISOString()}>
+                  {formatSyncTime(checked, company.timezone)}
+                </time>
+              </p>
             )}
-          >
-            Data connections
-          </Link>
-        </details>
+            <Link
+              to={connectionsLink(
+                company.id,
+                `/companies/${company.id}/connections`,
+                location.pathname + location.search + location.hash,
+              )}
+            >
+              Data connections
+            </Link>
+          </details>
+        </div>
       </div>
       <ErrorBox>{error}</ErrorBox>
       {error && (

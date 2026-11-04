@@ -1,4 +1,3 @@
-import { AskContextLink } from "./AskContextLink";
 import { connectionsLink, evidenceLink } from "./dashboard-navigation";
 import { useLocation } from "react-router-dom";
 import { useState } from "react";
@@ -32,11 +31,6 @@ export function GovernedOverview({
     performance = report.performance;
   return (
     <section aria-label="Executive business overview">
-      <AskContextLink
-        companyId={companyId}
-        search={location.search}
-        origin={location.pathname + location.search}
-      />
       {report.dataStatus && (
         <div className="intel-notice" role="status">
           {report.dataStatus}.{" "}

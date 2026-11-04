@@ -300,7 +300,7 @@ export function GovernedAsk({ company }: { company: Company }) {
           </Button>
         </>
       )}
-      {notice && <p role="status">{notice}</p>}
+      {notice && <p className="intel-ask-status" role="status">{notice}</p>}
       {!ready && !loadError && (
         <p role="status">Verifying assistant access and reporting context…</p>
       )}
@@ -384,7 +384,7 @@ export function GovernedAsk({ company }: { company: Company }) {
             </Panel>
           </details>
           <section
-            className="intel-conversation"
+            className="intel-conversation intel-ask-conversation"
             aria-label="Executive conversation"
           >
             {!messages.length && !sending && (

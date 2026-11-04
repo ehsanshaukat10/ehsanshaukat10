@@ -1064,6 +1064,141 @@
   transform: translateY(1px);
 }
 
+/* Shared module composition: keep page controls predictable across modules. */
+.intel-heading {
+  min-height: 64px;
+  align-items: flex-start;
+  padding-bottom: 22px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid #ece9f2;
+}
+.intel-heading-actions {
+  min-height: 40px;
+  flex: 0 0 auto;
+}
+.intel-heading-actions > .button,
+.intel-heading-actions > select {
+  min-height: 40px;
+}
+.intel-heading-actions > .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.intel-toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: end;
+  width: 100%;
+  padding: 0 0 20px;
+  margin: 0 0 24px;
+  border-bottom: 1px solid #ece9f2;
+}
+.intel-toolbar select,
+.intel-toolbar input {
+  width: 100%;
+  min-height: 42px;
+}
+.intel-page > [role="status"] {
+  margin: -10px 0 18px;
+}
+.intel-kpi-grid {
+  align-items: stretch;
+}
+.intel-kpi {
+  min-height: 116px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.intel-kpi:hover {
+  transform: none;
+}
+
+/* Ask Aynor is a focused conversation surface, not a loose form. */
+.intel-ask-shell {
+  width: min(100%, 1040px);
+}
+.intel-ask-status {
+  padding: 10px 12px;
+  margin: 0 0 16px;
+  border-radius: 7px;
+  background: #f6f4fa;
+}
+.intel-ask-settings {
+  margin-bottom: 20px;
+}
+.intel-ask-settings > summary {
+  padding: 0 2px;
+}
+.intel-ask-conversation {
+  width: 100%;
+  max-width: none;
+}
+.intel-ask-shell .intel-question-list {
+  gap: 12px;
+  margin: 0 0 24px;
+}
+.intel-ask-shell .intel-question-list button {
+  min-height: 82px;
+  align-items: flex-start;
+  padding: 16px;
+}
+.intel-ask-shell .intel-assistant-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin: 0;
+  padding: 20px 0 0;
+}
+.intel-ask-shell .intel-assistant-composer textarea {
+  min-height: 92px;
+  padding: 13px 14px;
+}
+.intel-ask-shell .intel-assistant-composer .intel-footer-actions {
+  margin: 0 0 1px;
+}
+.intel-ask-shell .intel-assistant-composer .button {
+  min-width: 116px;
+  min-height: 44px;
+}
+.intel-ask-shell .intel-muted {
+  margin: 10px 0 0;
+}
+
+@media (max-width: 700px) {
+  .intel-heading {
+    min-height: 0;
+    gap: 14px;
+    padding-bottom: 18px;
+  }
+  .intel-heading-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  }
+  .intel-heading-actions > .button,
+  .intel-heading-actions > select,
+  .intel-heading-actions > details {
+    width: 100%;
+  }
+  .intel-toolbar {
+    grid-template-columns: 1fr;
+  }
+  .intel-ask-shell .intel-question-list {
+    grid-template-columns: 1fr;
+  }
+  .intel-ask-shell .intel-assistant-composer {
+    grid-template-columns: 1fr;
+  }
+  .intel-ask-shell .intel-assistant-composer .intel-footer-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+}
+
 .intel-inline-links a {
   display: inline-flex;
   align-items: center;

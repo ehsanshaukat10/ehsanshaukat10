@@ -1,9 +1,9 @@
 /* Data visualization only: retain the shared cards, fonts and workspace palette. */
 .concise-overview .intel-heading {
-  margin-bottom: 12px;
+  margin-bottom: 22px;
 }
 .concise-overview .overview-source-details {
-  margin-bottom: 12px;
+  margin-bottom: 0;
   padding: 8px 12px;
   display: block;
 }
@@ -94,6 +94,20 @@
 .concise-overview .intel-heading .overview-source-details {
   margin: 0;
   flex: 0 1 auto;
+}
+.concise-overview .intel-heading-actions {
+  align-items: flex-start;
+}
+.concise-overview .overview-source-details summary {
+  min-height: 22px;
+  white-space: nowrap;
+}
+.concise-overview .overview-source-details[open] {
+  max-width: 320px;
+}
+.concise-overview .overview-source-details p {
+  margin: 10px 0 4px;
+  line-height: 1.5;
 }
 .concise-overview .operational-overview {
   gap: 16px;
