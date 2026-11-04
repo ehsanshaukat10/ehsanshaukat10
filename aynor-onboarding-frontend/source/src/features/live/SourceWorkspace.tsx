@@ -584,6 +584,9 @@ export function SourceWorkspace({
       setMessage(
         `${saved} worksheet page${saved === 1 ? "" : "s"} mapped. Unmapped pages can be added later from Data connections.`,
       );
+      toast(
+        `${saved} worksheet page${saved === 1 ? "" : "s"} saved successfully.`,
+      );
       window.dispatchEvent(
         new CustomEvent("aynor:source-synced", { detail: { companyId } }),
       );
@@ -1320,40 +1323,10 @@ export function SourceWorkspace({
                   </p>
                 )}
                 {phase !== "connect" && (
-                  <Select
-                    label={`Department for ${source.title}`}
-                    value={source.department || ""}
-                    disabled={!!busy}
-                    onChange={(e) => {
-                      const department = e.target.value;
-                      void run("department", async () => {
-                        applyCatalog(
-                          await serverRequest<Catalog>(
-                            `${root}/${source.id}/department`,
-                            "POST",
-                            { department },
-                          ),
-                        );
-                        setDrafts((ds) =>
-                          ds.map((d) =>
-                            d.inspection.sourceId === source.id
-                              ? { ...d, department }
-                              : d,
-                          ),
-                        );
-                        setMessage(
-                          "Department applied to all pages in this workbook. You can override individual pages in Edit mapping.",
-                        );
-                      });
-                    }}
-                  >
-                    <option value="">
-                      Unassigned · assign individual pages
-                    </option>
-                    {departments.map((d) => (
-                      <option key={d}>{d}</option>
-                    ))}
-                  </Select>
+                  <p className="source-muted">
+                    Departments are assigned per worksheet page, so one workbook
+                    can report across multiple teams.
+                  </p>
                 )}
                 {phase !== "connect" && expanded.includes(source.id) && (
                   <div className="source-pages">
@@ -1465,7 +1438,7 @@ export function SourceWorkspace({
                               disabled={!!busy}
                               onClick={() => void openTab(source, tab)}
                             >
-                              {tab.mapped ? "Edit mapping" : "Map columns"}
+                              {tab.mapped ? "Edit columns" : "Map columns"}
                               <ChevronRight size={13} />
                             </Button>
                             {tab.mapped && (
@@ -1479,7 +1452,7 @@ export function SourceWorkspace({
                                   })
                                 }
                               >
-                                Business meanings
+                                Review reporting
                               </Button>
                             )}
                             {!tab.mapped && (
@@ -1862,6 +1835,7 @@ export function SourceWorkspace({
             setMessage(
               "Business meanings saved. Overview shows only measures that pass validation.",
             );
+            toast("Business reporting saved successfully.");
             window.dispatchEvent(new Event("aynor:sheet-change"));
             window.dispatchEvent(
               new CustomEvent("aynor:source-synced", {

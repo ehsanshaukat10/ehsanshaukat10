@@ -1,6 +1,7 @@
 import { createIntelligenceService } from "./intelligence-service.mjs";
 import {
   confirmSemantics,
+  automaticallyConfirmSemantics,
   validateSemanticSettings,
   currencyEvidence,
 } from "./semantic-intelligence.mjs";
@@ -45,6 +46,21 @@ export function createSourceCatalog({
   const intelligenceService = createIntelligenceService({
     read: (company, actor) => read(company, actor, true),
   });
+  function retainAutomaticSemantic(source, tab, timezone = "UTC") {
+    if (
+      !tab.table ||
+      (tab.semantic && tab.semantic.confirmedBy !== "automatic")
+    )
+      return;
+    const automatic = automaticallyConfirmSemantics(tab.table, {
+      sourceId: source.id,
+      tabId: tab.tabId,
+      title: tab.title,
+      properties: tab.config?.properties,
+      timezone,
+    });
+    if (automatic) tab.semantic = automatic;
+  }
   async function read(company, actor, business = false) {
     const state = await db.rpc(business ? "intelligence_read" : "sheet_read", {
       p_actor: actor,
@@ -206,11 +222,17 @@ export function createSourceCatalog({
     }
   }
   function summary(source) {
+    const assignedDepartments = [
+      ...new Set(source.tabs.map((tab) => tab.department).filter(Boolean)),
+    ];
     return {
       id: source.id,
       mode: source.mode,
       title: source.title,
-      department: source.department || "",
+      // Workbook department is a derived summary. Worksheet pages remain the
+      // single source of truth, including single-page workbooks.
+      department:
+        assignedDepartments.length === 1 ? assignedDepartments[0] : "",
       url: source.url,
       lastSuccess:
         Math.max(0, ...source.tabs.map((t) => t.lastSuccess || 0)) ||
@@ -598,7 +620,7 @@ export function createSourceCatalog({
     intelligence,
     intelligenceService,
     async handle({ company, actor, action, id, method, body, query = {} }) {
-      await member(company, actor, true);
+      const access = await member(company, actor, true);
       if (action === "intelligence" && method === "GET") {
         const view = await intelligence(company, actor, query.scope);
         return query.view === "executive"
@@ -810,6 +832,11 @@ export function createSourceCatalog({
                   const table = refreshTable(values, tab.config, tab.table);
                   tab.changes = changes(tab.table, table);
                   tab.table = table;
+                  retainAutomaticSemantic(
+                    existing,
+                    tab,
+                    access.company.profile?.timezone,
+                  );
                   captureSemanticObservation(tab, values);
                   tab.error = null;
                   tab.lastSuccess = Date.now();
@@ -883,6 +910,11 @@ export function createSourceCatalog({
                 const table = refreshTable(values, tab.config, tab.table);
                 tab.changes = changes(tab.table, table);
                 tab.table = table;
+                retainAutomaticSemantic(
+                  source,
+                  tab,
+                  access.company.profile?.timezone,
+                );
                 captureSemanticObservation(tab, values);
                 tab.error = null;
                 tab.lastSuccess = Date.now();
@@ -960,8 +992,13 @@ export function createSourceCatalog({
               tab.changes = changes(tab.table, prepared.table);
               tab.table = prepared.table;
               tab.config = prepared.config;
+              retainAutomaticSemantic(
+                source,
+                tab,
+                access.company.profile?.timezone,
+              );
               captureSemanticObservation(tab, values);
-              tab.department = source.department ?? prepared.config.department;
+              tab.department = prepared.config.department;
               prepared.config.department = tab.department;
               prepared.plan.department = tab.department;
               tab.skipped = false;
@@ -1030,6 +1067,11 @@ export function createSourceCatalog({
           tab.changes = changes(tab.table, prepared.table);
           tab.table = prepared.table;
           tab.config = prepared.config;
+          retainAutomaticSemantic(
+            source,
+            tab,
+            access.company.profile?.timezone,
+          );
           captureSemanticObservation(tab, values);
           tab.department = prepared.config.department;
           tab.error = null;
@@ -1230,6 +1272,11 @@ export function createSourceCatalog({
             tab.changes = changes(tab.table, table);
             tab.table = table;
             tab.config = config;
+            retainAutomaticSemantic(
+              source,
+              tab,
+              access.company.profile?.timezone,
+            );
             captureSemanticObservation(tab, values);
             tab.department = config.department;
             tab.skipped = false;
@@ -1305,6 +1352,11 @@ export function createSourceCatalog({
                 const table = refreshTable(values, tab.config, tab.table);
                 tab.changes = changes(tab.table, table);
                 tab.table = table;
+                retainAutomaticSemantic(
+                  source,
+                  tab,
+                  access.company.profile?.timezone,
+                );
                 captureSemanticObservation(tab, values);
                 tab.error = null;
                 tab.lastSuccess = Date.now();

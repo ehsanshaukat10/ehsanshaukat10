@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { Panel, Blank } from "../intelligence/shared";
 import type { Company } from "../../lib/api";
@@ -21,6 +22,12 @@ export function GovernedDepartments({ company }: { company: Company }) {
     metricId = "unavailable";
   }
   const report = m.report;
+  const inheritedDepartment = !department
+    ? m.query.get("department") || ""
+    : "";
+  useEffect(() => {
+    if (inheritedDepartment) m.change("department", "");
+  }, [inheritedDepartment]);
   const scopeLabel = (id: string) =>
     report?.scopes.find((s) => s.id === id)?.label;
   const metrics = (report?.metrics || []).filter(
@@ -51,6 +58,16 @@ export function GovernedDepartments({ company }: { company: Company }) {
       }
       module={m}
       back={department ? m.back || m.link(root) : undefined}
+      actions={
+        !department && report?.authorization.canManageSources ? (
+          <Link
+            className="button secondary"
+            to={`${m.base}/onboarding/departments?return=settings-departments`}
+          >
+            Manage departments
+          </Link>
+        ) : undefined
+      }
     >
       {!available ? (
         <Blank
@@ -186,10 +203,8 @@ export function GovernedDepartments({ company }: { company: Company }) {
           {report?.departments
             .filter(
               (d) =>
-                (!m.query.get("department") ||
-                  d === m.query.get("department")) &&
-                (!m.query.get("scope") ||
-                  metrics.some((v) => v.department === d)),
+                !m.query.get("scope") ||
+                metrics.some((v) => v.department === d),
             )
             .map((d) => {
               const ds = metrics.filter((v) => v.department === d),

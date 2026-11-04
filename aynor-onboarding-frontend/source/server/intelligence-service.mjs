@@ -1,5 +1,8 @@
 import { buildRelationships } from "./relationship-intelligence.mjs";
-import { evaluateSemantics } from "./semantic-intelligence.mjs";
+import {
+  automaticallyConfirmSemantics,
+  evaluateSemantics,
+} from "./semantic-intelligence.mjs";
 import { buildExecutiveReport } from "./executive-presentation.mjs";
 import { intelligencePolicy, digest } from "./intelligence-policy.mjs";
 import { fail } from "./database.mjs";
@@ -54,9 +57,66 @@ export function reportingContext(input = {}) {
 }
 export function createIntelligenceService({ read, now = () => Date.now() }) {
   async function load(company, actor, input = {}) {
-    const state = await read(company, actor);
+    let state = await read(company, actor);
     if (!state?.company || state.company.id !== company)
       fail(403, "Workspace unavailable for your current access.");
+    const evaluatedAt = now(),
+      timezone = state.company.profile?.timezone || "UTC",
+      configuredDepartments = state.company.data.departments || [],
+      departmentFor = (purpose) => {
+        const pattern = {
+          finance: /finance|account/i,
+          sales: /sales|commercial/i,
+          delivery: /delivery|projects?|operations/i,
+          resources: /people|human resources|\bhr\b|resources?|capacity/i,
+          marketing: /marketing|growth/i,
+          operations: /operations|inventory|logistics/i,
+        }[purpose];
+        const matches = pattern
+          ? configuredDepartments.filter((name) => pattern.test(name))
+          : [];
+        return matches.length === 1 ? matches[0] : "";
+      };
+    state = {
+      ...state,
+      catalog: {
+        ...state.catalog,
+        sources: state.catalog.sources.map((source) => {
+          const bulkDepartment =
+            source.tabs.length > 1 &&
+            source.department &&
+            source.tabs
+              .filter((tab) => tab.table)
+              .every((tab) => tab.department === source.department);
+          return {
+            ...source,
+            tabs: source.tabs.map((tab) => {
+              const semantic =
+                  tab.semantic ||
+                  (tab.table
+                    ? automaticallyConfirmSemantics(tab.table, {
+                        sourceId: source.id,
+                        tabId: tab.tabId,
+                        title: tab.title,
+                        properties: tab.config?.properties,
+                        timezone,
+                        now: evaluatedAt,
+                      })
+                    : null),
+                inferredDepartment = departmentFor(semantic?.purpose);
+              return {
+                ...tab,
+                semantic,
+                department:
+                  inferredDepartment && (bulkDepartment || !tab.department)
+                    ? inferredDepartment
+                    : tab.department,
+              };
+            }),
+          };
+        }),
+      },
+    };
     const policy = intelligencePolicy(state, actor),
       context = reportingContext(input);
     if (context.scope) policy.require(context.scope);
