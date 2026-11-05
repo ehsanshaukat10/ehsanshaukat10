@@ -15,9 +15,25 @@ const authority = {
   datasetRevision: "revision-a",
   context: { key: "scope-a-period-month-filter-paid" },
 };
-const report = { ...authority, executive: { version: 1, scopes: [] } };
+const report = {
+  ...authority,
+  executive: { version: 1, scopes: [] },
+  metrics: [],
+  worksheets: [],
+  departments: [],
+  concerns: [],
+  scopes: [],
+};
 test("intelligence cache requires current proof and cannot cross company, user, access, reporting scope or source revision", () => {
   assert.ok(authorizedCachedSnapshot(report, "company-a", authority));
+  assert.ok(
+    !authorizedCachedSnapshot(
+      { ...report, departments: undefined },
+      "company-a",
+      authority,
+    ),
+    "Snapshots from an older reporting shape must be refreshed before render",
+  );
   assert.ok(!authorizedCachedSnapshot(report, "company-b", authority));
   assert.ok(
     !authorizedCachedSnapshot(

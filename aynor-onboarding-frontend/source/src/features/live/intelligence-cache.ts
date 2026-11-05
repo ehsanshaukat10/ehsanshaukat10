@@ -28,7 +28,12 @@ export function authorizedCachedSnapshot(
     value.authorization?.fingerprint === proof.authorization.fingerprint &&
     value.authorization.role === proof.authorization.role &&
     value.context?.key === proof.context.key &&
-    value.datasetRevision === proof.datasetRevision
+    value.datasetRevision === proof.datasetRevision &&
+    Array.isArray(value.metrics) &&
+    Array.isArray(value.worksheets) &&
+    Array.isArray(value.departments) &&
+    Array.isArray(value.concerns) &&
+    Array.isArray(value.scopes)
   );
 }
 export function intelligenceQuery(search: string) {

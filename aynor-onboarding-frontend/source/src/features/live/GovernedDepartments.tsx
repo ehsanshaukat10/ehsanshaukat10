@@ -21,6 +21,10 @@ export function GovernedDepartments({ company }: { company: Company }) {
     metricId = "unavailable";
   }
   const report = m.report;
+  const departments = Array.isArray(report?.departments)
+    ? report.departments
+    : company.data.departments || [];
+  const worksheets = Array.isArray(report?.worksheets) ? report.worksheets : [];
   const scopeLabel = (id: string) =>
     report?.scopes.find((s) => s.id === id)?.label;
   const metrics = (report?.metrics || []).filter(
@@ -33,7 +37,7 @@ export function GovernedDepartments({ company }: { company: Company }) {
       (!department || v.department === department) &&
       (!m.query.get("scope") || v.metric.scope === m.query.get("scope")),
   );
-  const available = !department || report?.departments.includes(department);
+  const available = !department || departments.includes(department);
   const root = m.base + "/departments";
   const metric = metricId
     ? metrics.find((v) => v.metricId === metricId && v.state === "validated")
@@ -193,7 +197,7 @@ export function GovernedDepartments({ company }: { company: Company }) {
         </>
       ) : (
         <Panel title="Department performance">
-          {report?.departments
+          {departments
             .filter(
               (d) =>
                 !m.query.get("scope") ||
@@ -203,7 +207,7 @@ export function GovernedDepartments({ company }: { company: Company }) {
               const ds = metrics.filter((v) => v.department === d),
                 valid = ds.filter((v) => v.state === "validated"),
                 issues = concerns.filter((c) => c.department === d),
-                assignedPages = report.worksheets.filter(
+                assignedPages = worksheets.filter(
                   (worksheet) => worksheet.department === d,
                 ),
                 assignedSources = new Set(
@@ -240,7 +244,7 @@ export function GovernedDepartments({ company }: { company: Company }) {
                 </Link>
               );
             })}
-          {!report?.departments.length && (
+          {!departments.length && (
             <Blank
               title="No authorized departments"
               text="An administrator can review your department assignments and business-data permissions."
