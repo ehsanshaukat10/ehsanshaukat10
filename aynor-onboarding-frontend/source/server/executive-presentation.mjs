@@ -188,61 +188,67 @@ export function buildExecutiveReport(view, company, catalog, requestedScope) {
       }));
   }
   const metricSeries = (metric) => {
-    const source = catalog.sources.find(
-      (item) => item.id === metric.lineage.sourceId,
-    );
-    const table = source?.tabs.find(
-      (tab) => tab.tabId === metric.lineage.tabId,
-    )?.table;
-    const fields = metric.lineage.fields;
-    const dateIndex = table?.headers.indexOf(fields.date);
-    if (!table || dateIndex === undefined || dateIndex < 0) return [];
-    const index = (field) => table.headers.indexOf(fields[field]);
-    const groups = new Map();
-    for (const rowIndex of metric.lineage.contributingRows) {
-      const row = table.rows[rowIndex];
-      const date = String(row[dateIndex]);
-      const current = groups.get(date) || { value: 0, denominator: 0 };
-      if (metric.metricId === "finance.profit")
-        current.value += row[index("revenue")] - row[index("expense")];
-      else if (metric.metricId === "finance.margin") {
-        current.value += row[index("revenue")] - row[index("expense")];
-        current.denominator += row[index("revenue")];
-      } else if (
-        [
-          "sales.won_deals",
-          "delivery.active_projects",
-          "delivery.overdue_projects",
-          "operations.reorder_items",
-        ].includes(metric.metricId)
-      )
-        current.value += 1;
-      else {
-        const field = {
-          "finance.revenue": "revenue",
-          "finance.expenses": "expense",
-          "sales.won_value": "amount",
-          "marketing.spend": "spend",
-          "marketing.leads": "leads",
-          "marketing.qualified_leads": "qualified_leads",
-          "operations.on_hand": "on_hand",
-        }[metric.metricId];
-        if (!field || index(field) < 0) continue;
-        current.value += row[index(field)];
+    try {
+      const source = catalog.sources.find(
+        (item) => item.id === metric.lineage.sourceId,
+      );
+      const table = source?.tabs.find(
+        (tab) => tab.tabId === metric.lineage.tabId,
+      )?.table;
+      const fields = metric.lineage.fields;
+      const dateIndex = table?.headers.indexOf(fields.date);
+      if (!table || dateIndex === undefined || dateIndex < 0) return [];
+      const index = (field) => table.headers.indexOf(fields[field]);
+      const groups = new Map();
+      for (const rowIndex of metric.lineage.contributingRows) {
+        const row = table.rows[rowIndex];
+        const date = String(row[dateIndex]);
+        const current = groups.get(date) || { value: 0, denominator: 0 };
+        if (metric.metricId === "finance.profit")
+          current.value += row[index("revenue")] - row[index("expense")];
+        else if (metric.metricId === "finance.margin") {
+          current.value += row[index("revenue")] - row[index("expense")];
+          current.denominator += row[index("revenue")];
+        } else if (
+          [
+            "sales.won_deals",
+            "delivery.active_projects",
+            "delivery.overdue_projects",
+            "operations.reorder_items",
+          ].includes(metric.metricId)
+        )
+          current.value += 1;
+        else {
+          const field = {
+            "finance.revenue": "revenue",
+            "finance.expenses": "expense",
+            "sales.won_value": "amount",
+            "marketing.spend": "spend",
+            "marketing.leads": "leads",
+            "marketing.qualified_leads": "qualified_leads",
+            "operations.on_hand": "on_hand",
+          }[metric.metricId];
+          if (!field || index(field) < 0) continue;
+          current.value += row[index(field)];
+        }
+        groups.set(date, current);
       }
-      groups.set(date, current);
+      return [...groups.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, point]) => ({
+          date,
+          value:
+            metric.metricId === "finance.margin"
+              ? point.denominator
+                ? (point.value / point.denominator) * 100
+                : 0
+              : point.value,
+        }));
+    } catch {
+      // A presentation-only trend must never prevent the governed report or
+      // another module from rendering. The aggregate metric remains intact.
+      return [];
     }
-    return [...groups.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, point]) => ({
-        date,
-        value:
-          metric.metricId === "finance.margin"
-            ? point.denominator
-              ? (point.value / point.denominator) * 100
-              : 0
-            : point.value,
-      }));
   };
   primary = primary.map((metric) => ({
     ...metric,
