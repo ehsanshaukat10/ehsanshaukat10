@@ -341,6 +341,25 @@ export function GovernedOverview({
               const percentage = scope.metrics.find(
                 (metric) => metric.unit === "percent",
               );
+              const featured =
+                percentage ||
+                (scope.purpose === "marketing"
+                  ? scope.metrics.find(
+                      (metric) =>
+                        metric.metricId === "marketing.qualified_leads",
+                    ) ||
+                    scope.metrics.find(
+                      (metric) => metric.metricId === "marketing.leads",
+                    )
+                  : scope.purpose === "operations"
+                    ? scope.metrics.find(
+                        (metric) =>
+                          metric.metricId === "operations.reorder_items",
+                      ) ||
+                      scope.metrics.find(
+                        (metric) => metric.metricId === "operations.on_hand",
+                      )
+                    : undefined);
               return (
                 <article className="overview-department-card" key={scope.id}>
                   <header>
@@ -359,22 +378,26 @@ export function GovernedOverview({
                     </div>
                     <small>{displayPeriod(scope.period)}</small>
                   </header>
-                  {percentage && (
+                  {featured && (
                     <div className="overview-percentage-visual">
                       <div
-                        className="overview-percentage-ring"
+                        className={`overview-percentage-ring${percentage ? "" : " is-stat"}`}
                         style={
-                          {
-                            "--value": `${Math.max(0, Math.min(100, percentage.value || 0)) * 3.6}deg`,
-                          } as CSSProperties
+                          percentage
+                            ? ({
+                                "--value": `${Math.max(0, Math.min(100, percentage.value || 0)) * 3.6}deg`,
+                              } as CSSProperties)
+                            : undefined
                         }
                       >
-                        <strong>{displayMetric(percentage)}</strong>
+                        <strong>{displayMetric(featured, true)}</strong>
                       </div>
                       <div>
-                        <span>{percentage.label}</span>
+                        <span>{featured.label}</span>
                         <small>
-                          Validated percentage for this reporting period
+                          {percentage
+                            ? "Validated percentage for this reporting period"
+                            : "Validated headline measure for this reporting period"}
                         </small>
                       </div>
                     </div>
@@ -382,7 +405,7 @@ export function GovernedOverview({
                   <div className="overview-department-metrics">
                     {scope.metrics
                       .filter(
-                        (metric) => metric.metricId !== percentage?.metricId,
+                        (metric) => metric.metricId !== featured?.metricId,
                       )
                       .map((metric) => {
                         return (
