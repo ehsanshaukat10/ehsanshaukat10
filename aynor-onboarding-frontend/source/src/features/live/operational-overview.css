@@ -430,6 +430,30 @@
   background: var(--accent);
   box-sizing: content-box;
 }
+.overview-metric-delta {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 7px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.overview-metric-delta.is-positive {
+  color: #16834a;
+  background: #eaf8f0;
+}
+.overview-metric-delta.is-negative {
+  color: #c43d4b;
+  background: #fff0f1;
+}
+.overview-metric-delta.is-neutral {
+  color: var(--muted);
+  background: #f3f2f6;
+}
 .overview-primary-kpi.intel-kpi > strong {
   margin: 20px 0 7px;
   color: var(--ink, #191b2a);

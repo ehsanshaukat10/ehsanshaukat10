@@ -4,6 +4,8 @@ import { useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/ui";
 import {
+  ArrowDown,
+  ArrowUp,
   ArrowUpRight,
   BadgeCheck,
   BadgeDollarSign,
@@ -13,6 +15,7 @@ import {
   CircleAlert,
   Layers3,
   Megaphone,
+  Minus,
   Target,
   Users,
 } from "lucide-react";
@@ -109,7 +112,7 @@ export function GovernedOverview({
                 >
                   <div className="overview-kpi-heading">
                     <span>{scopeLabel || "Validated KPI"}</span>
-                    <MetricMiniChart metric={metric} />
+                    <MetricDelta metric={metric} />
                   </div>
                   <strong title={displayMetric(metric)}>
                     {displayMetric(metric, true)}
@@ -444,37 +447,35 @@ export function GovernedOverview({
     </section>
   );
 }
-function MetricMiniChart({ metric }: { metric: SemanticMetric }) {
+function MetricDelta({ metric }: { metric: SemanticMetric }) {
   const points = metric.series || [];
-  if (points.length < 2)
+  if (points.length < 2 || points[0].value === 0)
     return (
-      <span
-        className="overview-current-value"
-        aria-label="Current validated value"
-      >
-        <i />
+      <span className="overview-metric-delta is-neutral">
+        <Minus size={13} /> No comparison
       </span>
     );
-  const values = points.map((point) => point.value);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = Math.max(1, max - min);
-  const coords = points
-    .map(
-      (point, index) =>
-        `${(index / (points.length - 1)) * 72},${22 - ((point.value - min) / range) * 18}`,
-    )
-    .join(" ");
+  const first = points[0].value;
+  const latest = points.at(-1)!.value;
+  const change = ((latest - first) / Math.abs(first)) * 100;
+  const rounded = new Intl.NumberFormat("en", {
+    maximumFractionDigits: 1,
+    signDisplay: "always",
+  }).format(change);
+  if (Math.abs(change) < 0.05)
+    return (
+      <span className="overview-metric-delta is-neutral">
+        <Minus size={13} /> 0%
+      </span>
+    );
   return (
-    <svg
-      className="overview-metric-sparkline"
-      viewBox="0 0 72 26"
-      role="img"
-      aria-label={`${metric.label || metric.name} across ${points.length} validated reporting dates`}
+    <span
+      className={`overview-metric-delta ${change > 0 ? "is-positive" : "is-negative"}`}
+      title={`${points[0].date} to ${points.at(-1)!.date}`}
     >
-      <polyline points={coords} />
-      <circle cx="72" cy={coords.split(" ").at(-1)!.split(",")[1]} r="2.5" />
-    </svg>
+      {change > 0 ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
+      {rounded}%
+    </span>
   );
 }
 function PeriodTrace() {
