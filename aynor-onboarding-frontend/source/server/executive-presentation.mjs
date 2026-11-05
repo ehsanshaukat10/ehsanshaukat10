@@ -146,25 +146,46 @@ export function buildExecutiveReport(view, company, catalog, requestedScope) {
     primary.push({ ...metric, label: labels[metric.metricId] });
   }
   if (!selected && scopes.length) {
-    // The default is a company overview. Keep every value attached to its own
-    // confirmed scope and select a balanced set across business purposes.
-    primary = scopes
-      .flatMap((scope) =>
-        scope.metrics
-          .filter(
-            (metric) =>
-              !metric.metricId.endsWith(".margin") ||
-              configured.includes(metric.metricId) ||
-              configured.includes(metric.name.toLowerCase()) ||
-              configured.includes((labels[metric.metricId] || "").toLowerCase()),
-          )
-          .slice(0, 2)
-          .map((metric) => ({
-            ...metric,
-            label: `${labels[metric.metricId] || metric.name} · ${scope.label}`,
-          })),
+    // Executive snapshot: a stable, intentionally small hierarchy. Values
+    // remain attached to their confirmed scope and are never combined.
+    const configuredExecutive = scopes
+      .flatMap((scope) => scope.metrics)
+      .filter(
+        (metric) =>
+          configured.includes(metric.metricId) ||
+          configured.includes(metric.name.toLowerCase()) ||
+          configured.includes((labels[metric.metricId] || "").toLowerCase()),
       )
-      .slice(0, 6);
+      .map((metric) => metric.metricId);
+    const executiveOrder = [
+      ...new Set([
+        ...configuredExecutive,
+        "finance.revenue",
+        "finance.profit",
+        "sales.won_value",
+        "resources.utilization",
+        "marketing.qualified_leads",
+        "marketing.leads",
+        "delivery.overdue_projects",
+        "operations.reorder_items",
+        "operations.on_hand",
+        "finance.expenses",
+        "marketing.spend",
+      ]),
+    ];
+    const candidates = scopes.flatMap((scope) =>
+      scope.metrics.map((metric) => ({ metric, scope })),
+    );
+    primary = executiveOrder
+      .map((metricId) =>
+        candidates.find((item) => item.metric.metricId === metricId),
+      )
+      .filter(Boolean)
+      .slice(0, 4)
+      .map(({ metric, scope }) => ({
+        ...metric,
+        label: `${labels[metric.metricId] || metric.name} · ${scope.label}`,
+      }));
   }
   const base = `/companies/${company.id}`;
   const evidenceLink = (m) =>

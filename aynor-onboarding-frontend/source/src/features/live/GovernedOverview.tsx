@@ -38,7 +38,7 @@ export function GovernedOverview({
     performance = report.performance;
   return (
     <section aria-label="Executive business overview">
-      {report.dataStatus && (
+      {report.dataStatus && !report.primary.length && (
         <div className="intel-notice" role="status">
           {report.dataStatus}.{" "}
           {readOnly ? (
@@ -84,10 +84,7 @@ export function GovernedOverview({
               {scope.currency ? ` · ${scope.currency}` : ""}
             </p>
           ) : (
-            <p>
-              Company overview · validated measures remain in their confirmed
-              reporting scopes.
-            </p>
+            <p className="overview-section-kicker">Executive snapshot</p>
           )}
           <div className="intel-kpi-grid" aria-label="Primary business metrics">
             {report.primary.map((metric) => {
@@ -301,8 +298,8 @@ export function GovernedOverview({
             <div>
               <h2 id="department-performance-title">Department performance</h2>
               <p>
-                Validated measures, kept within their confirmed reporting scope
-                and period.
+                Performance by function, using each team’s confirmed reporting
+                period.
               </p>
             </div>
             <Link to={`/companies/${companyId}/departments`}>
@@ -330,18 +327,6 @@ export function GovernedOverview({
                 </header>
                 <div className="overview-department-metrics">
                   {scope.metrics.map((metric) => {
-                    const compatible = scope.metrics.filter(
-                      (candidate) =>
-                        candidate.unit === metric.unit &&
-                        candidate.currency === metric.currency,
-                    );
-                    const max = Math.max(
-                      1,
-                      ...compatible.map((candidate) =>
-                        Math.abs(candidate.value || 0),
-                      ),
-                    );
-                    const comparable = compatible.length > 1;
                     return (
                       <div
                         className="overview-department-metric"
@@ -349,15 +334,6 @@ export function GovernedOverview({
                       >
                         <span>{metric.label}</span>
                         <strong>{displayMetric(metric, true)}</strong>
-                        {comparable && (
-                          <i aria-hidden="true">
-                            <b
-                              style={{
-                                width: `${Math.max(3, (Math.abs(metric.value || 0) / max) * 100)}%`,
-                              }}
-                            />
-                          </i>
-                        )}
                       </div>
                     );
                   })}
