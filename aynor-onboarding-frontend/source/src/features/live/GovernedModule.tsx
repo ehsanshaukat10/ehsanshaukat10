@@ -10,10 +10,21 @@ import {
   connectionsLink,
 } from "./dashboard-navigation";
 import type { ReactNode } from "react";
-export function useGovernedModule(company: Company, routeDepartment?: string) {
+export function useGovernedModule(
+  company: Company,
+  routeDepartment?: string,
+  departmentModule = false,
+) {
   const location = useLocation(),
     [urlQuery, setQuery] = useSearchParams();
   const query = new URLSearchParams(urlQuery);
+  // Department routes own their department context. Scope identifiers copied
+  // from Overview can belong to another department and must never reach the
+  // intelligence API for this module.
+  if (departmentModule) {
+    query.delete("scope");
+    if (!routeDepartment) query.delete("department");
+  }
   if (routeDepartment) query.set("department", routeDepartment);
   const state = useCompanyIntelligence(company, query.toString());
   const base = `/companies/${company.id}`,
