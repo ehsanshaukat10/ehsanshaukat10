@@ -504,12 +504,12 @@ export function buildExecutiveReport(view, company, catalog, requestedScope) {
     performance,
     issues,
     additional: scopes
-      .filter((s) => !!selected && s.id !== selected.id)
+      .filter((s) => !selected || s.id !== selected.id)
       .map((s) => ({
         ...s,
         metrics: s.metrics
           .filter((m) => !m.metricId.endsWith(".margin"))
-          .slice(0, 2)
+          .slice(0, 4)
           .map((m) => ({ ...m, label: labels[m.metricId] })),
       })),
     dataStatus:

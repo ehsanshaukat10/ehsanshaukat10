@@ -6,7 +6,6 @@ import { Button, ErrorBox } from "../../components/ui";
 import type { Company } from "../../lib/api";
 import { useSheetStatus } from "./SheetsConnection";
 import { Panel } from "../intelligence/shared";
-import { Select } from "./LiveSelect";
 import { OverviewSkeleton } from "./OverviewSkeleton";
 import { connectionsLink } from "./dashboard-navigation";
 import { useLocation } from "react-router-dom";
@@ -17,14 +16,17 @@ import "../dashboard/dashboard.css";
 import "../intelligence/intelligence.css";
 import "./operational-overview.css";
 export function LiveOverview({ company }: { company: Company }) {
-  const [query, setQuery] = useSearchParams(),
+  const [query] = useSearchParams(),
     location = useLocation();
+  const companyQuery = new URLSearchParams(location.search);
+  companyQuery.delete("scope");
+  companyQuery.delete("department");
   const sourceAdmin = ["Owner", "Admin"].includes(company.role),
     { source } = useSheetStatus(company.id, sourceAdmin),
     evidence = query.get("evidence") || "";
   const { report, error, busy, retry } = useCompanyIntelligence(
     company,
-    location.search,
+    companyQuery.toString(),
     !evidence,
     `${source?.revision}:${source?.status}`,
   );
@@ -44,11 +46,6 @@ export function LiveOverview({ company }: { company: Company }) {
       (m) => m.freshness.lastSuccess || Infinity,
     ),
   );
-  function chooseScope(scope: string) {
-    const next = new URLSearchParams(query);
-    next.set("scope", scope);
-    setQuery(next);
-  }
   return (
     <div
       className="intel-page exec-dashboard concise-overview"
@@ -61,7 +58,7 @@ export function LiveOverview({ company }: { company: Company }) {
         <div className="intel-heading-actions">
           <AskContextLink
             companyId={company.id}
-            search={location.search}
+            search={companyQuery.toString()}
             origin={location.pathname + location.search}
             focus="overview"
           />
@@ -99,25 +96,9 @@ export function LiveOverview({ company }: { company: Company }) {
           </Button>
         </>
       )}
-      {executive && executive.scopes.length > 1 && (
-        <Select
-          label="Reporting scope"
-          value={executive.selectedScope || ""}
-          onChange={(e) => chooseScope(e.target.value)}
-        >
-          {executive.scopes.map((s) => (
-            <option value={s.id} key={s.id}>
-              {s.label}
-              {s.department ? ` · ${s.department}` : ""}
-              {s.currency ? ` · ${s.currency}` : ""}
-            </option>
-          ))}
-        </Select>
-      )}
       {executive ? (
         <GovernedOverview
           report={executive}
-          onScope={chooseScope}
           readOnly={!report?.authorization.canManageSources}
         />
       ) : busy ? (

@@ -12,11 +12,9 @@ import {
 } from "./semantic-types";
 export function GovernedOverview({
   report,
-  onScope,
   readOnly = false,
 }: {
   report: ExecutiveReport;
-  onScope: (scope: string) => void;
   readOnly?: boolean;
 }) {
   const location = useLocation();
@@ -255,44 +253,41 @@ export function GovernedOverview({
         </Panel>
       )}
       {!!report.additional.length && (
-        <Panel title="Additional business reporting">
-          <div className="intel-graph-viewport">
-            <table className="live-records">
-              <thead>
-                <tr>
-                  <th>Reporting scope</th>
-                  <th>Validated measures</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {report.additional.map((s) => (
-                  <tr key={s.id}>
-                    <td>
-                      <div>
-                        {s.label}
-                        {s.department ? ` · ${s.department}` : ""}
-                      </div>
-                      <small>{displayPeriod(s.period)}</small>
-                    </td>
-                    <td>
-                      {s.metrics.map((m) => (
-                        <div key={m.metricId}>
-                          {m.label}: {displayMetric(m)}
-                        </div>
-                      ))}
-                    </td>
-                    <td>
-                      <Button variant="text" onClick={() => onScope(s.id)}>
-                        Open report
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <section className="overview-department-reporting" aria-labelledby="department-performance-title">
+          <div className="overview-section-heading">
+            <div>
+              <h2 id="department-performance-title">Department performance</h2>
+              <p>Validated measures, kept within their confirmed reporting scope and period.</p>
+            </div>
+            <Link to={`/companies/${companyId}/departments`}>View departments</Link>
           </div>
-        </Panel>
+          <div className="overview-department-grid">
+            {report.additional.map((scope) => (
+              <article className="overview-department-card" key={scope.id}>
+                <header>
+                  <div>
+                    <h3>{scope.department || scope.label}</h3>
+                    <p>{scope.department ? scope.label : "Company-wide reporting"}</p>
+                  </div>
+                  <small>{displayPeriod(scope.period)}</small>
+                </header>
+                <div className="overview-department-metrics">
+                  {scope.metrics.map((metric) => (
+                    <div key={metric.metricId}>
+                      <span>{metric.label}</span>
+                      <strong>{displayMetric(metric, true)}</strong>
+                    </div>
+                  ))}
+                </div>
+                {scope.department && (
+                  <Link to={`/companies/${companyId}/departments/${encodeURIComponent(scope.department)}`}>
+                    Open department
+                  </Link>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
       )}
     </section>
   );
