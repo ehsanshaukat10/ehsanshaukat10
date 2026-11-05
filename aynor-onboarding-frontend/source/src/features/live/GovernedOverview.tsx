@@ -5,9 +5,13 @@ import { Link } from "react-router-dom";
 import { Button } from "../../components/ui";
 import {
   ArrowUpRight,
+  BadgeCheck,
   BadgeDollarSign,
   Boxes,
   BriefcaseBusiness,
+  Building2,
+  CircleAlert,
+  Layers3,
   Megaphone,
   Target,
   Users,
@@ -105,7 +109,7 @@ export function GovernedOverview({
                 >
                   <div className="overview-kpi-heading">
                     <span>{scopeLabel || "Validated KPI"}</span>
-                    <MetricIcon metricId={metric.metricId} />
+                    <MeasureTrace />
                   </div>
                   <strong title={displayMetric(metric)}>
                     {displayMetric(metric, true)}
@@ -121,18 +125,22 @@ export function GovernedOverview({
               aria-label="Reporting coverage"
             >
               <div>
+                <Building2 size={17} />
                 <strong>{coveredDepartments}</strong>
                 <span>Departments covered</span>
               </div>
               <div>
+                <BadgeCheck size={17} />
                 <strong>{validatedMeasures}</strong>
                 <span>Validated measures</span>
               </div>
               <div>
+                <Layers3 size={17} />
                 <strong>{report.additional.length}</strong>
                 <span>Reporting scopes</span>
               </div>
               <div>
+                <CircleAlert size={17} />
                 <strong>{report.issues.length}</strong>
                 <span>Needs attention</span>
               </div>
@@ -399,6 +407,7 @@ export function GovernedOverview({
                             ? "Validated percentage for this reporting period"
                             : "Validated headline measure for this reporting period"}
                         </small>
+                        <PeriodTrace />
                       </div>
                     </div>
                   )}
@@ -433,6 +442,27 @@ export function GovernedOverview({
         </section>
       )}
     </section>
+  );
+}
+function MeasureTrace() {
+  return (
+    <span className="overview-measure-trace" aria-hidden="true">
+      <i />
+      <i />
+      <i />
+      <i />
+    </span>
+  );
+}
+function PeriodTrace() {
+  return (
+    <span className="overview-period-trace" aria-hidden="true">
+      <i />
+      <i />
+      <i />
+      <i />
+      <i />
+    </span>
   );
 }
 function MetricIcon({ metricId }: { metricId: string }) {
