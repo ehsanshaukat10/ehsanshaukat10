@@ -3,6 +3,15 @@ import { useLocation } from "react-router-dom";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/ui";
+import {
+  ArrowUpRight,
+  BadgeDollarSign,
+  Boxes,
+  BriefcaseBusiness,
+  Megaphone,
+  Target,
+  Users,
+} from "lucide-react";
 import { Panel } from "../intelligence/shared";
 import {
   displayMetric,
@@ -75,17 +84,32 @@ export function GovernedOverview({
               {scope.currency ? ` · ${scope.currency}` : ""}
             </p>
           ) : (
-            <p>Company overview · validated measures remain in their confirmed reporting scopes.</p>
+            <p>
+              Company overview · validated measures remain in their confirmed
+              reporting scopes.
+            </p>
           )}
           <div className="intel-kpi-grid" aria-label="Primary business metrics">
-            {report.primary.map((metric) => (
-              <div className="intel-kpi" key={metric.scope + metric.metricId}>
-                <span>{metric.label || metric.name}</span>
-                <strong title={displayMetric(metric)}>
-                  {displayMetric(metric, true)}
-                </strong>
-              </div>
-            ))}
+            {report.primary.map((metric) => {
+              const [metricLabel, scopeLabel] = (
+                metric.label || metric.name
+              ).split(" · ");
+              return (
+                <div
+                  className="intel-kpi overview-primary-kpi"
+                  key={metric.scope + metric.metricId}
+                >
+                  <div className="overview-kpi-heading">
+                    <span>{scopeLabel || "Validated KPI"}</span>
+                    <MetricIcon metricId={metric.metricId} />
+                  </div>
+                  <strong title={displayMetric(metric)}>
+                    {displayMetric(metric, true)}
+                  </strong>
+                  <span className="overview-kpi-label">{metricLabel}</span>
+                </div>
+              );
+            })}
           </div>
           {performance && (
             <Panel
@@ -137,49 +161,65 @@ export function GovernedOverview({
                   </p>
                   {performance.capacity && (
                     <>
-                    <table className="live-records">
-                      <tbody>
-                        <tr>
-                          <td>Assigned hours</td>
-                          <td>
-                            {performance.capacity.assignedHours.toLocaleString()}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>Available hours</td>
-                          <td>
-                            {performance.capacity.availableHours.toLocaleString()}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>Remaining capacity</td>
-                          <td>
-                            {performance.capacity.remainingHours.toLocaleString()}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                    {!!performance.capacity.people.length && (
-                      <div className="intel-graph-viewport">
-                        <h3>Workload by confirmed resource</h3>
-                        <table className="live-records">
-                          <thead>
-                            <tr><th>Resource</th><th>Assigned</th><th>Available</th><th>Remaining</th><th>Utilization</th></tr>
-                          </thead>
-                          <tbody>
-                            {performance.capacity.people.map((person) => (
-                              <tr key={person.id}>
-                                <td>{person.id}</td>
-                                <td>{person.assignedHours.toLocaleString()}</td>
-                                <td>{person.availableHours.toLocaleString()}</td>
-                                <td>{person.remainingHours.toLocaleString()}</td>
-                                <td>{person.utilization === null ? "Unavailable" : `${person.utilization.toFixed(1)}%`}</td>
+                      <table className="live-records">
+                        <tbody>
+                          <tr>
+                            <td>Assigned hours</td>
+                            <td>
+                              {performance.capacity.assignedHours.toLocaleString()}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td>Available hours</td>
+                            <td>
+                              {performance.capacity.availableHours.toLocaleString()}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td>Remaining capacity</td>
+                            <td>
+                              {performance.capacity.remainingHours.toLocaleString()}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                      {!!performance.capacity.people.length && (
+                        <div className="intel-graph-viewport">
+                          <h3>Workload by confirmed resource</h3>
+                          <table className="live-records">
+                            <thead>
+                              <tr>
+                                <th>Resource</th>
+                                <th>Assigned</th>
+                                <th>Available</th>
+                                <th>Remaining</th>
+                                <th>Utilization</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                            </thead>
+                            <tbody>
+                              {performance.capacity.people.map((person) => (
+                                <tr key={person.id}>
+                                  <td>{person.id}</td>
+                                  <td>
+                                    {person.assignedHours.toLocaleString()}
+                                  </td>
+                                  <td>
+                                    {person.availableHours.toLocaleString()}
+                                  </td>
+                                  <td>
+                                    {person.remainingHours.toLocaleString()}
+                                  </td>
+                                  <td>
+                                    {person.utilization === null
+                                      ? "Unavailable"
+                                      : `${person.utilization.toFixed(1)}%`}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
@@ -253,35 +293,80 @@ export function GovernedOverview({
         </Panel>
       )}
       {!!report.additional.length && (
-        <section className="overview-department-reporting" aria-labelledby="department-performance-title">
+        <section
+          className="overview-department-reporting"
+          aria-labelledby="department-performance-title"
+        >
           <div className="overview-section-heading">
             <div>
               <h2 id="department-performance-title">Department performance</h2>
-              <p>Validated measures, kept within their confirmed reporting scope and period.</p>
+              <p>
+                Validated measures, kept within their confirmed reporting scope
+                and period.
+              </p>
             </div>
-            <Link to={`/companies/${companyId}/departments`}>View departments</Link>
+            <Link to={`/companies/${companyId}/departments`}>
+              View departments
+            </Link>
           </div>
           <div className="overview-department-grid">
             {report.additional.map((scope) => (
               <article className="overview-department-card" key={scope.id}>
                 <header>
-                  <div>
-                    <h3>{scope.department || scope.label}</h3>
-                    <p>{scope.department ? scope.label : "Company-wide reporting"}</p>
+                  <div className="overview-department-title">
+                    <span className="overview-department-icon">
+                      <MetricIcon metricId={`${scope.purpose}.`} />
+                    </span>
+                    <div>
+                      <h3>{scope.department || scope.label}</h3>
+                      <p>
+                        {scope.department
+                          ? scope.label
+                          : "Company-wide reporting"}
+                      </p>
+                    </div>
                   </div>
                   <small>{displayPeriod(scope.period)}</small>
                 </header>
                 <div className="overview-department-metrics">
-                  {scope.metrics.map((metric) => (
-                    <div key={metric.metricId}>
-                      <span>{metric.label}</span>
-                      <strong>{displayMetric(metric, true)}</strong>
-                    </div>
-                  ))}
+                  {scope.metrics.map((metric) => {
+                    const compatible = scope.metrics.filter(
+                      (candidate) =>
+                        candidate.unit === metric.unit &&
+                        candidate.currency === metric.currency,
+                    );
+                    const max = Math.max(
+                      1,
+                      ...compatible.map((candidate) =>
+                        Math.abs(candidate.value || 0),
+                      ),
+                    );
+                    const comparable = compatible.length > 1;
+                    return (
+                      <div
+                        className="overview-department-metric"
+                        key={metric.metricId}
+                      >
+                        <span>{metric.label}</span>
+                        <strong>{displayMetric(metric, true)}</strong>
+                        {comparable && (
+                          <i aria-hidden="true">
+                            <b
+                              style={{
+                                width: `${Math.max(3, (Math.abs(metric.value || 0) / max) * 100)}%`,
+                              }}
+                            />
+                          </i>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
                 {scope.department && (
-                  <Link to={`/companies/${companyId}/departments/${encodeURIComponent(scope.department)}`}>
-                    Open department
+                  <Link
+                    to={`/companies/${companyId}/departments/${encodeURIComponent(scope.department)}`}
+                  >
+                    Open department <ArrowUpRight size={14} />
                   </Link>
                 )}
               </article>
@@ -291,6 +376,15 @@ export function GovernedOverview({
       )}
     </section>
   );
+}
+function MetricIcon({ metricId }: { metricId: string }) {
+  const props = { size: 17, strokeWidth: 1.7, "aria-hidden": true } as const;
+  if (metricId.startsWith("finance.")) return <BadgeDollarSign {...props} />;
+  if (metricId.startsWith("sales.")) return <Target {...props} />;
+  if (metricId.startsWith("resources.")) return <Users {...props} />;
+  if (metricId.startsWith("marketing.")) return <Megaphone {...props} />;
+  if (metricId.startsWith("operations.")) return <Boxes {...props} />;
+  return <BriefcaseBusiness {...props} />;
 }
 function MetricBar({ metric, max }: { metric: SemanticMetric; max: number }) {
   return (
