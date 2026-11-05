@@ -942,6 +942,7 @@ export function SevenStepOnboarding({
           <form
             id="inline-goal"
             className="seven-goal-form"
+            noValidate
             onSubmit={saveGoal}
           >
             <div className="seven-form-title">

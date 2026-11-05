@@ -86,6 +86,7 @@ test("executive presentation groups finance, verifies trend against source and k
     view,
     { id: "company", data: { priorities: ["Profitability"] } },
     catalog,
+    "a:0",
   );
   assert.equal(report.selectedScope, "a:0");
   assert.deepEqual(
@@ -111,7 +112,7 @@ test("executive presentation groups finance, verifies trend against source and k
   assert.equal(report.issues[0].metric.value, 1);
   assert.equal(JSON.stringify(report).includes("worksheet pages"), false);
 });
-test("company priorities, configured metrics, business model and selected scopes govern content without combining tables", () => {
+test("company Overview keeps validated scopes separate until a reporting scope is selected", () => {
   const { catalog, view } = fixture();
   assert.equal(
     buildExecutiveReport(
@@ -119,7 +120,7 @@ test("company priorities, configured metrics, business model and selected scopes
       { id: "company", businessModel: "Professional services", data: {} },
       catalog,
     ).selectedScope,
-    "a:1",
+    null,
   );
   assert.equal(
     buildExecutiveReport(
@@ -127,7 +128,7 @@ test("company priorities, configured metrics, business model and selected scopes
       { id: "company", data: { priorities: ["Project delivery"] } },
       catalog,
     ).selectedScope,
-    "a:1",
+    null,
   );
   assert.equal(
     buildExecutiveReport(
@@ -141,7 +142,7 @@ test("company priorities, configured metrics, business model and selected scopes
       },
       catalog,
     ).selectedScope,
-    "a:0",
+    null,
   );
   const r = buildExecutiveReport(
     view,

@@ -121,7 +121,15 @@ export function GovernedGoals({
     };
   }, [m.report, refresh, api, location.search]);
   const pending = busy || (!!m.report && !view && !error);
-  const metricOptions = m.report?.metrics || [];
+  // A target can only track a validated metric. Provisional, unavailable and
+  // cross-department measures remain visible in Data Connections for review,
+  // but cannot be mistaken for a goal baseline.
+  const metricOptions = (m.report?.metrics || []).filter(
+    (metric) =>
+      metric.state === "validated" &&
+      typeof metric.value === "number" &&
+      (!draft?.department || metric.department === draft.department),
+  );
   const scopeName = (scope: string) =>
     m.report?.scopes.find((s) => s.id === scope)?.label || scope;
   const value = (v: number | null, g: GoalDefinition) =>
@@ -733,7 +741,7 @@ export function GovernedGoals({
                   key={v.scope + v.metricId}
                   value={v.scope + "|" + v.metricId}
                 >
-                  {v.name} · {scopeName(v.scope)} · {v.state}
+                  {v.name} · {scopeName(v.scope)}
                 </option>
               ))}
             </select>

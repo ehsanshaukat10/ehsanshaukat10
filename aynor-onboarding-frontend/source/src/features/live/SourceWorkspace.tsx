@@ -1438,7 +1438,9 @@ export function SourceWorkspace({
                               disabled={!!busy}
                               onClick={() => void openTab(source, tab)}
                             >
-                              {tab.mapped ? "Edit columns" : "Map columns"}
+                              {tab.mapped
+                                ? "Edit imported columns"
+                                : "Map imported columns"}
                               <ChevronRight size={13} />
                             </Button>
                             {tab.mapped && (
@@ -1452,7 +1454,7 @@ export function SourceWorkspace({
                                   })
                                 }
                               >
-                                Review reporting
+                                Confirm KPI reporting
                               </Button>
                             )}
                             {!tab.mapped && (

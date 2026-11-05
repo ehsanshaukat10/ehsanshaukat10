@@ -71,15 +71,17 @@ export function GovernedOverview({
       ) : (
         <>
           {report.summary && <p>{report.summary}</p>}
-          {scope && (
+          {scope ? (
             <p>
               {scope.label} · {displayPeriod(scope.period)}
               {scope.currency ? ` · ${scope.currency}` : ""}
             </p>
+          ) : (
+            <p>Company overview · validated measures remain in their confirmed reporting scopes.</p>
           )}
           <div className="intel-kpi-grid" aria-label="Primary business metrics">
             {report.primary.map((metric) => (
-              <div className="intel-kpi" key={metric.metricId}>
+              <div className="intel-kpi" key={metric.scope + metric.metricId}>
                 <span>{metric.label || metric.name}</span>
                 <strong title={displayMetric(metric)}>
                   {displayMetric(metric, true)}
@@ -136,6 +138,7 @@ export function GovernedOverview({
                     full planned capacity.
                   </p>
                   {performance.capacity && (
+                    <>
                     <table className="live-records">
                       <tbody>
                         <tr>
@@ -158,6 +161,28 @@ export function GovernedOverview({
                         </tr>
                       </tbody>
                     </table>
+                    {!!performance.capacity.people.length && (
+                      <div className="intel-graph-viewport">
+                        <h3>Workload by confirmed resource</h3>
+                        <table className="live-records">
+                          <thead>
+                            <tr><th>Resource</th><th>Assigned</th><th>Available</th><th>Remaining</th><th>Utilization</th></tr>
+                          </thead>
+                          <tbody>
+                            {performance.capacity.people.map((person) => (
+                              <tr key={person.id}>
+                                <td>{person.id}</td>
+                                <td>{person.assignedHours.toLocaleString()}</td>
+                                <td>{person.availableHours.toLocaleString()}</td>
+                                <td>{person.remainingHours.toLocaleString()}</td>
+                                <td>{person.utilization === null ? "Unavailable" : `${person.utilization.toFixed(1)}%`}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    </>
                   )}
                 </div>
               ) : (

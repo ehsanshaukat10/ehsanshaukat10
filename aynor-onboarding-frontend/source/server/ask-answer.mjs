@@ -212,10 +212,37 @@ export function fallbackAnswer(question, bundle, previous, focus) {
       : chosen.length
         ? "none"
         : "metric";
+  const validated = chosen.filter((f) => f.state === "validated");
+  const finance = validated.filter(
+    (f) =>
+      f.kind === "metric" &&
+      [
+        "finance.revenue",
+        "finance.expenses",
+        "finance.profit",
+        "finance.margin",
+      ].includes(f.metricId),
+  );
+  const financeCompatible =
+    finance.length >= 2 &&
+    finance.every(
+      (f) =>
+        f.scopes[0] === finance[0].scopes[0] &&
+        f.currency === finance[0].currency &&
+        periodKey(f.period) === periodKey(finance[0].period),
+    );
+  const goals = validated.filter((f) => f.kind === "goal");
+  const reasoning = financeCompatible
+    ? [{ type: "financial_bridge", facts: finance.slice(0, 4).map((f) => f.ref) }]
+    : goals.length && /goal|target|objective|progress/i.test(question)
+      ? [{ type: "goal_progress", facts: goals.slice(0, 4).map((f) => f.ref) }]
+      : validated.length >= 2
+        ? [{ type: "separate_observations", facts: validated.slice(0, 4).map((f) => f.ref) }]
+        : [];
   const answer = resolvePlan(
     {
       facts: chosen.map((f) => f.ref),
-      reasoning: [],
+      reasoning,
       clarification: unsupported,
     },
     bundle,

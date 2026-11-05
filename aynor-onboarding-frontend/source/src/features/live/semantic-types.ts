@@ -74,6 +74,13 @@ export type ExecutiveReport = {
       assignedHours: number;
       availableHours: number;
       remainingHours: number;
+      people: {
+        id: string;
+        assignedHours: number;
+        availableHours: number;
+        remainingHours: number;
+        utilization: number | null;
+      }[];
     } | null;
   } | null;
   issues: {

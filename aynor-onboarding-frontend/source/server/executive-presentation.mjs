@@ -1,4 +1,5 @@
-// Explicit lexicographic selection, not an AI-generated score. Never aggregate scopes.
+// Explicit lexicographic selection, not an AI-generated score. Company view
+// presents separate validated measures; it never adds incompatible scopes.
 const purposeLabels = {
   finance: "Financial performance",
   sales: "Sales performance",
@@ -105,8 +106,9 @@ export function buildExecutiveReport(view, company, catalog, requestedScope) {
         a.id.localeCompare(b.id)
       );
     });
-  const selected =
-    scopes.find((s) => s.id === requestedScope) || scopes[0] || null;
+  const selected = requestedScope
+    ? scopes.find((s) => s.id === requestedScope) || null
+    : null;
   const selectedMetrics = selected?.metrics || [];
   const find = (id) => selectedMetrics.find((m) => m.metricId === id);
   const primaryIds =
@@ -133,7 +135,7 @@ export function buildExecutiveReport(view, company, catalog, requestedScope) {
         configured.includes((labels[m.metricId] || "").toLowerCase()),
     )
     .map((m) => m.metricId);
-  const primary = [...new Set([...configuredIds, ...primaryIds])]
+  let primary = [...new Set([...configuredIds, ...primaryIds])]
     .map(find)
     .filter(Boolean)
     .map((m) => ({ ...m, label: labels[m.metricId] }))
@@ -142,6 +144,27 @@ export function buildExecutiveReport(view, company, catalog, requestedScope) {
     const metric =
       find("finance.expenses") || find("finance.margin") || selectedMetrics[0];
     primary.push({ ...metric, label: labels[metric.metricId] });
+  }
+  if (!selected && scopes.length) {
+    // The default is a company overview. Keep every value attached to its own
+    // confirmed scope and select a balanced set across business purposes.
+    primary = scopes
+      .flatMap((scope) =>
+        scope.metrics
+          .filter(
+            (metric) =>
+              !metric.metricId.endsWith(".margin") ||
+              configured.includes(metric.metricId) ||
+              configured.includes(metric.name.toLowerCase()) ||
+              configured.includes((labels[metric.metricId] || "").toLowerCase()),
+          )
+          .slice(0, 2)
+          .map((metric) => ({
+            ...metric,
+            label: `${labels[metric.metricId] || metric.name} · ${scope.label}`,
+          })),
+      )
+      .slice(0, 6);
   }
   const base = `/companies/${company.id}`;
   const evidenceLink = (m) =>
@@ -250,6 +273,9 @@ export function buildExecutiveReport(view, company, catalog, requestedScope) {
       ),
       availableIndex = table?.headers.indexOf(
         utilization.lineage.fields.available_hours,
+      ),
+      entityIndex = table?.headers.indexOf(
+        utilization.lineage.fields.entity_id,
       );
     const assignedHours = table
         ? utilization.lineage.contributingRows.reduce(
@@ -273,6 +299,25 @@ export function buildExecutiveReport(view, company, catalog, requestedScope) {
               assignedHours,
               availableHours,
               remainingHours: availableHours - assignedHours,
+              people: utilization.lineage.contributingRows
+                .map((index) => {
+                  const assigned = table.rows[index][assignedIndex];
+                  const available = table.rows[index][availableIndex];
+                  return {
+                    id: String(table.rows[index][entityIndex]),
+                    assignedHours: assigned,
+                    availableHours: available,
+                    remainingHours: available - assigned,
+                    utilization:
+                      available > 0 ? (assigned / available) * 100 : null,
+                  };
+                })
+                .sort(
+                  (a, b) =>
+                    (b.utilization ?? -1) - (a.utilization ?? -1) ||
+                    b.assignedHours - a.assignedHours ||
+                    a.id.localeCompare(b.id),
+                ),
             }
           : null,
     };
@@ -459,7 +504,7 @@ export function buildExecutiveReport(view, company, catalog, requestedScope) {
     performance,
     issues,
     additional: scopes
-      .filter((s) => s.id !== selected?.id)
+      .filter((s) => !!selected && s.id !== selected.id)
       .map((s) => ({
         ...s,
         metrics: s.metrics

@@ -25,9 +25,17 @@ export function GovernedDepartments({ company }: { company: Company }) {
   const inheritedDepartment = !department
     ? m.query.get("department") || ""
     : "";
+  const inheritedScope = m.query.get("scope") || "";
   useEffect(() => {
-    if (inheritedDepartment) m.change("department", "");
-  }, [inheritedDepartment]);
+    if (!inheritedDepartment && !inheritedScope) return;
+    const next = new URLSearchParams(m.query);
+    if (!department) next.delete("department");
+    // Department pages are authoritative for their own context. A scope copied
+    // from Overview can belong to another department and must never constrain
+    // or contaminate this report.
+    next.delete("scope");
+    m.setQuery(next, { replace: true });
+  }, [department, inheritedDepartment, inheritedScope]);
   const scopeLabel = (id: string) =>
     report?.scopes.find((s) => s.id === id)?.label;
   const metrics = (report?.metrics || []).filter(
