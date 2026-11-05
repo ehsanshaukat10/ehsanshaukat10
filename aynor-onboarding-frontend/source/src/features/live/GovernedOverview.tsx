@@ -109,7 +109,7 @@ export function GovernedOverview({
                 >
                   <div className="overview-kpi-heading">
                     <span>{scopeLabel || "Validated KPI"}</span>
-                    <MeasureTrace />
+                    <MetricMiniChart metric={metric} />
                   </div>
                   <strong title={displayMetric(metric)}>
                     {displayMetric(metric, true)}
@@ -444,14 +444,37 @@ export function GovernedOverview({
     </section>
   );
 }
-function MeasureTrace() {
+function MetricMiniChart({ metric }: { metric: SemanticMetric }) {
+  const points = metric.series || [];
+  if (points.length < 2)
+    return (
+      <span
+        className="overview-current-value"
+        aria-label="Current validated value"
+      >
+        <i />
+      </span>
+    );
+  const values = points.map((point) => point.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = Math.max(1, max - min);
+  const coords = points
+    .map(
+      (point, index) =>
+        `${(index / (points.length - 1)) * 72},${22 - ((point.value - min) / range) * 18}`,
+    )
+    .join(" ");
   return (
-    <span className="overview-measure-trace" aria-hidden="true">
-      <i />
-      <i />
-      <i />
-      <i />
-    </span>
+    <svg
+      className="overview-metric-sparkline"
+      viewBox="0 0 72 26"
+      role="img"
+      aria-label={`${metric.label || metric.name} across ${points.length} validated reporting dates`}
+    >
+      <polyline points={coords} />
+      <circle cx="72" cy={coords.split(" ").at(-1)!.split(",")[1]} r="2.5" />
+    </svg>
   );
 }
 function PeriodTrace() {

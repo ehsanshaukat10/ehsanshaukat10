@@ -95,6 +95,10 @@ test("executive presentation groups finance, verifies trend against source and k
   );
   assert.equal(report.primary[0].value, 30000);
   assert.equal(report.primary[1].value, 19000);
+  assert.deepEqual(report.primary[0].series, [
+    { date: "2026-10-01", value: 12000 },
+    { date: "2026-10-15", value: 18000 },
+  ]);
   assert.equal(
     report.performance.metrics.find((m) => m.metricId === "finance.margin")
       .value,

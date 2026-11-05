@@ -10,6 +10,7 @@ export type SemanticMetric = {
   unit: string;
   currency: string | null;
   value: number | null;
+  series?: { date: string; value: number }[];
   state: string;
   period: SemanticPeriod;
   timezone: string;
