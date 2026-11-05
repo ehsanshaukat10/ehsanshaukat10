@@ -1,6 +1,6 @@
 import { connectionsLink, evidenceLink } from "./dashboard-navigation";
 import { useLocation } from "react-router-dom";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/ui";
 import {
@@ -36,6 +36,13 @@ export function GovernedOverview({
   const [visual, setVisual] = useState("trend");
   const scope = report.scopes.find((s) => s.id === report.selectedScope),
     performance = report.performance;
+  const coveredDepartments = new Set(
+    report.additional.map((item) => item.department).filter(Boolean),
+  ).size;
+  const validatedMeasures = report.additional.reduce(
+    (total, item) => total + item.metrics.length,
+    0,
+  );
   return (
     <section aria-label="Executive business overview">
       {report.dataStatus && !report.primary.length && (
@@ -108,6 +115,29 @@ export function GovernedOverview({
               );
             })}
           </div>
+          {!scope && (
+            <div
+              className="overview-coverage-strip"
+              aria-label="Reporting coverage"
+            >
+              <div>
+                <strong>{coveredDepartments}</strong>
+                <span>Departments covered</span>
+              </div>
+              <div>
+                <strong>{validatedMeasures}</strong>
+                <span>Validated measures</span>
+              </div>
+              <div>
+                <strong>{report.additional.length}</strong>
+                <span>Reporting scopes</span>
+              </div>
+              <div>
+                <strong>{report.issues.length}</strong>
+                <span>Needs attention</span>
+              </div>
+            </div>
+          )}
           {performance && (
             <Panel
               title={
@@ -307,46 +337,75 @@ export function GovernedOverview({
             </Link>
           </div>
           <div className="overview-department-grid">
-            {report.additional.map((scope) => (
-              <article className="overview-department-card" key={scope.id}>
-                <header>
-                  <div className="overview-department-title">
-                    <span className="overview-department-icon">
-                      <MetricIcon metricId={`${scope.purpose}.`} />
-                    </span>
-                    <div>
-                      <h3>{scope.department || scope.label}</h3>
-                      <p>
-                        {scope.department
-                          ? scope.label
-                          : "Company-wide reporting"}
-                      </p>
-                    </div>
-                  </div>
-                  <small>{displayPeriod(scope.period)}</small>
-                </header>
-                <div className="overview-department-metrics">
-                  {scope.metrics.map((metric) => {
-                    return (
-                      <div
-                        className="overview-department-metric"
-                        key={metric.metricId}
-                      >
-                        <span>{metric.label}</span>
-                        <strong>{displayMetric(metric, true)}</strong>
+            {report.additional.map((scope) => {
+              const percentage = scope.metrics.find(
+                (metric) => metric.unit === "percent",
+              );
+              return (
+                <article className="overview-department-card" key={scope.id}>
+                  <header>
+                    <div className="overview-department-title">
+                      <span className="overview-department-icon">
+                        <MetricIcon metricId={`${scope.purpose}.`} />
+                      </span>
+                      <div>
+                        <h3>{scope.department || scope.label}</h3>
+                        <p>
+                          {scope.department
+                            ? scope.label
+                            : "Company-wide reporting"}
+                        </p>
                       </div>
-                    );
-                  })}
-                </div>
-                {scope.department && (
-                  <Link
-                    to={`/companies/${companyId}/departments/${encodeURIComponent(scope.department)}`}
-                  >
-                    Open department <ArrowUpRight size={14} />
-                  </Link>
-                )}
-              </article>
-            ))}
+                    </div>
+                    <small>{displayPeriod(scope.period)}</small>
+                  </header>
+                  {percentage && (
+                    <div className="overview-percentage-visual">
+                      <div
+                        className="overview-percentage-ring"
+                        style={
+                          {
+                            "--value": `${Math.max(0, Math.min(100, percentage.value || 0)) * 3.6}deg`,
+                          } as CSSProperties
+                        }
+                      >
+                        <strong>{displayMetric(percentage)}</strong>
+                      </div>
+                      <div>
+                        <span>{percentage.label}</span>
+                        <small>
+                          Validated percentage for this reporting period
+                        </small>
+                      </div>
+                    </div>
+                  )}
+                  <div className="overview-department-metrics">
+                    {scope.metrics
+                      .filter(
+                        (metric) => metric.metricId !== percentage?.metricId,
+                      )
+                      .map((metric) => {
+                        return (
+                          <div
+                            className="overview-department-metric"
+                            key={metric.metricId}
+                          >
+                            <span>{metric.label}</span>
+                            <strong>{displayMetric(metric, true)}</strong>
+                          </div>
+                        );
+                      })}
+                  </div>
+                  {scope.department && (
+                    <Link
+                      to={`/companies/${companyId}/departments/${encodeURIComponent(scope.department)}`}
+                    >
+                      Open department <ArrowUpRight size={14} />
+                    </Link>
+                  )}
+                </article>
+              );
+            })}
           </div>
         </section>
       )}

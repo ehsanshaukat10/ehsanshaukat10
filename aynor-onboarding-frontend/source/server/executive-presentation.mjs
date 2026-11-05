@@ -528,10 +528,10 @@ export function buildExecutiveReport(view, company, catalog, requestedScope) {
       .filter((s) => !selected || s.id !== selected.id)
       .map((s) => ({
         ...s,
-        metrics: s.metrics
-          .filter((m) => !m.metricId.endsWith(".margin"))
-          .slice(0, 4)
-          .map((m) => ({ ...m, label: labels[m.metricId] })),
+        metrics: s.metrics.map((m) => ({
+          ...m,
+          label: labels[m.metricId],
+        })),
       })),
     dataStatus:
       state === "not_selected" ? null : dataStatus || resolution?.title || null,
