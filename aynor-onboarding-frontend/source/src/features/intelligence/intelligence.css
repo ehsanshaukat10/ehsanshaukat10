@@ -4,6 +4,216 @@
   color: #3a4358;
   animation: intel-enter 160ms ease;
 }
+
+/* Governed department directory */
+.department-directory {
+  margin-top: 8px;
+}
+.department-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+  margin-bottom: 34px;
+  border: 1px solid #e8e5f0;
+  border-radius: 14px;
+  background: #fff;
+}
+.department-summary-strip > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 10px;
+  padding: 17px 19px;
+  border-right: 1px solid #ece9f2;
+}
+.department-summary-strip > div:last-child {
+  border-right: 0;
+}
+.department-summary-strip svg {
+  grid-row: 1 / 3;
+  align-self: center;
+  color: var(--accent);
+}
+.department-summary-strip strong {
+  color: #191b2a;
+  font-size: 1.12rem;
+  font-weight: 650;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.department-summary-strip span {
+  color: #858b9d;
+  font-size: 0.7rem;
+}
+.department-directory-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.department-directory-heading span {
+  color: #7f72bd;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+}
+.department-directory-heading h2 {
+  margin: 6px 0 3px;
+  color: #1b1d2c;
+  font-size: 1.35rem;
+  font-weight: 580;
+  letter-spacing: -0.025em;
+}
+.department-directory-heading p {
+  margin: 0;
+  color: #858b9d;
+  font-size: 0.8rem;
+}
+.department-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.department-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 220px;
+  padding: 19px;
+  color: inherit;
+  border: 1px solid #e8e5f0;
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(25 27 42 / 2%);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+.department-card:hover {
+  transform: translateY(-2px);
+  border-color: #d7d0ef;
+  box-shadow: 0 10px 28px rgb(48 39 90 / 7%);
+}
+.department-card header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 11px;
+}
+.department-card-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  color: var(--accent);
+  border: 1px solid #e4dffc;
+  border-radius: 10px;
+  background: #f7f5ff;
+}
+.department-card h3 {
+  margin: 1px 0 4px;
+  color: #171927;
+  font-size: 0.94rem;
+  font-weight: 620;
+}
+.department-card header small {
+  display: block;
+  overflow: hidden;
+  color: #9196a6;
+  font-size: 0.66rem;
+  line-height: 1.45;
+}
+.department-status {
+  padding: 4px 7px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 620;
+  white-space: nowrap;
+}
+.department-status.ready {
+  color: #167147;
+  background: #ebf8f1;
+}
+.department-status.needs-attention {
+  color: #b43a48;
+  background: #fff0f1;
+}
+.department-status.unassessed {
+  color: #7c8191;
+  background: #f2f1f5;
+}
+.department-card-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 23px 0 18px;
+}
+.department-card-metrics > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: #faf9fc;
+}
+.department-card-metrics span {
+  overflow: hidden;
+  color: #898e9f;
+  font-size: 0.66rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.department-card-metrics strong {
+  overflow: hidden;
+  color: #202231;
+  font-size: 1.08rem;
+  font-weight: 570;
+  letter-spacing: -0.03em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.department-card-empty {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 9px;
+  margin: 22px 0 18px;
+  padding: 14px;
+  color: #969aaa;
+  border: 1px dashed #ddd9e8;
+  border-radius: 10px;
+  background: #fbfafc;
+  font-size: 0.72rem;
+}
+.department-card footer {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: auto;
+  color: #6957bb;
+  font-size: 0.72rem;
+  font-weight: 570;
+}
+@media (max-width: 1100px) {
+  .department-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .department-summary-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .department-summary-strip > div:nth-child(2) {
+    border-right: 0;
+  }
+  .department-summary-strip > div:nth-child(-n + 2) {
+    border-bottom: 1px solid #ece9f2;
+  }
+  .department-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .intel-page h1 {
   font-size: 48px;
   font-weight: 400;
@@ -1155,7 +1365,9 @@
   border: 1px solid #e4dfed;
   border-radius: 10px;
   background: #fff;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
 }
 .intel-ask-shell .intel-assistant-composer:focus-within {
   border-color: #aaa0d5;
@@ -1805,7 +2017,9 @@
   border-radius: 9px;
   background: #fdfcfe;
   color: #767087;
-  transition: border-color 150ms ease, background 150ms ease;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease;
 }
 .intel-ask-shell .intel-question-list button:hover {
   border-color: #d8d0e9;

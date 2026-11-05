@@ -7,6 +7,17 @@ import {
   EvidenceLink,
 } from "./GovernedModule";
 import { displayMetric, displayPeriod } from "./semantic-types";
+import {
+  ArrowUpRight,
+  BadgeDollarSign,
+  Boxes,
+  BriefcaseBusiness,
+  Building2,
+  CircleCheck,
+  CircleDashed,
+  Megaphone,
+  Users,
+} from "lucide-react";
 export function GovernedDepartments({ company }: { company: Company }) {
   const parts = useLocation().pathname.split("/").slice(4);
   let department = "";
@@ -196,62 +207,141 @@ export function GovernedDepartments({ company }: { company: Company }) {
           </Panel>
         </>
       ) : (
-        <Panel title="Department performance">
-          {departments
-            .filter(
-              (d) =>
-                !m.query.get("scope") ||
-                metrics.some((v) => v.department === d),
-            )
-            .map((d) => {
-              const ds = metrics.filter((v) => v.department === d),
-                valid = ds.filter((v) => v.state === "validated"),
-                issues = concerns.filter((c) => c.department === d),
-                assignedPages = worksheets.filter(
-                  (worksheet) => worksheet.department === d,
-                ),
-                assignedSources = new Set(
-                  assignedPages.map((worksheet) => worksheet.sourceId),
-                ).size;
-              return (
-                <Link
-                  className="intel-row"
-                  key={d}
-                  to={m.link(
-                    `${root}/${encodeURIComponent(d)}?department=${encodeURIComponent(d)}`,
-                    m.origin,
-                  )}
-                >
-                  <span>
-                    {d}
-                    <small>
-                      {valid.length
-                        ? `${assignedSources} assigned ${assignedSources === 1 ? "source" : "sources"} · ${assignedPages.length} worksheet ${assignedPages.length === 1 ? "page" : "pages"} · ${valid.length} validated measures · ${issues.length} supported concerns`
-                        : assignedPages.length
-                          ? `${assignedSources} assigned ${assignedSources === 1 ? "source" : "sources"} · measures need review`
-                          : "No reporting source assigned"}
-                    </small>
-                  </span>
-                  <span>
-                    {issues.length
-                      ? "Needs attention"
-                      : valid.length
-                        ? ds.some((v) => v.state !== "validated")
-                          ? "Partial data"
-                          : "Validated data available"
-                        : "Not assessed"}
-                  </span>
-                </Link>
-              );
-            })}
-          {!departments.length && (
-            <Blank
-              title="No authorized departments"
-              text="An administrator can review your department assignments and business-data permissions."
-            />
-          )}
-        </Panel>
+        <section
+          className="department-directory"
+          aria-labelledby="department-performance-title"
+        >
+          <div className="department-summary-strip">
+            <div>
+              <Building2 size={18} />
+              <strong>{departments.length}</strong>
+              <span>Departments</span>
+            </div>
+            <div>
+              <CircleCheck size={18} />
+              <strong>
+                {
+                  departments.filter((d) =>
+                    metrics.some(
+                      (v) => v.department === d && v.state === "validated",
+                    ),
+                  ).length
+                }
+              </strong>
+              <span>Reporting ready</span>
+            </div>
+            <div>
+              <BriefcaseBusiness size={18} />
+              <strong>
+                {metrics.filter((v) => v.state === "validated").length}
+              </strong>
+              <span>Validated measures</span>
+            </div>
+            <div>
+              <CircleDashed size={18} />
+              <strong>{concerns.length}</strong>
+              <span>Needs attention</span>
+            </div>
+          </div>
+          <div className="department-directory-heading">
+            <div>
+              <span>COMPANY FUNCTIONS</span>
+              <h2 id="department-performance-title">Department performance</h2>
+              <p>Reporting coverage and validated measures by department.</p>
+            </div>
+          </div>
+          <div className="department-card-grid">
+            {departments
+              .filter(
+                (d) =>
+                  !m.query.get("scope") ||
+                  metrics.some((v) => v.department === d),
+              )
+              .map((d) => {
+                const ds = metrics.filter((v) => v.department === d),
+                  valid = ds.filter((v) => v.state === "validated"),
+                  issues = concerns.filter((c) => c.department === d),
+                  assignedPages = worksheets.filter(
+                    (worksheet) => worksheet.department === d,
+                  ),
+                  assignedSources = new Set(
+                    assignedPages.map((worksheet) => worksheet.sourceId),
+                  ).size;
+                return (
+                  <Link
+                    className={`department-card${valid.length ? " is-ready" : " is-empty"}`}
+                    key={d}
+                    to={m.link(
+                      `${root}/${encodeURIComponent(d)}?department=${encodeURIComponent(d)}`,
+                      m.origin,
+                    )}
+                  >
+                    <header>
+                      <span className="department-card-icon">
+                        <DepartmentIcon name={d} />
+                      </span>
+                      <div>
+                        <h3>{d}</h3>
+                        <small>
+                          {valid.length
+                            ? `${assignedSources} assigned ${assignedSources === 1 ? "source" : "sources"} · ${assignedPages.length} worksheet ${assignedPages.length === 1 ? "page" : "pages"} · ${valid.length} validated measures · ${issues.length} supported concerns`
+                            : assignedPages.length
+                              ? `${assignedSources} assigned ${assignedSources === 1 ? "source" : "sources"} · measures need review`
+                              : "No reporting source assigned"}
+                        </small>
+                      </div>
+                      <span
+                        className={`department-status ${issues.length ? "needs-attention" : valid.length ? "ready" : "unassessed"}`}
+                      >
+                        {issues.length
+                          ? "Needs attention"
+                          : valid.length
+                            ? ds.some((v) => v.state !== "validated")
+                              ? "Partial data"
+                              : "Validated data available"
+                            : "Not assessed"}
+                      </span>
+                    </header>
+                    {valid.length ? (
+                      <div className="department-card-metrics">
+                        {valid.slice(0, 2).map((metric) => (
+                          <div key={metric.scope + metric.metricId}>
+                            <span>{metric.name}</span>
+                            <strong>{displayMetric(metric, true)}</strong>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="department-card-empty">
+                        <CircleDashed size={20} />
+                        <span>Connect or assign a reporting source</span>
+                      </div>
+                    )}
+                    <footer>
+                      Open department <ArrowUpRight size={14} />
+                    </footer>
+                  </Link>
+                );
+              })}
+            {!departments.length && (
+              <Blank
+                title="No authorized departments"
+                text="An administrator can review your department assignments and business-data permissions."
+              />
+            )}
+          </div>
+        </section>
       )}
     </GovernedModule>
   );
+}
+
+function DepartmentIcon({ name }: { name: string }) {
+  const props = { size: 19, strokeWidth: 1.7, "aria-hidden": true } as const;
+  if (/finance|account|revenue/i.test(name))
+    return <BadgeDollarSign {...props} />;
+  if (/people|human|talent|hr/i.test(name)) return <Users {...props} />;
+  if (/market|brand|growth/i.test(name)) return <Megaphone {...props} />;
+  if (/operation|inventory|supply/i.test(name)) return <Boxes {...props} />;
+  return <BriefcaseBusiness {...props} />;
 }
