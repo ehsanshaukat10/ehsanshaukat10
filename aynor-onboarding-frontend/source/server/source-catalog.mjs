@@ -952,23 +952,14 @@ export function createSourceCatalog({
           let aiResult = {
             status: body.allowAi === true ? "not_needed" : "not_requested",
           };
-          const uncertain = candidates
-            .filter(
-              (c) =>
-                (!c.plan.department && departments.length > 0) ||
-                (!c.plan.properties.includes("money_in") &&
-                  c.plan.headers.some((h) =>
-                    /receipts|outflow|turnover|gross|net|amount|cost/i.test(h),
-                  ) &&
-                  c.plan.properties.some((p) =>
-                    ["number", "currency"].includes(p),
-                  )),
-            )
-            .slice(0, 4);
-          if (body.allowAi === true && uncertain.length)
+          // One consented pass covers the whole workbook batch. The model only
+          // receives labels and type summaries; local validation remains the
+          // authority for every saved value and mapping.
+          const aiCandidates = candidates.slice(0, 10);
+          if (body.allowAi === true && aiCandidates.length)
             aiResult = await ai.classify({
               company,
-              metadata: aiMetadata(uncertain, departments),
+              metadata: aiMetadata(aiCandidates, departments),
             });
           for (const candidate of candidates) {
             const { tab, values } = candidate;

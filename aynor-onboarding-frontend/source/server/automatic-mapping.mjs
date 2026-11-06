@@ -346,6 +346,7 @@ export function finalizePlan(values, proposal, departments) {
       ["money_in", "money_out"].includes(p) ? "currency" : p,
     ),
     automatic: true,
+    origin: plan.origin || "local",
   };
   // Full-data validation, not an AI confidence score, authorizes a saved import.
   const table = validateTable(values, config, columns);
@@ -551,9 +552,9 @@ export function mergeAiSuggestion(base, suggestion, values, departments) {
       )
     )
       return "text";
-    // Excluding user data or assigning financial roles requires a manual choice.
+    // Excluding user data requires a manual choice.
     if (property === "ignore") return base.properties[index];
-    return ["money_in", "money_out"].includes(property) ? "currency" : property;
+    return property;
   });
   // Preserve already validated, clearly named financial roles.
   base.properties.forEach((p, i) => {
@@ -586,23 +587,14 @@ export function mergeAiSuggestion(base, suggestion, values, departments) {
     ei >= 0 &&
     ri !== ei &&
     currencies.size <= 1 &&
-    result.properties[ri] === "currency" &&
-    result.properties[ei] === "currency" &&
+    result.properties[ri] === "money_in" &&
+    result.properties[ei] === "money_out" &&
     result.properties.filter((p) => p === "date").length === 1 &&
     !base.properties.includes("money_in") &&
     !result.questions.some((q) => q.kind === "financial")
-  ) {
-    result.questions.push({
-      id: "financial:ai",
-      kind: "financial",
-      revenueColumn: ri,
-      expenseColumn: ei,
-      message: `Use “${base.headers[ri]}” as revenue and “${base.headers[ei]}” as expenses? No payment filtering, tax adjustments or currency conversion will be applied.`,
-      choices: [
-        { value: "recorded", label: "Yes, use these recorded amounts" },
-        { value: "table", label: "Keep as ordinary values" },
-      ],
-    });
-  }
+  )
+    result.notes.push(
+      `AI matched “${base.headers[ri]}” to revenue and “${base.headers[ei]}” to operating expenses. Every source value still passed local type, date and currency validation.`,
+    );
   return finalizePlan(values, result, departments);
 }

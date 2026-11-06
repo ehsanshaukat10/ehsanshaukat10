@@ -38,6 +38,15 @@ const aliases = {
     "resource id",
     "campaign id",
     "sku",
+    "record",
+    "record no",
+    "record number",
+    "reference",
+    "reference no",
+    "reference number",
+    "emp id",
+    "staff id",
+    "item id",
   ],
   date: [
     "date",
@@ -49,7 +58,14 @@ const aliases = {
     "snapshot date",
   ],
   revenue: ["revenue", "recognized revenue", "sales revenue"],
-  expense: ["expenses", "operating expenses", "costs"],
+  expense: [
+    "expenses",
+    "expense",
+    "operating expenses",
+    "operating costs",
+    "costs",
+    "cost",
+  ],
   amount: ["amount", "deal value", "opportunity value"],
   outstanding_amount: [
     "outstanding amount",
@@ -67,10 +83,23 @@ const aliases = {
   due_date: ["due date", "deadline", "target date"],
   assigned_hours: ["assigned hours", "allocated hours", "scheduled hours"],
   available_hours: ["available hours", "capacity hours"],
-  spend: ["spend", "marketing spend", "campaign spend"],
-  leads: ["leads", "generated leads"],
+  spend: [
+    "spend",
+    "ad spend",
+    "advertising spend",
+    "marketing spend",
+    "campaign spend",
+  ],
+  leads: ["leads", "lead count", "generated leads", "leads generated"],
   qualified_leads: ["qualified leads", "marketing qualified leads"],
-  on_hand: ["on hand", "stock on hand", "quantity on hand"],
+  on_hand: [
+    "on hand",
+    "stock",
+    "stock level",
+    "stock on hand",
+    "quantity on hand",
+    "units on hand",
+  ],
   reorder_level: ["reorder level", "reorder point", "minimum stock"],
 };
 const numeric = new Set([
@@ -459,6 +488,23 @@ export function automaticallyConfirmSemantics(
               : entity === "campaign"
                 ? ["entity_id", "date", "spend", "leads"]
                 : ["entity_id", "date", "on_hand", "reorder_level"];
+  // A common finance export has one row per reporting date and no separate ID.
+  // A unique, complete validated date is a stable identity for that narrow
+  // shape; it must never be applied to other purposes or repeated dates.
+  if (
+    entity === "transaction" &&
+    !proposal.fields.entity_id &&
+    proposal.fields.date
+  ) {
+    const dateIndex = table.headers.indexOf(proposal.fields.date);
+    const dates = table.rows.map((row) => row[dateIndex]);
+    if (
+      dates.length &&
+      dates.every(validDate) &&
+      new Set(dates).size === dates.length
+    )
+      proposal.fields.entity_id = proposal.fields.date;
+  }
   if (required.some((field) => !proposal.fields[field])) return null;
   const idIndex = table.headers.indexOf(proposal.fields.entity_id);
   const ids = table.rows.map((row) => row[idIndex]);
@@ -495,10 +541,7 @@ export function automaticallyConfirmSemantics(
       : null
     : {
         kind: "snapshot",
-        asOf:
-          entity === "inventory"
-            ? dates[0]
-            : dateInTimezone(timezone, now),
+        asOf: entity === "inventory" ? dates[0] : dateInTimezone(timezone, now),
       };
   if (!period) return null;
   const statusValues = {};
@@ -540,6 +583,10 @@ export function automaticallyConfirmSemantics(
         label: title || proposal.purpose,
         entity,
         entityNamespace: `auto:${sourceId}:${tabId}`.slice(0, 80),
+        ...(entity === "transaction" &&
+        proposal.fields.entity_id === proposal.fields.date
+          ? { identityMode: "reporting_date" }
+          : {}),
         fields: proposal.fields,
         currency: needsCurrency ? proposal.currency : null,
         period,
