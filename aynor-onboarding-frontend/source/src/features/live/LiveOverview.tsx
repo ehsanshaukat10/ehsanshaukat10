@@ -6,7 +6,6 @@ import { Button, ErrorBox } from "../../components/ui";
 import type { Company } from "../../lib/api";
 import { useSheetStatus } from "./SheetsConnection";
 import { Panel } from "../intelligence/shared";
-import { OverviewSkeleton } from "./OverviewSkeleton";
 import { connectionsLink } from "./dashboard-navigation";
 import { useLocation } from "react-router-dom";
 import { GovernedOverview } from "./GovernedOverview";
@@ -102,7 +101,9 @@ export function LiveOverview({ company }: { company: Company }) {
           readOnly={!report?.authorization.canManageSources}
         />
       ) : busy ? (
-        <OverviewSkeleton />
+        <span className="sr-only" role="status">
+          Loading business overview…
+        </span>
       ) : (
         <Panel title="Reporting unavailable">{null}</Panel>
       )}

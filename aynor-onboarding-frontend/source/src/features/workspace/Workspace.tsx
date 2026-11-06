@@ -75,6 +75,17 @@ export function Workspace({
   intelligence?: boolean;
 }) {
   const location = useLocation();
+  const [activeRequests, setActiveRequests] = useState(0);
+  useEffect(() => {
+    const start = () => setActiveRequests((count) => count + 1);
+    const end = () => setActiveRequests((count) => Math.max(0, count - 1));
+    window.addEventListener("aynor:request-start", start);
+    window.addEventListener("aynor:request-end", end);
+    return () => {
+      window.removeEventListener("aynor:request-start", start);
+      window.removeEventListener("aynor:request-end", end);
+    };
+  }, []);
   const moduleName = location.pathname.split("/")[3];
   const shellPath = (path: string) => {
     const params = new URLSearchParams();
@@ -681,15 +692,19 @@ export function Workspace({
             </button>
           </div>
         </header>
-        {loading || (company?.id !== id && !error) ? (
-          <div className="workspace-loading">
-            <div className="workspace-loading-skeleton" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </div>
-            <span role="status">Loading workspace…</span>
+        {(loading || activeRequests > 0) && (
+          <div
+            className="workspace-request-progress"
+            role="progressbar"
+            aria-label="Updating workspace"
+          >
+            <i />
           </div>
+        )}
+        {loading || (company?.id !== id && !error) ? (
+          <span className="sr-only" role="status">
+            Loading workspace…
+          </span>
         ) : !company ? (
           <div className="workspace-content">
             <ErrorBox>{error}</ErrorBox>

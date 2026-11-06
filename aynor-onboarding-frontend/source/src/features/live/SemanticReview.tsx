@@ -8,6 +8,7 @@ import type {
   SemanticWorksheet,
   SemanticMapping,
 } from "./semantic-types";
+import { useApp } from "../../lib/context";
 const kinds = [
   ["finance:transaction", "Financial performance"],
   ["finance:invoice", "Outstanding invoices"],
@@ -69,6 +70,7 @@ export function SemanticReview({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const { toast } = useApp();
   const [sheet, setSheet] = useState<SemanticWorksheet | null>(null),
     [kind, setKind] = useState("other:other"),
     [label, setLabel] = useState(""),
@@ -219,7 +221,13 @@ export function SemanticReview({
         tabId,
         mapping,
       });
-      await onSaved();
+      toast(
+        included
+          ? "Business meanings confirmed and applied to reporting."
+          : "Worksheet excluded from executive reporting.",
+        "success",
+      );
+      await onSaved().catch(() => {});
       const applicable = result.metrics.filter(
         (metric) =>
           metric.lineage.sourceId === sourceId &&
@@ -238,9 +246,15 @@ export function SemanticReview({
               " ",
             ),
         );
+        toast(
+          "Business meanings were saved, but some measures still need review.",
+          "warning",
+        );
       } else onClose();
     } catch (e) {
-      setError((e as Error).message);
+      const message = (e as Error).message;
+      setError(message);
+      toast(message, "error");
     } finally {
       saving.current = false;
       setBusy(false);

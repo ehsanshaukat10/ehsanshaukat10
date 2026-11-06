@@ -5,7 +5,7 @@ export type AuthContext = {
   setUser: (u: User | null) => void;
   development: boolean;
   signedOut?: boolean;
-  toast: (s: string) => void;
+  toast: (s: string, tone?: "success" | "error" | "warning" | "info") => void;
 };
 export const Context = createContext<AuthContext>(null!);
 export const useApp = () => useContext(Context);

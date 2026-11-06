@@ -360,7 +360,9 @@ export function SourceWorkspace({
     try {
       await task();
     } catch (e) {
-      setError((e as Error).message);
+      const message = (e as Error).message;
+      setError(message);
+      toast(message, "error");
     } finally {
       setBusy("");
       onBusyChange?.(false);
@@ -1848,7 +1850,6 @@ export function SourceWorkspace({
             setMessage(
               "Business meanings saved. Overview shows only measures that pass validation.",
             );
-            toast("Business reporting saved successfully.");
             window.dispatchEvent(new Event("aynor:sheet-change"));
             window.dispatchEvent(
               new CustomEvent("aynor:source-synced", {

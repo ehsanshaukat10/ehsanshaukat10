@@ -18,31 +18,36 @@ export async function serverRequest<T = any>(
   headers: Record<string, string> = {},
   options: { signal?: AbortSignal } = {},
 ): Promise<T> {
-  const response = await fetch("/api" + path, {
-    method,
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json", ...headers },
-    signal: options.signal,
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
-  let result;
+  window.dispatchEvent(new Event("aynor:request-start"));
   try {
-    result = await response.json();
-  } catch {
-    throw Error(
-      "The API did not return JSON. Check the server and proxy configuration.",
-    );
+    const response = await fetch("/api" + path, {
+      method,
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", ...headers },
+      signal: options.signal,
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    let result;
+    try {
+      result = await response.json();
+    } catch {
+      throw Error(
+        "The API did not return JSON. Check the server and proxy configuration.",
+      );
+    }
+    if (!response.ok) {
+      if (
+        response.status === 401 &&
+        /session has expired/i.test(result.error || "")
+      )
+        window.dispatchEvent(new Event("session-expired"));
+      throw new ApiError(
+        result.error || `Request failed (${response.status}).`,
+        response.status,
+      );
+    }
+    return result;
+  } finally {
+    window.dispatchEvent(new Event("aynor:request-end"));
   }
-  if (!response.ok) {
-    if (
-      response.status === 401 &&
-      /session has expired/i.test(result.error || "")
-    )
-      window.dispatchEvent(new Event("session-expired"));
-    throw new ApiError(
-      result.error || `Request failed (${response.status}).`,
-      response.status,
-    );
-  }
-  return result;
 }

@@ -4,7 +4,7 @@ import { Home } from "./features/home/Home";
 import { Entry } from "./features/entry/Entry";
 import { ScreenGallery } from "./features/preview/ScreenGallery";
 import { PrototypeTools } from "./components/PrototypeTools";
-import { CheckCheck, X } from "lucide-react";
+import { CheckCheck, CircleAlert, CircleX, Info, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   Link,
@@ -43,7 +43,10 @@ export default function App() {
     [signedOut, setSignedOut] = useState(false),
     [ready, setReady] = useState(false),
     [development, setDevelopment] = useState(false),
-    [toast, setToast] = useState(""),
+    [toast, setToast] = useState<{
+      message: string;
+      tone: "success" | "error" | "warning" | "info";
+    } | null>(null),
     [error, setError] = useState("");
   const nav = useNavigate();
   useEffect(() => {
@@ -59,7 +62,10 @@ export default function App() {
       clearOverviewCache();
       setSignedOut(true);
       setUser(null);
-      setToast("Your session expired. Sign in to continue.");
+      setToast({
+        message: "Your session expired. Sign in to continue.",
+        tone: "warning",
+      });
       nav("/auth/login");
     };
     window.addEventListener("session-expired", expire);
@@ -90,7 +96,7 @@ export default function App() {
   }, []);
   useEffect(() => {
     if (toast) {
-      const t = setTimeout(() => setToast(""), 6000);
+      const t = setTimeout(() => setToast(null), 6000);
       return () => clearTimeout(t);
     }
   }, [toast]);
@@ -121,7 +127,7 @@ export default function App() {
         },
         signedOut,
         development,
-        toast: setToast,
+        toast: (message, tone = "success") => setToast({ message, tone }),
       }}
     >
       <Routes>
@@ -220,13 +226,25 @@ export default function App() {
 
       <PrototypeTools />
       {toast && (
-        <div className="toast" role="status">
-          <CheckCheck size={18} />
-          {toast}
+        <div
+          className="toast"
+          data-tone={toast.tone}
+          role={toast.tone === "error" ? "alert" : "status"}
+        >
+          {toast.tone === "success" ? (
+            <CheckCheck size={18} />
+          ) : toast.tone === "error" ? (
+            <CircleX size={18} />
+          ) : toast.tone === "warning" ? (
+            <CircleAlert size={18} />
+          ) : (
+            <Info size={18} />
+          )}
+          {toast.message}
           <button
             className="icon-button"
             aria-label="Dismiss notification"
-            onClick={() => setToast("")}
+            onClick={() => setToast(null)}
           >
             <X size={16} />
           </button>

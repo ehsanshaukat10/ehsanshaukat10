@@ -2939,6 +2939,29 @@ input::placeholder {
   color: #7c7488;
   flex-shrink: 0;
 }
+.toast[data-tone="success"] {
+  border-color: #b9ddc8;
+}
+.toast[data-tone="success"] > svg {
+  color: #23824c;
+}
+.toast[data-tone="warning"] {
+  border-color: #ead29a;
+  background: #fffdf6;
+}
+.toast[data-tone="warning"] > svg {
+  color: #a66b08;
+}
+.toast[data-tone="error"] {
+  border-color: #edb7b7;
+  background: #fffafa;
+}
+.toast[data-tone="error"] > svg {
+  color: #bc3f3f;
+}
+.toast[data-tone="info"] > svg {
+  color: var(--accent);
+}
 .toast > .icon-button {
   margin-left: auto;
 }
